@@ -340,8 +340,7 @@
                 </div>
             </div>
 
-            <div class="bg-darkbg-800 border border-slate-700/50 rounded-xl p-4 shadow-md space-y-3" id="panel-dynamic-right-zone">
-                </div>
+            <div class="bg-darkbg-800 border border-slate-700/50 rounded-xl p-4 shadow-md space-y-3" id="panel-dynamic-right-zone"></div>
         </section>
     </main>
 
@@ -506,11 +505,10 @@
     </div>
 
     <footer class="border-t border-slate-800 bg-slate-950 py-3 text-center text-[10px] text-slate-600 px-4">
-        <p>© 2026 全自訂雙核心複利控制台. 隱私加密設計，所有數據鎖死於本地沙盒。</p>
+        <p>© 2026 雙核心自訂控盤與雙恐慌監控控制台. 本工具完全於您裝置本地離線運算，絕不上傳任何個人資產數據。</p>
     </footer>
 
     <script>
-        // Downward compatible state architecture pattern
         let state = {
             strategy: '1.5x',
             strategyEnabled: true, 
@@ -523,7 +521,6 @@
             stage1: false,
             stage2: false,
             stage3: false,
-            // Customizable asset config templates
             asset_config: {
                 asset1: { name: "元大台灣50", ticker: "0050.TW", beta: 1.0 },
                 asset2: { name: "元大台灣50正2", ticker: "00631L.TW", beta: 2.0 },
@@ -577,7 +574,6 @@
             }
         }
 
-        // Configuration Modal Toggles
         function openConfigModal() {
             document.getElementById('modal-sys-config').classList.remove('hidden');
             document.getElementById('cfg-strategy-enabled').checked = state.strategyEnabled;
@@ -610,14 +606,15 @@
             closeConfigModal();
             saveDataToLocal();
             
-            // Dynamic hard reload network sequence
             calculate();
             fetchLatestPrices();
         }
 
-        // Heavy-duty failover cluster proxy fetching pipeline
+        // Heavy-duty failover cluster proxy fetching pipeline (Overloaded for structural stability)
         async function fetchTickerWithFallback(symbol) {
-            const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`;
+            // Cache-Busting: Inject dynamic epoch timestamp token to shatter server cache layers completely
+            const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d&_t=${Date.now()}`;
+            
             const proxies = [
                 `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
                 `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`,
@@ -631,17 +628,16 @@
                         let data = await response.json();
                         if (url.includes('allorigins')) data = JSON.parse(data.contents);
                         
-                        // Internal non-empty guard filters
                         if (data && data.chart && data.chart.result && data.chart.result[0]) {
                             let meta = data.chart.result[0].meta;
-                            if (meta && meta.regularMarketPrice !== undefined && meta.regularMarketPrice !== null) {
+                            if (meta && meta.regularMarketPrice !== undefined && meta.regularMarketPrice !== null && meta.regularMarketPrice > 0) {
                                 return meta.regularMarketPrice;
                             }
                         }
                     }
-                } catch (e) { console.log(`Bypassing failing node node channel...`); }
+                } catch (e) { console.log(`Bypassing proxy routing conflict node...`); }
             }
-            throw new Error("Cluster isolation fault");
+            throw new Error("Cluster fallback network isolation exception");
         }
 
         async function fetchLatestPrices() {
@@ -651,26 +647,27 @@
             txt.innerText = "連線更新中";
 
             try {
-                const p1 = await fetchTickerWithFallback(state.asset_config.asset1.ticker);
-                const p2 = await fetchTickerWithFallback(state.asset_config.asset2.ticker);
-                const p3 = await fetchTickerWithFallback(state.asset_config.asset3.ticker);
-                const vixVal = await fetchTickerWithFallback('%5EVIX'); 
-                const vixTwnVal = await fetchTickerWithFallback('%5EVIXTWN'); 
+                // Async dynamic promise pooling execution architecture
+                const [p1, p2, p3, vixVal, vixTwnVal] = await Promise.all([
+                    fetchTickerWithFallback(state.asset_config.asset1.ticker).catch(e => null),
+                    fetchTickerWithFallback(state.asset_config.asset2.ticker).catch(e => null),
+                    fetchTickerWithFallback(state.asset_config.asset3.ticker).catch(e => null),
+                    fetchTickerWithFallback('%5EVIX').catch(e => null),
+                    fetchTickerWithFallback('%5EVIXTWN').catch(e => null)
+                ]);
 
-                if (p1) document.getElementById('price-asset1').value = p1.toFixed(2);
-                if (p2) document.getElementById('price-asset2').value = p2.toFixed(2);
-                if (p3) document.getElementById('price-asset3').value = p3.toFixed(2);
-                if (vixVal) document.getElementById('vix-val').value = vixVal.toFixed(2);
-                
-                // VIXTWN weekend closed market check guard fallback protection
-                if (vixTwnVal !== null && vixTwnVal !== undefined) {
-                    document.getElementById('vixtwn-val').value = vixTwnVal.toFixed(2);
-                }
+                // Null-Guard: Strict validation barrier. Only replace if fetched tokens are fully valid and positive
+                if (p1 && p1 > 0) document.getElementById('price-asset1').value = p1.toFixed(2);
+                if (p2 && p2 > 0) document.getElementById('price-asset2').value = p2.toFixed(2);
+                if (p3 && p3 > 0) document.getElementById('price-asset3').value = p3.toFixed(2);
+                if (vixVal && vixVal > 0) document.getElementById('vix-val').value = vixVal.toFixed(2);
+                if (vixTwnVal && vixTwnVal > 0) document.getElementById('vixtwn-val').value = vixTwnVal.toFixed(2);
 
                 dot.className = "w-2 h-2 rounded-full bg-brand-500";
                 txt.innerText = "同步成功";
                 calculate();
             } catch (e) {
+                console.warn(e);
                 dot.className = "w-2 h-2 rounded-full bg-red-500";
                 txt.innerText = "使用本地快取報價";
             }
@@ -882,7 +879,6 @@
             return plAmount;
         }
 
-        // Global Timeline Parser Engine (Renders right block dynamically under pure mode)
         function renderGlobalTimelineZone() {
             let container = document.getElementById('panel-dynamic-right-zone');
             let allTxs = [];
@@ -898,7 +894,6 @@
                 });
             });
 
-            // Date sort descending order
             allTxs.sort((a, b) => new Date(b.date) - new Date(a.date) || b.id - a.id);
 
             let html = `
@@ -931,7 +926,6 @@
         }
 
         function calculate() {
-            // Reflect dynamic customized asset names into interface text tags
             ['asset1', 'asset2', 'asset3'].forEach(k => {
                 document.getElementById(`lbl-name-${k}`).innerText = state.asset_config[k].name;
                 document.getElementById(`title-market-${k}`).innerText = `${state.asset_config[k].name} 市價`;
@@ -973,7 +967,6 @@
             let totalCurrent = val1 + totalLeveragedCurrent + state.cash;
             let totalTarget = totalCurrent + state.injection;
 
-            // Global Account Net Worth Analytics
             let totalPortfolioInitialCost = asset1.totalCost + asset2.totalCost + asset3.totalCost;
             let currentPortfolioStocksMarketValue = val1 + totalLeveragedCurrent;
             let unreleasedTotalPlAmount = currentPortfolioStocksMarketValue - totalPortfolioInitialCost;
@@ -990,37 +983,33 @@
                 plStatElement.className = "text-base font-black mt-0.5 text-slate-400";
             }
 
-            // Matrix 加權矩陣 Beta 計算
             let w1_curr = totalCurrent > 0 ? (val1 / totalCurrent) : 0;
             let w2_curr = totalCurrent > 0 ? (val2 / totalCurrent) : 0;
             let w3_curr = totalCurrent > 0 ? (val3 / totalCurrent) : 0;
             let wc_curr = totalCurrent > 0 ? (state.cash / totalCurrent) : 0;
             
-            // Dynamic multiplication mapping matching customizable risk weights
             let currBeta = (w1_curr * state.asset_config.asset1.beta) + 
                            (w2_curr * state.asset_config.asset2.beta) + 
                            (w3_curr * state.asset_config.asset3.beta);
                            
-            let tgtBeta = (w1 * state.asset_config.asset1.beta) + 
-                          (w2 * (state.asset_config.asset2.beta * leverageRatio631l + state.asset_config.asset3.beta * leverageRatio685l)); // adjusted target allocation risk approximation
-
-            document.getElementById('stat-total-asset').innerText = `NT$ ${Math.round(totalTarget).toLocaleString()}`;
-            document.getElementById('stat-curr-beta').innerText = currBeta.toFixed(2);
-            document.getElementById('stat-tgt-beta').innerText = tgtBeta.toFixed(2);
-
-            // Conditional Right Panel Rendering Controller
-            if (!state.strategyEnabled) {
-                renderGlobalTimelineZone();
-                updateCharts(w1_curr, w2_curr + w3_curr, wc_curr, w1_curr, w2_curr + w3_curr, wc_curr); // Under pure mode target strictly shadows current distribution ratio
-                return;
-            }
-
-            // Normal Rebalancing calculation logic continues here
             let leverageRatio631l = 0.5;
             if (totalLeveragedCurrent > 0) {
                 leverageRatio631l = val2 / totalLeveragedCurrent;
             }
             let leverageRatio685l = 1 - leverageRatio631l;
+
+            let tgtBeta = (w1 * state.asset_config.asset1.beta) + 
+                          (w2 * (state.asset_config.asset2.beta * leverageRatio631l + state.asset_config.asset3.beta * leverageRatio685l));
+
+            document.getElementById('stat-total-asset').innerText = `NT$ ${Math.round(totalTarget).toLocaleString()}`;
+            document.getElementById('stat-curr-beta').innerText = currBeta.toFixed(2);
+            document.getElementById('stat-tgt-beta').innerText = tgtBeta.toFixed(2);
+
+            if (!state.strategyEnabled) {
+                renderGlobalTimelineZone();
+                updateCharts(w1_curr, w2_curr + w3_curr, wc_curr, w1_curr, w2_curr + w3_curr, wc_curr); 
+                return;
+            }
 
             let targetVal1 = totalTarget * w1;
             let targetValLeveragedTotal = totalTarget * w2;
@@ -1090,7 +1079,6 @@
             
             rightZoneContainer.innerHTML = innerStepsHtml;
             
-            // Re-render sub components parameters matching strategy mode
             document.getElementById('trade-mode-badge').innerText = state.injection > 0 ? "新資金補位調配" : "等額部位挪移";
             updateCharts(w1_curr, w2_curr + w3_curr, wc_curr, w1, w2, wc);
         }
@@ -1109,14 +1097,12 @@
         function loadSavedData() {
             const local = localStorage.getItem('ark_rebalancer_v3_fully_customized');
             if (!local) {
-                // Pre-trigger standard UI setup layout defaults on pristine state load
                 toggleStrategyUiState(state.strategyEnabled);
                 return;
             }
             try {
                 const parsed = JSON.parse(local);
                 
-                // Active down-migration state sync guards 
                 if (parsed.tx_asset1) state.tx_asset1 = parsed.tx_asset1;
                 if (parsed.tx_asset2) state.tx_asset2 = parsed.tx_asset2;
                 if (parsed.tx_asset3) state.tx_asset3 = parsed.tx_asset3;
@@ -1141,7 +1127,7 @@
                 const radios = document.getElementsByName('strategy');
                 radios.forEach(r => r.checked = (r.value === state.strategy));
                 selectStrategy(state.strategy);
-            } catch(e) { console.error("Persistence layer sync error, safe fallback activated", e); }
+            } catch(e) { console.error("Persistence decoding error fallback preloaded", e); }
         }
 
         function exportData() {
