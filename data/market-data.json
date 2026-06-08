@@ -1,0 +1,17 @@
+{
+  "generatedAt": "2026-06-08T16:22:00.000Z",
+  "source": {
+    "quotes": "TWSE STOCK_DAY",
+    "vix": "Yahoo Finance chart",
+    "vixtwn": "TAIFEX getVixData"
+  },
+  "quotes": {
+    "0050.TW": 100.95,
+    "00631L.TW": 33.8,
+    "00685L.TW": 266.85
+  },
+  "fear": {
+    "vix": null,
+    "vixtwn": 42.43
+  }
+}

@@ -105,6 +105,13 @@
                             <span class="text-slate-400 block mt-0.5">配方：65% 槓桿正二區塊 + 35% 純現金防禦緩衝</span>
                         </div>
                     </label>
+                    <label class="flex p-3 rounded-xl border border-slate-700 bg-darkbg-900/40 cursor-pointer hover:border-brand-500/50 transition-all select-none text-xs">
+                        <input type="radio" name="strategy" value="normal-pl" onchange="selectStrategy('normal-pl')" class="mt-0.5 text-brand-500 focus:ring-brand-500 bg-darkbg-900">
+                        <div class="ml-2.5">
+                            <span class="font-bold text-white block text-sm">普通模式｜只看盈虧</span>
+                            <span class="text-slate-400 block mt-0.5">不做再平衡精算，只保留持股、市價與未實現損益觀測</span>
+                        </div>
+                    </label>
                 </div>
                 <div id="pure-ledger-alert" class="hidden mt-2 p-2.5 bg-purple-950/40 border border-purple-800/30 text-purple-300 rounded-lg text-center text-xs font-medium">
                     ❌ 目前已關閉再平衡策略（切換為純資產記帳與恐慌監控）
@@ -450,7 +457,7 @@
                             <input type="text" id="cfg-name-asset1" class="w-full p-1.5 bg-darkbg-800 border border-slate-700 rounded text-white font-bold">
                         </div>
                         <div>
-                            <label class="block text-[10px] text-slate-400 mb-1">Yahoo完整代號</label>
+                            <label class="block text-[10px] text-slate-400 mb-1">股票代號 / Yahoo代號</label>
                             <input type="text" id="cfg-ticker-asset1" class="w-full p-1.5 bg-darkbg-800 border border-slate-700 rounded text-white font-mono font-bold">
                         </div>
                         <div>
@@ -468,7 +475,7 @@
                             <input type="text" id="cfg-name-asset2" class="w-full p-1.5 bg-darkbg-800 border border-slate-700 rounded text-white font-bold">
                         </div>
                         <div>
-                            <label class="block text-[10px] text-slate-400 mb-1">Yahoo完整代號</label>
+                            <label class="block text-[10px] text-slate-400 mb-1">股票代號 / Yahoo代號</label>
                             <input type="text" id="cfg-ticker-asset2" class="w-full p-1.5 bg-darkbg-800 border border-slate-700 rounded text-white font-mono font-bold">
                         </div>
                         <div>
@@ -486,7 +493,7 @@
                             <input type="text" id="cfg-name-asset3" class="w-full p-1.5 bg-darkbg-800 border border-slate-700 rounded text-white font-bold">
                         </div>
                         <div>
-                            <label class="block text-[10px] text-slate-400 mb-1">Yahoo完整代號</label>
+                            <label class="block text-[10px] text-slate-400 mb-1">股票代號 / Yahoo代號</label>
                             <input type="text" id="cfg-ticker-asset3" class="w-full p-1.5 bg-darkbg-800 border border-slate-700 rounded text-white font-mono font-bold">
                         </div>
                         <div>
@@ -547,15 +554,22 @@
 
         function selectStrategy(strategyType) {
             state.strategy = strategyType;
-            if (strategyType === '1.5x') { w1 = 0.50; w2 = 0.50; wc = 0.00; }
-            else if (strategyType === '1.3x-classic') { w1 = 0.70; w2 = 0.30; wc = 0.00; }
-            else if (strategyType === '1.3x-cash') { w1 = 0.00; w2 = 0.65; wc = 0.35; }
+            if (strategyType === 'normal-pl') {
+                state.strategyEnabled = false;
+            } else {
+                state.strategyEnabled = true;
+                if (strategyType === '1.5x') { w1 = 0.50; w2 = 0.50; wc = 0.00; }
+                else if (strategyType === '1.3x-classic') { w1 = 0.70; w2 = 0.30; wc = 0.00; }
+                else if (strategyType === '1.3x-cash') { w1 = 0.00; w2 = 0.65; wc = 0.35; }
+            }
+            toggleStrategyUiState(state.strategyEnabled);
             saveDataToLocal();
             calculate();
         }
 
         function toggleStrategyUiState(enabled) {
             state.strategyEnabled = enabled;
+            const isNormalMode = state.strategy === 'normal-pl';
             let optionsContainer = document.getElementById('strategy-options-container');
             let alertContainer = document.getElementById('pure-ledger-alert');
             let panelInjection = document.getElementById('panel-injection-container');
@@ -566,9 +580,16 @@
                 alertContainer.classList.add('hidden');
                 panelInjection.classList.remove('opacity-40', 'pointer-events-none');
                 tgtChartTitle.innerText = "目標期待分布";
+            } else if (isNormalMode) {
+                optionsContainer.classList.remove('opacity-40', 'pointer-events-none');
+                alertContainer.classList.remove('hidden');
+                alertContainer.innerText = "普通模式：只看盈虧，已停用加碼參數與再平衡精算。";
+                panelInjection.classList.add('opacity-40', 'pointer-events-none');
+                tgtChartTitle.innerText = "持股真實權重";
             } else {
                 optionsContainer.classList.add('opacity-40', 'pointer-events-none');
                 alertContainer.classList.remove('hidden');
+                alertContainer.innerText = "❌ 目前已關閉再平衡策略（切換為純資產記帳與恐慌監控）";
                 panelInjection.classList.add('opacity-40', 'pointer-events-none');
                 tgtChartTitle.innerText = "持股真實權重";
             }
@@ -594,12 +615,13 @@
             
             ['asset1', 'asset2', 'asset3'].forEach(k => {
                 let nameVal = document.getElementById(`cfg-name-${k}`).value.trim();
-                let tickerVal = document.getElementById(`cfg-ticker-${k}`).value.trim().toUpperCase();
+                let tickerVal = normalizeTicker(document.getElementById(`cfg-ticker-${k}`).value);
                 let betaVal = parseFloat(document.getElementById(`cfg-beta-${k}`).value) || 0;
 
                 state.asset_config[k].name = nameVal || state.asset_config[k].name;
                 state.asset_config[k].ticker = tickerVal || state.asset_config[k].ticker;
                 state.asset_config[k].beta = betaVal;
+                document.getElementById(`cfg-ticker-${k}`).value = state.asset_config[k].ticker;
             });
 
             toggleStrategyUiState(state.strategyEnabled);
@@ -610,34 +632,198 @@
             fetchLatestPrices();
         }
 
-        // Heavy-duty failover cluster proxy fetching pipeline (Overloaded for structural stability)
-        async function fetchTickerWithFallback(symbol) {
-            // Cache-Busting: Inject dynamic epoch timestamp token to shatter server cache layers completely
-            const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d&_t=${Date.now()}`;
-            
+        function normalizeTicker(rawTicker) {
+            const raw = (rawTicker || '').trim().toUpperCase();
+            if (!raw) return '';
+            if (/^\d{4,6}[A-Z]?$/.test(raw)) return `${raw}.TW`;
+            return raw;
+        }
+
+        function isTaiwanTicker(ticker) {
+            return /^\d{4,6}[A-Z]?\.(TW|TWO)$/.test(ticker);
+        }
+
+        function getTwseMonthlyDateKeys() {
+            const now = new Date();
+            const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            return [currentMonth, previousMonth].map(d => {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                return `${year}${month}01`;
+            });
+        }
+
+        function parseQuoteNumber(value) {
+            if (value === undefined || value === null) return null;
+            const parsed = parseFloat(String(value).replace(/,/g, ''));
+            return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+        }
+
+        function applyMarketDataPayload(payload) {
+            if (!payload) return [];
+            const updatedItems = [];
+            const quoteMap = payload.quotes || {};
+
+            ['asset1', 'asset2', 'asset3'].forEach((key, index) => {
+                const ticker = normalizeTicker(state.asset_config[key].ticker);
+                const price = parseQuoteNumber(quoteMap[ticker]);
+                if (!price) return;
+                document.getElementById(`price-asset${index + 1}`).value = price.toFixed(2);
+                updatedItems.push(key);
+            });
+
+            const vix = parseQuoteNumber(payload.fear?.vix);
+            const vixtwn = parseQuoteNumber(payload.fear?.vixtwn);
+            if (vix) {
+                document.getElementById('vix-val').value = vix.toFixed(2);
+                updatedItems.push('vix');
+            }
+            if (vixtwn) {
+                document.getElementById('vixtwn-val').value = vixtwn.toFixed(2);
+                updatedItems.push('vixtwn');
+            }
+
+            if (updatedItems.length > 0) calculate();
+            return updatedItems;
+        }
+
+        async function fetchCachedMarketData() {
+            try {
+                const response = await fetchWithTimeout(`data/market-data.json?_=${Date.now()}`, 1800);
+                if (!response.ok) return [];
+                const payload = await response.json();
+                return applyMarketDataPayload(payload);
+            } catch (e) {
+                return [];
+            }
+        }
+
+        async function fetchWithTimeout(url, timeoutMs = 5000, options = {}) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                return await fetch(url, { ...options, signal: controller.signal, cache: 'no-store' });
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
+        async function fetchTaiwanStockQuotes(tickers) {
+            const normalizedTickers = tickers.map(normalizeTicker);
+            const quotes = {};
+            const listedTickers = normalizedTickers.filter(ticker => /^\d{4,6}[A-Z]?\.TW$/.test(ticker));
+            const dateKeys = getTwseMonthlyDateKeys();
+
+            await Promise.all(listedTickers.map(async ticker => {
+                const code = ticker.split('.')[0];
+                for (let dateKey of dateKeys) {
+                    try {
+                        const url = `https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?response=json&date=${dateKey}&stockNo=${code}&_=${Date.now()}`;
+                        const response = await fetchWithTimeout(url, 4500);
+                        if (!response.ok) continue;
+                        const data = await response.json();
+                        if (data.stat !== 'OK' || !Array.isArray(data.data) || data.data.length === 0) continue;
+                        const closeIndex = data.fields.indexOf('收盤價');
+                        if (closeIndex < 0) continue;
+                        const latestRow = [...data.data].reverse().find(row => parseQuoteNumber(row[closeIndex]));
+                        const price = latestRow ? parseQuoteNumber(latestRow[closeIndex]) : null;
+                        if (price) {
+                            quotes[ticker] = price;
+                            break;
+                        }
+                    } catch (e) {
+                        console.debug('TWSE monthly quote failed.', e);
+                    }
+                }
+            }));
+
+            return quotes;
+        }
+
+        async function fetchYahooTickerWithFallback(symbol) {
+            const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d&_t=${Date.now()}`;
             const proxies = [
-                `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
                 `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`,
                 `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(targetUrl)}`
             ];
 
             for (let url of proxies) {
                 try {
-                    const response = await fetch(url);
-                    if (response.ok) {
-                        let data = await response.json();
-                        if (url.includes('allorigins')) data = JSON.parse(data.contents);
-                        
-                        if (data && data.chart && data.chart.result && data.chart.result[0]) {
-                            let meta = data.chart.result[0].meta;
-                            if (meta && meta.regularMarketPrice !== undefined && meta.regularMarketPrice !== null && meta.regularMarketPrice > 0) {
-                                return meta.regularMarketPrice;
-                            }
-                        }
-                    }
-                } catch (e) { console.log(`Bypassing proxy routing conflict node...`); }
+                    const response = await fetchWithTimeout(url, 2500);
+                    if (!response.ok) continue;
+                    let data = await response.json();
+                    if (url.includes('allorigins')) data = JSON.parse(data.contents);
+                    const meta = data?.chart?.result?.[0]?.meta;
+                    const price = parseQuoteNumber(meta?.regularMarketPrice);
+                    if (price) return price;
+                } catch (e) {
+                    console.debug('Yahoo quote proxy failed.', e);
+                }
             }
-            throw new Error("Cluster fallback network isolation exception");
+            return null;
+        }
+
+        async function fetchLatestVix() {
+            return fetchYahooTickerWithFallback('^VIX');
+        }
+
+        function parseTaifexVixText(text) {
+            const matches = [...text.matchAll(/\b\d{8}\b\s+\d{6,8}\s+([0-9]+(?:\.[0-9]+)?)/g)];
+            if (matches.length === 0) return null;
+            return parseQuoteNumber(matches[matches.length - 1][1]);
+        }
+
+        async function fetchTaiwanVix() {
+            const dateCandidates = [
+                new Date(),
+                new Date(Date.now() - 24 * 60 * 60 * 1000),
+                new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+                new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+            ].map(d => d.toISOString().slice(0, 10).replace(/-/g, ''));
+
+            for (let dateKey of dateCandidates) {
+                const directUrl = `https://www.taifex.com.tw/cht/7/getVixData?filesname=${dateKey}`;
+                const urls = [
+                    directUrl,
+                    `https://api.allorigins.win/raw?url=${encodeURIComponent(directUrl)}`
+                ];
+
+                for (let url of urls) {
+                    try {
+                        const response = await fetchWithTimeout(url, 1200);
+                        if (!response.ok) continue;
+                        const text = await response.text();
+                        const value = parseTaifexVixText(text);
+                        if (value) return value;
+                    } catch (e) {
+                        console.debug('TAIFEX VIX fetch failed.', e);
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        async function refreshFearIndexesInBackground() {
+            const [vixVal, vixTwnVal] = await Promise.all([
+                fetchLatestVix().catch(e => null),
+                fetchTaiwanVix().catch(e => null)
+            ]);
+
+            let updated = false;
+            if (vixVal && vixVal > 0) {
+                document.getElementById('vix-val').value = vixVal.toFixed(2);
+                updated = true;
+            }
+            if (vixTwnVal && vixTwnVal > 0) {
+                document.getElementById('vixtwn-val').value = vixTwnVal.toFixed(2);
+                updated = true;
+            }
+            if (updated) {
+                updateFearIndex();
+                saveDataToLocal();
+            }
         }
 
         async function fetchLatestPrices() {
@@ -646,31 +832,49 @@
             dot.className = "w-2 h-2 rounded-full bg-yellow-500 animate-pulse";
             txt.innerText = "連線更新中";
 
-            try {
-                // Async dynamic promise pooling execution architecture
-                const [p1, p2, p3, vixVal, vixTwnVal] = await Promise.all([
-                    fetchTickerWithFallback(state.asset_config.asset1.ticker).catch(e => null),
-                    fetchTickerWithFallback(state.asset_config.asset2.ticker).catch(e => null),
-                    fetchTickerWithFallback(state.asset_config.asset3.ticker).catch(e => null),
-                    fetchTickerWithFallback('%5EVIX').catch(e => null),
-                    fetchTickerWithFallback('%5EVIXTWN').catch(e => null)
-                ]);
+            const tickers = ['asset1', 'asset2', 'asset3'].map(k => normalizeTicker(state.asset_config[k].ticker));
+            ['asset1', 'asset2', 'asset3'].forEach((k, index) => state.asset_config[k].ticker = tickers[index]);
 
-                // Null-Guard: Strict validation barrier. Only replace if fetched tokens are fully valid and positive
-                if (p1 && p1 > 0) document.getElementById('price-asset1').value = p1.toFixed(2);
-                if (p2 && p2 > 0) document.getElementById('price-asset2').value = p2.toFixed(2);
-                if (p3 && p3 > 0) document.getElementById('price-asset3').value = p3.toFixed(2);
-                if (vixVal && vixVal > 0) document.getElementById('vix-val').value = vixVal.toFixed(2);
-                if (vixTwnVal && vixTwnVal > 0) document.getElementById('vixtwn-val').value = vixTwnVal.toFixed(2);
+            const cachedUpdatedItems = await fetchCachedMarketData();
 
+            const taiwanQuotesPromise = fetchTaiwanStockQuotes(tickers).catch(e => {
+                console.debug('Taiwan quote batch failed.', e);
+                return {};
+            });
+
+            const nonTaiwanQuotePromises = tickers.map(ticker => {
+                if (/^\d{4,6}[A-Z]?\.TW$/.test(ticker)) return Promise.resolve(null);
+                return fetchYahooTickerWithFallback(ticker).catch(e => null);
+            });
+
+            const [taiwanQuotes, nonTaiwanQuotes] = await Promise.all([
+                taiwanQuotesPromise,
+                Promise.all(nonTaiwanQuotePromises)
+            ]);
+
+            const prices = tickers.map((ticker, index) => taiwanQuotes[ticker] || nonTaiwanQuotes[index]);
+            const updatedItems = [];
+
+            prices.forEach((price, index) => {
+                if (!price || price <= 0) return;
+                document.getElementById(`price-asset${index + 1}`).value = price.toFixed(2);
+                updatedItems.push(`asset${index + 1}`);
+            });
+
+            calculate();
+
+            if (updatedItems.length > 0) {
                 dot.className = "w-2 h-2 rounded-full bg-brand-500";
-                txt.innerText = "同步成功";
-                calculate();
-            } catch (e) {
-                console.warn(e);
+                txt.innerText = updatedItems.length >= 3 ? "股價同步成功" : `已更新 ${updatedItems.length} 項`;
+            } else if (cachedUpdatedItems.length > 0) {
+                dot.className = "w-2 h-2 rounded-full bg-brand-500";
+                txt.innerText = "使用行情快取";
+            } else {
                 dot.className = "w-2 h-2 rounded-full bg-red-500";
                 txt.innerText = "使用本地快取報價";
             }
+
+            refreshFearIndexesInBackground();
         }
 
         function calculateTaiwanStockFee(price, shares, discount) {
@@ -1163,7 +1367,11 @@
             txt += `----------------------------------\n`;
             
             if(!state.strategyEnabled) {
-                txt += `目前處於「純資產記帳監控模式」，無推薦再平衡步驟。\n`;
+                if (state.strategy === 'normal-pl') {
+                    txt += `目前處於「普通盈虧觀測模式」，只看持股盈虧，無推薦再平衡步驟。\n`;
+                } else {
+                    txt += `目前處於「純資產記帳監控模式」，無推薦再平衡步驟。\n`;
+                }
             } else {
                 const steps = document.querySelectorAll('#action-steps-inner-container > div');
                 steps.forEach((s, idx) => { txt += `步驟[${idx+1}]: ${s.innerText.replace(/\n/g, ' ')}\n`; });
