@@ -744,16 +744,16 @@
         async function fetchYahooTickerWithFallback(symbol) {
             const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d&_t=${Date.now()}`;
             const proxies = [
-                `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`,
-                `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(targetUrl)}`
+                { url: `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`, wrapped: true },
+                { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`, wrapped: false }
             ];
 
-            for (let url of proxies) {
+            for (let proxy of proxies) {
                 try {
-                    const response = await fetchWithTimeout(url, 2500);
+                    const response = await fetchWithTimeout(proxy.url, 6000);
                     if (!response.ok) continue;
                     let data = await response.json();
-                    if (url.includes('allorigins')) data = JSON.parse(data.contents);
+                    if (proxy.wrapped) data = JSON.parse(data.contents);
                     const meta = data?.chart?.result?.[0]?.meta;
                     const price = parseQuoteNumber(meta?.regularMarketPrice);
                     if (price) return price;
@@ -791,7 +791,7 @@
 
                 for (let url of urls) {
                     try {
-                        const response = await fetchWithTimeout(url, 1200);
+                        const response = await fetchWithTimeout(url, 5000);
                         if (!response.ok) continue;
                         const text = await response.text();
                         const value = parseTaifexVixText(text);

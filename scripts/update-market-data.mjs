@@ -16,7 +16,7 @@ async function fetchWithTimeout(url, timeoutMs = 10000) {
     return await fetch(url, {
       signal: controller.signal,
       headers: {
-        'user-agent': 'stock-dashboard-market-cache/1.0'
+        'user-agent': 'Mozilla/5.0 (compatible; stock-dashboard-market-cache/1.0)'
       }
     });
   } finally {
