@@ -825,7 +825,25 @@
                 saveDataToLocal();
             }
         }
-
+async function fetchPriceViaGAS(ticker) {
+            if (!ticker) return null;
+            const GAS_URL = "https://script.google.com/macros/s/AKfycbyzU-Un8WEbj8-rM3i710nTaW_wlSvl91YBzi_1xGfRBp6jlXUk-NBHli5cMZWpv32A/exec";
+            try {
+                const url = `${GAS_URL}?stockNo=${ticker}`;
+                const response = await fetchWithTimeout(url, 5000);
+                if (!response.ok) return null;
+                const data = await response.json();
+                
+                if (data.error || !data.chart || !data.chart.result || data.chart.result.length === 0) {
+                    return null;
+                }
+                const price = data.chart.result[0].meta.regularMarketPrice;
+                return parseQuoteNumber(price);
+            } catch (e) {
+                console.debug(`GAS fetch failed for ${ticker}.`, e);
+                return null;
+            }
+        }
         async function fetchLatestPrices() {
             const dot = document.getElementById('api-status-dot');
             const txt = document.getElementById('api-status-text');
@@ -837,22 +855,9 @@
 
             const cachedUpdatedItems = await fetchCachedMarketData();
 
-            const taiwanQuotesPromise = fetchTaiwanStockQuotes(tickers).catch(e => {
-                console.debug('Taiwan quote batch failed.', e);
-                return {};
-            });
+            const pricePromises = tickers.map(ticker => fetchPriceViaGAS(ticker));
+            const prices = await Promise.all(pricePromises);
 
-            const nonTaiwanQuotePromises = tickers.map(ticker => {
-                if (/^\d{4,6}[A-Z]?\.TW$/.test(ticker)) return Promise.resolve(null);
-                return fetchYahooTickerWithFallback(ticker).catch(e => null);
-            });
-
-            const [taiwanQuotes, nonTaiwanQuotes] = await Promise.all([
-                taiwanQuotesPromise,
-                Promise.all(nonTaiwanQuotePromises)
-            ]);
-
-            const prices = tickers.map((ticker, index) => taiwanQuotes[ticker] || nonTaiwanQuotes[index]);
             const updatedItems = [];
 
             prices.forEach((price, index) => {
