@@ -30,7 +30,6 @@
         body { font-family: 'Noto Sans TC', sans-serif; -webkit-tap-highlight-color: transparent; }
         .safe-pt { padding-top: max(0.75rem, env(safe-area-inset-top)); }
         .safe-pb { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
-        /* 隱藏原生數字輸入框的上下箭頭 */
         input[type="number"]::-webkit-inner-spin-button, 
         input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
@@ -46,7 +45,7 @@
                     </svg>
                 </div>
                 <div>
-                    <h1 class="text-lg font-bold text-white tracking-wide">自訂控盤與雙恐慌監控控制台 <span class="text-brand-500 text-sm">V4</span></h1>
+                    <h1 class="text-lg font-bold text-white tracking-wide">自訂控盤控制台 <span class="text-brand-500 text-sm">V4</span></h1>
                     <p class="text-[11px] text-slate-400">本地離線儲存 📱 支援動態全自由配置</p>
                 </div>
             </div>
@@ -55,6 +54,7 @@
                 <div class="flex items-center gap-1.5 bg-darkbg-800 px-2.5 py-1.5 rounded-lg border border-slate-700/50">
                     <span class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" id="api-status-dot"></span>
                     <span id="api-status-text" class="text-slate-400 text-[11px]">通道連接中</span>
+                    <span id="global-update-time" class="text-brand-400 text-[10px] ml-1 font-bold"></span>
                 </div>
                 <div class="flex gap-1">
                     <button onclick="fetchLatestPrices()" class="bg-brand-600 hover:bg-brand-500 text-white px-2.5 py-1.5 rounded-lg font-medium transition-all active:scale-95">更新數據</button>
@@ -90,8 +90,7 @@
                 </div>
                 
                 <div id="dynamic-assets-container" class="space-y-3">
-                    <!-- JS 動態卡片渲染區塊將在此生成 -->
-                </div>
+                    </div>
 
                 <hr class="border-slate-700/50">
 
@@ -123,85 +122,33 @@
                     </div>
                 </div>
             </div>
+            
+            <div class="bg-darkbg-800 border border-slate-700/50 rounded-xl p-4 shadow-md space-y-3">
+                <h2 class="text-sm font-bold text-slate-300 flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    防禦與策略設定
+                </h2>
+                <div class="text-xs space-y-2 mt-2">
+                    <div class="flex items-center justify-between gap-4">
+                        <span class="text-slate-300 font-medium">自訂防禦現金預留 (%)</span>
+                        <input type="number" id="defense-weight" value="0" step="0.1" oninput="calculate()" class="w-32 px-2.5 py-1.5 bg-darkbg-900 border border-slate-700 rounded-lg font-bold text-right text-brand-400 focus:border-brand-500 focus:outline-none transition-all">
+                    </div>
+                    <div class="flex items-center justify-between gap-4">
+                        <span class="text-slate-300 font-medium">失衡紅燈觸發閥值 (%)</span>
+                        <input type="number" id="imbalance-threshold" value="5" step="0.1" oninput="calculate()" class="w-32 px-2.5 py-1.5 bg-darkbg-900 border border-slate-700 rounded-lg font-bold text-right text-red-400 focus:border-red-500 focus:outline-none transition-all">
+                    </div>
+                    <div class="flex items-center justify-between gap-4">
+                        <span class="text-slate-300 font-medium">不賣股，單純買入平衡</span>
+                        <input type="checkbox" id="inflow-only" onchange="calculate()" class="w-4 h-4 text-brand-500 bg-darkbg-900 border-slate-700 rounded focus:ring-brand-500">
+                    </div>
+                </div>
+            </div>
         </section>
 
         <section class="lg:col-span-7 space-y-4">
             
-            <div class="bg-darkbg-800 border border-slate-700/50 rounded-xl p-4 shadow-md space-y-4">
-                <h2 class="text-sm font-bold text-slate-300 flex items-center gap-1.5">
-                    <svg class="w-4 h-4 text-red-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                    </svg>
-                    美股 / 台股雙恐慌指數監控儀表板
-                </h2>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="bg-darkbg-900/60 border border-slate-700/60 rounded-xl p-3.5 flex flex-col items-center relative transition-all" id="vix-card">
-                        <span class="text-[11px] font-bold text-slate-400">美股波動率指數 (VIX)</span>
-                        
-                        <div class="w-28 h-16 mt-2 relative">
-                            <svg class="w-full h-full" viewBox="0 0 100 50">
-                                <path d="M 10 45 A 40 40 0 0 1 90 45" fill="none" stroke="#334155" stroke-width="8" stroke-linecap="round"/>
-                                <path id="vix-gauge-arc" d="M 10 45 A 40 40 0 0 1 90 45" fill="none" stroke="#22c55e" stroke-width="8" stroke-linecap="round" stroke-dasharray="125.6" stroke-dashoffset="125.6" class="transition-all duration-700 ease-out"/>
-                            </svg>
-                            <div class="absolute inset-x-0 bottom-0 text-center">
-                                <input type="number" id="vix-val" value="14.50" step="0.1" oninput="updateFearIndex()" class="bg-transparent text-lg font-black text-white text-center w-20 focus:outline-none focus:border-b focus:border-brand-500">
-                            </div>
-                        </div>
-
-                        <div class="text-center mt-2.5">
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold" id="vix-status-badge">正常區間</span>
-                            <p class="text-[11px] text-slate-300 mt-1.5 leading-relaxed" id="vix-advice">情緒平穩</p>
-                        </div>
-                    </div>
-
-                    <div class="bg-darkbg-900/60 border border-slate-700/60 rounded-xl p-3.5 flex flex-col items-center relative transition-all" id="vixtwn-card">
-                        <span class="text-[11px] font-bold text-slate-400">台股波動率指數 (VIXTWN)</span>
-                        
-                        <div class="w-28 h-16 mt-2 relative">
-                            <svg class="w-full h-full" viewBox="0 0 100 50">
-                                <path d="M 10 45 A 40 40 0 0 1 90 45" fill="none" stroke="#334155" stroke-width="8" stroke-linecap="round"/>
-                                <path id="vixtwn-gauge-arc" d="M 10 45 A 40 40 0 0 1 90 45" fill="none" stroke="#22c55e" stroke-width="8" stroke-linecap="round" stroke-dasharray="125.6" stroke-dashoffset="125.6" class="transition-all duration-700 ease-out"/>
-                            </svg>
-                            <div class="absolute inset-x-0 bottom-0 text-center">
-                                <input type="number" id="vixtwn-val" value="16.80" step="0.1" oninput="updateFearIndex()" class="bg-transparent text-lg font-black text-white text-center w-20 focus:outline-none focus:border-b focus:border-brand-500">
-                            </div>
-                        </div>
-
-                        <div class="text-center mt-2.5">
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold" id="vixtwn-status-badge">正常區間</span>
-                            <p class="text-[11px] text-slate-300 mt-1.5 leading-relaxed" id="vixtwn-advice">大盤震盪</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-darkbg-800 border border-slate-700/50 rounded-xl p-4 shadow-md space-y-3">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-sm font-bold text-slate-300 flex items-center gap-1.5">
-                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        逆勢防禦資金紀律器 (防禦級別切換)
-                    </h2>
-                </div>
-                
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1" id="defense-level-container">
-                    <button onclick="setDefenseLevel('normal')" id="btn-def-normal" class="flex flex-col items-center justify-center p-2 bg-darkbg-900/50 border border-brand-500/40 rounded-lg transition-all text-xs hover:border-brand-500 relative">
-                        <span class="font-bold text-brand-400">🟢 正常 (預留 0%)</span>
-                        <span class="text-[10px] text-slate-400 mt-0.5">大盤平穩，全額參與</span>
-                    </button>
-                    <button onclick="setDefenseLevel('warning')" id="btn-def-warning" class="flex flex-col items-center justify-center p-2 bg-darkbg-900/50 border border-slate-700/40 rounded-lg transition-all text-xs hover:border-yellow-500 relative">
-                        <span class="font-bold text-slate-300">🟡 警戒 (預留 20%)</span>
-                        <span class="text-[10px] text-slate-500 mt-0.5">大跌波段，鎖定子彈</span>
-                    </button>
-                    <button onclick="setDefenseLevel('panic')" id="btn-def-panic" class="flex flex-col items-center justify-center p-2 bg-darkbg-900/50 border border-slate-700/40 rounded-lg transition-all text-xs hover:border-red-500 relative">
-                        <span class="font-bold text-slate-300">🔴 恐慌 (預留 50%)</span>
-                        <span class="text-[10px] text-slate-500 mt-0.5">極度恐慌，強力防禦</span>
-                    </button>
-                </div>
-            </div>
-
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div class="bg-darkbg-800 border border-slate-700/50 rounded-xl p-3 shadow-md">
                     <span class="text-[10px] text-slate-400 block font-medium">組合資產總規模</span>
@@ -238,7 +185,6 @@
         </section>
     </main>
 
-    <!-- 共用動態彈窗 (V4) -->
     <div id="modal-dynamic-ledger" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-darkbg-800 border border-slate-700 rounded-2xl p-5 w-full max-w-md shadow-2xl space-y-4">
             <div class="flex justify-between items-center border-b border-slate-700 pb-2">
@@ -267,23 +213,24 @@
     </div>
 
     <footer class="border-t border-slate-800 bg-slate-950 py-3 text-center text-[10px] text-slate-600 px-4">
-        <p>© 2026 雙核心自訂控盤與雙恐慌監控控制台 V4. 本工具完全於您裝置本地離線運算，絕不上傳任何個人資產數據。</p>
+        <p>© 2026 雙核心自訂控盤控制台 V4. 本工具完全於您裝置本地離線運算，絕不上傳任何個人資產數據。</p>
     </footer>
 
     <script>
         // 核心資料結構 (V4 動態陣列)
         let state = {
-            defenseLevel: 'normal', // 'normal'(0%), 'warning'(20%), 'panic'(50%)
+            defenseWeight: 0,
+            inflowOnly: false,
+            imbalanceThreshold: 5,
+            lastGlobalUpdate: "--",
             cash: 15000,
             injection: 0,
             discount: 2.8,
             unit: 1,
-            vix: "14.50",
-            vixtwn: "16.80",
             assets: [
-                { id: "a1", name: "元大台灣50", ticker: "0050.TW", beta: 1.0, targetWeight: 40, marketPrice: 195.5, txs: [{ id: 101, date: '2026-05-12', price: 185.00, shares: 1000, fee: 20 }] },
-                { id: "a2", name: "元大台灣50正2", ticker: "00631L.TW", beta: 2.0, targetWeight: 40, marketPrice: 225.0, txs: [{ id: 102, date: '2026-05-15', price: 215.00, shares: 500, fee: 20 }] },
-                { id: "a3", name: "群益臺灣加權正2", ticker: "00685L.TW", beta: 2.0, targetWeight: 20, marketPrice: 112.0, txs: [{ id: 103, date: '2026-05-18', price: 108.50, shares: 1000, fee: 20 }] }
+                { id: "a1", name: "元大台灣50", ticker: "0050.TW", beta: 1.0, targetWeight: 40, marketPrice: 195.5, lastUpdated: "--", updateStatus: "cache", txs: [{ id: 101, date: '2026-05-12', price: 185.00, shares: 1000, fee: 20 }] },
+                { id: "a2", name: "元大台灣50正2", ticker: "00631L.TW", beta: 2.0, targetWeight: 40, marketPrice: 225.0, lastUpdated: "--", updateStatus: "cache", txs: [{ id: 102, date: '2026-05-15', price: 215.00, shares: 500, fee: 20 }] },
+                { id: "a3", name: "群益臺灣加權正2", ticker: "00685L.TW", beta: 2.0, targetWeight: 20, marketPrice: 112.0, lastUpdated: "--", updateStatus: "cache", txs: [{ id: 103, date: '2026-05-18', price: 108.50, shares: 1000, fee: 20 }] }
             ]
         };
         let currentChartInstance = null, targetChartInstance = null;
@@ -294,9 +241,9 @@
             document.getElementById('input-date-dynamic').value = todayStr;
             
             loadSavedData();
+            document.getElementById('global-update-time').innerText = state.lastGlobalUpdate !== "--" ? `(最後同步: ${state.lastGlobalUpdate})` : "";
             renderAssetCards();
-            setDefenseLevel(state.defenseLevel); // 將預設 UI 切換至記憶的狀態
-            updateFearIndex();
+            calculate();
             fetchLatestPrices();
         };
 
@@ -305,8 +252,9 @@
             state.injection = parseFloat(document.getElementById('new-injection').value) || 0;
             state.discount = parseFloat(document.getElementById('fee-discount').value) || 2.8;
             state.unit = parseInt(document.getElementById('trade-unit').value) || 1;
-            state.vix = document.getElementById('vix-val').value || "14.50";
-            state.vixtwn = document.getElementById('vixtwn-val').value || "16.80";
+            state.defenseWeight = parseFloat(document.getElementById('defense-weight').value) || 0;
+            state.imbalanceThreshold = parseFloat(document.getElementById('imbalance-threshold').value) || 5;
+            state.inflowOnly = document.getElementById('inflow-only').checked;
 
             state.assets.forEach(asset => {
                 let priceInput = document.getElementById(`price-${asset.id}`);
@@ -319,7 +267,6 @@
                 if (nameInput) asset.name = nameInput.value;
                 if (tickerInput) asset.ticker = normalizeTicker(tickerInput.value);
             });
-
             localStorage.setItem('ark_rebalancer_v4_dynamic', JSON.stringify(state));
         }
 
@@ -331,14 +278,18 @@
                 if (parsed.assets && Array.isArray(parsed.assets)) {
                     state.assets = parsed.assets;
                 }
-                state.defenseLevel = parsed.defenseLevel || 'normal';
+                state.defenseWeight = parsed.defenseWeight || 0;
+                state.inflowOnly = parsed.inflowOnly || false;
+                state.imbalanceThreshold = parsed.imbalanceThreshold || 5;
+                state.lastGlobalUpdate = parsed.lastGlobalUpdate || "--";
                 
                 document.getElementById('shares-cash').value = parsed.cash || 0;
                 document.getElementById('new-injection').value = parsed.injection || 0;
                 document.getElementById('fee-discount').value = parsed.discount || 2.8;
                 document.getElementById('trade-unit').value = parsed.unit || 1;
-                document.getElementById('vix-val').value = parsed.vix || "14.50";
-                document.getElementById('vixtwn-val').value = parsed.vixtwn || "16.80";
+                document.getElementById('defense-weight').value = state.defenseWeight;
+                document.getElementById('imbalance-threshold').value = state.imbalanceThreshold;
+                document.getElementById('inflow-only').checked = state.inflowOnly;
             } catch(e) { console.error("Persistence decoding error fallback preloaded", e); }
         }
 
@@ -375,13 +326,13 @@
 
         function copyActionPlan() {
             let txt = `=== V4 全自訂控制台操作明細 ===\n更新時間：${new Date().toLocaleString()}\n`;
-            txt += `美股 VIX: ${document.getElementById('vix-val').value} | 台股 VIXTWN: ${document.getElementById('vixtwn-val').value}\n`;
             txt += `組合當前總規模：${document.getElementById('stat-total-asset').innerText}\n`;
             let injectionVal = parseFloat(document.getElementById('new-injection').value) || 0;
             if (injectionVal > 0) {
                 txt += `本次預定投入新資金：NT$ ${injectionVal.toLocaleString()}\n`;
             }
-            txt += `防禦級別狀態：${state.defenseLevel === 'panic' ? '🔴 恐慌(鎖定50%)' : (state.defenseLevel === 'warning' ? '🟡 警戒(鎖定20%)' : '🟢 正常(鎖定0%)')}\n`;
+            txt += `防禦級別狀態：自訂預留 ${state.defenseWeight}%\n`;
+            txt += `不賣股平衡策略：${state.inflowOnly ? '已開啟' : '未開啟'}\n`;
             txt += `----------------------------------\n`;
             const steps = document.querySelectorAll('#action-steps-inner-container > div');
             if(steps.length > 0) {
@@ -404,19 +355,35 @@
             if(!container) return;
             let html = '';
             
+            // Calculate total current value to determine red light imbalances
+            let totalCurrentVal = state.cash;
+            state.assets.forEach(a => {
+                let l = aggregateAssetLedger(a.id);
+                totalCurrentVal += l.shares * a.marketPrice;
+            });
+            
             state.assets.forEach((asset) => {
                 let assetLedger = aggregateAssetLedger(asset.id);
                 let currentVal = assetLedger.shares * asset.marketPrice;
                 let initialCost = assetLedger.totalCost;
                 let plAmount = currentVal - initialCost;
+            
                 let roi = initialCost > 0 ? (plAmount / initialCost) * 100 : 0;
                 let plPrefix = plAmount >= 0 ? "+" : "";
                 let plColor = plAmount >= 0 ? "text-red-500" : "text-emerald-400";
                 let plText = assetLedger.shares > 0 ? `損益: ${plPrefix}${Math.round(plAmount).toLocaleString()} 元 (${plPrefix}${roi.toFixed(2)}%)` : "損益: --";
                 let plClass = assetLedger.shares > 0 ? plColor : "text-slate-500";
 
+                // Imbalance Red Light Logic
+                let actualWeight = totalCurrentVal > 0 ? (currentVal / totalCurrentVal) * 100 : 0;
+                let isImbalanced = Math.abs(actualWeight - asset.targetWeight) > state.imbalanceThreshold;
+                let cardClasses = isImbalanced ? "bg-red-950/30 border-red-500 border-2 shadow-[0_0_10px_rgba(239,68,68,0.2)]" : "bg-darkbg-900/40 border-slate-700/60 hover:border-slate-600";
+
+                let timeBadgeClass = asset.updateStatus === 'success' ? 'text-brand-400' : 'text-slate-500';
+                let timeBadgeText = asset.updateStatus === 'success' ? `⚡ ${asset.lastUpdated || '--'}` : `🕒 快取 ${asset.lastUpdated || '--'}`;
+
                 html += `
-                <div class="bg-darkbg-900/40 p-3 rounded-xl border border-slate-700/60 space-y-2.5 relative group transition-all hover:border-slate-600">
+                <div class="p-3 rounded-xl border space-y-2.5 relative group transition-all ${cardClasses}">
                     <button onclick="removeAsset('${asset.id}')" class="absolute top-1.5 right-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded px-1.5 py-0.5 font-bold text-[10px] opacity-0 group-hover:opacity-100 transition-all">✕ 移除</button>
                     
                     <div class="grid grid-cols-12 gap-2.5 items-end">
@@ -432,7 +399,8 @@
                             <label class="block text-[9px] text-slate-400 mb-0.5 font-bold">市價</label>
                             <input type="number" id="price-${asset.id}" value="${asset.marketPrice}" step="0.05" oninput="saveDataToLocal(); calculate();" class="w-full px-1.5 py-1.5 bg-darkbg-900 border border-slate-600 focus:border-brand-500 rounded-lg text-white font-bold text-xs text-center transition-all">
                         </div>
-                        <div class="col-span-4 sm:col-span-3 flex justify-end h-full">
+                        <div class="col-span-4 sm:col-span-3 flex flex-col justify-end h-full gap-1">
+                            <span class="text-[9px] ${timeBadgeClass} text-right mr-1">${timeBadgeText}</span>
                             <button onclick="openLedgerModal('${asset.id}')" class="bg-slate-700 hover:bg-slate-600 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg transition-all w-full flex items-center justify-center gap-1 shadow-sm">
                                 📝 明細帳本
                             </button>
@@ -451,7 +419,7 @@
 
         function addAsset() {
             let newId = "a_" + Date.now();
-            state.assets.push({ id: newId, name: "新資產", ticker: "", beta: 1.0, targetWeight: 0, marketPrice: 100.0, txs: [] });
+            state.assets.push({ id: newId, name: "新資產", ticker: "", beta: 1.0, targetWeight: 0, marketPrice: 100.0, lastUpdated: "--", updateStatus: "cache", txs: [] });
             saveDataToLocal();
             renderAssetCards();
             calculate();
@@ -466,31 +434,6 @@
             saveDataToLocal();
             renderAssetCards();
             calculate();
-        }
-
-        function setDefenseLevel(level) {
-            state.defenseLevel = level;
-            ['normal', 'warning', 'panic'].forEach(l => {
-                let btn = document.getElementById(`btn-def-${l}`);
-                if(!btn) return;
-                if(l === level) {
-                    btn.classList.add('ring-2', 'ring-offset-2', 'ring-offset-darkbg-900', l==='normal'?'ring-brand-500':(l==='warning'?'ring-yellow-500':'ring-red-500'));
-                    btn.classList.remove('opacity-50', 'border-slate-700/40');
-                    if(l==='normal') btn.classList.add('bg-brand-900/20', 'border-brand-500/50');
-                    if(l==='warning') btn.classList.add('bg-yellow-900/20', 'border-yellow-500/50');
-                    if(l==='panic') btn.classList.add('bg-red-900/20', 'border-red-500/50');
-                } else {
-                    btn.className = "flex flex-col items-center justify-center p-2 bg-darkbg-900/50 border border-slate-700/40 rounded-lg transition-all text-xs opacity-50 hover:opacity-80";
-                }
-            });
-            saveDataToLocal();
-            calculate();
-        }
-
-        function getTargetCashWeight() {
-            if(state.defenseLevel === 'panic') return 50;
-            if(state.defenseLevel === 'warning') return 20;
-            return 0; // normal
         }
 
         function openLedgerModal(assetId) {
@@ -552,13 +495,10 @@
             let date = document.getElementById('input-date-dynamic').value;
             let price = parseFloat(document.getElementById('input-price-dynamic').value) || 0;
             let shares = parseInt(document.getElementById('input-shares-dynamic').value) || 0;
-            
             if (!date || price <= 0 || shares <= 0) return alert('數值錯誤：請填入完整日期、正數價格與股數！');
             let fee = calculateTaiwanStockFee(price, shares, state.discount);
-            
             let asset = state.assets.find(a => a.id === currentActiveAssetId);
             asset.txs.push({ id: Date.now(), date, price, shares, fee, isEditing: false });
-            
             document.getElementById('input-price-dynamic').value = '';
             document.getElementById('input-shares-dynamic').value = '';
             
@@ -606,7 +546,8 @@
                 return alert('儲存失敗：日期不可為空，且價格與股數不可為負數！');
             }
             
-            tx.date = date; tx.price = price; tx.shares = shares;
+            tx.date = date;
+            tx.price = price; tx.shares = shares;
             tx.fee = calculateTaiwanStockFee(price, shares, state.discount);
             tx.isEditing = false;
             
@@ -626,17 +567,16 @@
         }
 
         function calculate() {
-            let cashWeight = getTargetCashWeight();
+            saveDataToLocal(); // Sync inputs first
+            let cashWeight = state.defenseWeight;
             let totalAssetWeight = state.assets.reduce((sum, a) => sum + (parseFloat(a.targetWeight) || 0), 0);
             let totalWeight = cashWeight + totalAssetWeight;
-            
             let rightZoneContainer = document.getElementById('panel-dynamic-right-zone');
             let tradeUnit = state.unit;
             
             let totalCurrentPortfolioStocksMarketValue = 0;
             let totalPortfolioInitialCost = 0;
             let currentAssetValues = {};
-            
             state.assets.forEach(asset => {
                 let ledger = aggregateAssetLedger(asset.id);
                 let val = ledger.shares * asset.marketPrice;
@@ -672,7 +612,7 @@
             });
             document.getElementById('stat-curr-beta').innerText = currBeta.toFixed(2);
             document.getElementById('stat-tgt-beta').innerText = Math.abs(totalWeight - 100) < 0.1 ? tgtBeta.toFixed(2) : "⚠️ 權重誤";
-
+            
             // 防呆攔截：權重加總不等於 100%
             if (Math.abs(totalWeight - 100) > 0.1) {
                 rightZoneContainer.innerHTML = `
@@ -681,7 +621,7 @@
                         <p class="text-xs text-red-200">防禦現金預留 <span class="text-white font-bold">${cashWeight}%</span> + 資產總和 <span class="text-white font-bold">${totalAssetWeight.toFixed(1)}%</span></p>
                         <p class="text-lg font-black text-white mt-1">總計 = ${totalWeight.toFixed(1)}%</p>
                         <hr class="border-red-900/50 my-3">
-                        <p class="text-[11px] text-red-300 font-bold">請於左側調整各資產卡片的「目標比重(%)」，使其加總嚴格等於 100% 才能解鎖精算引擎。</p>
+                        <p class="text-[11px] text-red-300 font-bold">請於左側調整各資產卡片的「目標比重(%)」與防禦預留，使其加總嚴格等於 100% 才能解鎖精算引擎。</p>
                     </div>`;
                 updateDynamicCharts(currentAssetValues, totalCurrent, cashWeight, totalTarget, false);
                 return; 
@@ -708,8 +648,15 @@
                     deltaShares = deltaShares > 0 ? Math.floor(deltaShares) : Math.round(deltaShares);
                 }
 
-                if(deltaShares < 0) actions.push({ type: 'SELL', ticker: asset.name, shares: Math.abs(deltaShares), value: Math.abs(deltaShares * asset.marketPrice) });
-                if(deltaShares > 0) actions.push({ type: 'BUY', ticker: asset.name, shares: deltaShares, value: deltaShares * asset.marketPrice });
+                if(deltaShares < 0) {
+                    // 不賣股策略攔截：如果是 SELL 且開啟 InflowOnly，則過濾此行動
+                    if (!state.inflowOnly) {
+                        actions.push({ type: 'SELL', ticker: asset.name, shares: Math.abs(deltaShares), value: Math.abs(deltaShares * asset.marketPrice) });
+                    }
+                }
+                if(deltaShares > 0) {
+                    actions.push({ type: 'BUY', ticker: asset.name, shares: deltaShares, value: deltaShares * asset.marketPrice });
+                }
             });
 
             let innerStepsHtml = `
@@ -743,7 +690,6 @@
             }
             innerStepsHtml += `</div>`;
             rightZoneContainer.innerHTML = innerStepsHtml;
-
             updateDynamicCharts(currentAssetValues, totalCurrent, cashWeight, totalTarget, true);
         }
 
@@ -752,18 +698,18 @@
             let currData = [];
             let tgtData = [];
             let bgColors = ['#3b82f6', '#22c55e', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e', '#64748b', '#06b6d4', '#f472b6'];
-
+            
             state.assets.forEach((a, i) => {
                 labels.push(a.name);
                 let c_pct = totalCurrent > 0 ? (currentVals[a.id] / totalCurrent) * 100 : 0;
                 currData.push(c_pct.toFixed(1));
                 tgtData.push((parseFloat(a.targetWeight) || 0).toFixed(1));
             });
-
+            
             labels.push('預留現金');
             currData.push(totalCurrent > 0 ? ((state.cash / totalCurrent) * 100).toFixed(1) : 0);
             tgtData.push(tgtCashPct.toFixed(1));
-
+            
             const chartConfig = (data) => ({
                 type: 'doughnut',
                 data: {
@@ -772,13 +718,12 @@
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
-
+            
             if (currentChartInstance) currentChartInstance.destroy();
             if (targetChartInstance) targetChartInstance.destroy();
 
             currentChartInstance = new Chart(document.getElementById('currentChart').getContext('2d'), chartConfig(currData));
             
-            // 若權重不對，目標圓餅圖用灰色佔位顯示
             if(!isValid) {
                 targetChartInstance = new Chart(document.getElementById('targetChart').getContext('2d'), {
                     type: 'doughnut',
@@ -794,85 +739,12 @@
             }
         }
 
-        function updateFearIndex() {
-            let vix = parseFloat(document.getElementById('vix-val').value) || 15;
-            let vixtwn = parseFloat(document.getElementById('vixtwn-val').value) || 18;
-
-            saveDataToLocal();
-
-            let vixBadge = document.getElementById('vix-status-badge');
-            let vixAdvice = document.getElementById('vix-advice');
-            let vixArc = document.getElementById('vix-gauge-arc');
-            let vixPercent = Math.max(0, Math.min(1, (vix - 10) / 40));
-            vixArc.style.strokeDashoffset = 125.6 - (vixPercent * 125.6);
-
-            if (vix < 15) {
-                vixBadge.innerText = "非理性繁榮";
-                vixBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-                vixAdvice.innerText = "狀態：市場樂觀偏安，適合持股或逢高適度減碼，不宜加碼。";
-                vixArc.setAttribute('stroke', '#10b981'); 
-            } else if (vix >= 15 && vix < 20) {
-                vixBadge.innerText = "正常區間";
-                vixBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-slate-500/10 text-slate-300 border border-slate-700";
-                vixAdvice.innerText = "狀態：市場情緒平穩，按常規定期定額即可。";
-                vixArc.setAttribute('stroke', '#64748b'); 
-            } else if (vix >= 20 && vix < 30) {
-                vixBadge.innerText = "市場恐慌";
-                vixBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20"; 
-                vixAdvice.innerText = "狀態：波動加劇，勝率擴大。行動：啟動第一階段加碼。";
-                vixArc.setAttribute('stroke', '#ef4444'); 
-            } else if (vix >= 30 && vix < 40) {
-                vixBadge.innerText = "極度恐慌";
-                vixBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-500 border border-red-500/40 font-black";
-                vixAdvice.innerText = "狀態：市場瘋狂拋售。行動：啟動第二階段加碼。";
-                vixArc.setAttribute('stroke', '#dc2626'); 
-            } else {
-                vixBadge.innerText = "歷史級極端恐慌";
-                vixBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white animate-pulse";
-                vixAdvice.innerText = "狀態：金融海嘯或災難級別。行動：切勿恐慌賤賣！勇敢加碼！";
-                vixArc.setAttribute('stroke', '#991b1b'); 
-            }
-
-            let vixtwnBadge = document.getElementById('vixtwn-status-badge');
-            let vixtwnAdvice = document.getElementById('vixtwn-advice');
-            let vixtwnArc = document.getElementById('vixtwn-gauge-arc');
-            let vixtwnPercent = Math.max(0, Math.min(1, (vixtwn - 10) / 40));
-            vixtwnArc.style.strokeDashoffset = 125.6 - (vixtwnPercent * 125.6);
-
-            if (vixtwn < 15) {
-                vixtwnBadge.innerText = "低波動偏安";
-                vixtwnBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-                vixtwnAdvice.innerText = "狀態：台股市場樂觀，暫無系統性風險。";
-                vixtwnArc.setAttribute('stroke', '#10b981');
-            } else if (vixtwn >= 15 && vixtwn < 25) {
-                vixtwnBadge.innerText = "正常區間";
-                vixtwnBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-slate-500/10 text-slate-300 border border-slate-700";
-                vixtwnAdvice.innerText = "狀態：大盤正常震盪。";
-                vixtwnArc.setAttribute('stroke', '#64748b');
-            } else if (vixtwn >= 25 && vixtwn < 35) {
-                vixtwnBadge.innerText = "波動加劇";
-                vixtwnBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20";
-                vixtwnAdvice.innerText = "狀態：市場開始謹慎，注意融資維持率。";
-                vixtwnArc.setAttribute('stroke', '#ef4444');
-            } else if (vixtwn >= 35 && vixtwn < 42) {
-                vixtwnBadge.innerText = "市場極度恐慌";
-                vixtwnBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-500 border border-red-500/40 font-black";
-                vixtwnAdvice.innerText = "狀態：恐慌盤多殺多。行動：絕佳買點！啟動分批加碼大盤或正二。";
-                vixtwnArc.setAttribute('stroke', '#dc2626');
-            } else {
-                vixtwnBadge.innerText = "非理性踩踏底部";
-                vixtwnBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white animate-pulse";
-                vixtwnAdvice.innerText = "狀態：絕望砍倉。行動：市場即將反轉！準備好的資金全力打入。";
-                vixtwnArc.setAttribute('stroke', '#991b1b');
-            }
-        }
-
         // ================= API 工具與行情獲取 =================
 
         function calculateTaiwanStockFee(price, shares, discount) {
             let rawFee = price * shares * 0.001425;
             let discountedFee = rawFee * (discount / 10);
-            let minFee = (shares < 1000) ? 1 : 20; 
+            let minFee = (shares < 1000) ? 1 : 20;
             return Math.max(minFee, Math.round(discountedFee));
         }
 
@@ -899,7 +771,6 @@
             }
         }
 
-        // 完美接合您上傳提供的 fetchPriceViaGAS 邏輯 (包含完整的 API 回傳防護)
         async function fetchPriceViaGAS(ticker) {
             if (!ticker) return null;
             const GAS_URL = "https://script.google.com/macros/s/AKfycbyzU-Un8WEbj8-rM3i710nTaW_wlSvl91YBzi_1xGfRBp6jlXUk-NBHli5cMZWpv32A/exec";
@@ -908,7 +779,6 @@
                 const response = await fetchWithTimeout(url, 5000);
                 if (!response.ok) return null;
                 const data = await response.json();
-                
                 if (data.error || !data.chart || !data.chart.result || data.chart.result.length === 0) {
                     return null;
                 }
@@ -917,85 +787,6 @@
             } catch (e) {
                 console.debug(`GAS fetch failed for ${ticker}.`, e);
                 return null;
-            }
-        }
-
-        async function fetchYahooTickerWithFallback(symbol) {
-            const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d&_t=${Date.now()}`;
-            const proxies = [
-                { url: `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`, wrapped: true },
-                { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`, wrapped: false }
-            ];
-
-            for (let proxy of proxies) {
-                try {
-                    const response = await fetchWithTimeout(proxy.url, 6000);
-                    if (!response.ok) continue;
-                    let data = await response.json();
-                    if (proxy.wrapped) data = JSON.parse(data.contents);
-                    const meta = data?.chart?.result?.[0]?.meta;
-                    const price = parseQuoteNumber(meta?.regularMarketPrice);
-                    if (price) return price;
-                } catch (e) { console.debug('Yahoo proxy failed.', e); }
-            }
-            return null;
-        }
-
-        async function fetchLatestVix() {
-            return fetchYahooTickerWithFallback('^VIX');
-        }
-
-        function parseTaifexVixText(text) {
-            const matches = [...text.matchAll(/\b\d{8}\b\s+\d{6,8}\s+([0-9]+(?:\.[0-9]+)?)/g)];
-            if (matches.length === 0) return null;
-            return parseQuoteNumber(matches[matches.length - 1][1]);
-        }
-
-        async function fetchTaiwanVix() {
-            const dateCandidates = [
-                new Date(),
-                new Date(Date.now() - 24 * 60 * 60 * 1000),
-                new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-            ].map(d => d.toISOString().slice(0, 10).replace(/-/g, ''));
-
-            for (let dateKey of dateCandidates) {
-                const directUrl = `https://www.taifex.com.tw/cht/7/getVixData?filesname=${dateKey}`;
-                const urls = [
-                    directUrl,
-                    `https://api.allorigins.win/raw?url=${encodeURIComponent(directUrl)}`
-                ];
-
-                for (let url of urls) {
-                    try {
-                        const response = await fetchWithTimeout(url, 5000);
-                        if (!response.ok) continue;
-                        const text = await response.text();
-                        const value = parseTaifexVixText(text);
-                        if (value) return value;
-                    } catch (e) { console.debug('TAIFEX VIX fetch failed.', e); }
-                }
-            }
-            return null;
-        }
-
-        async function refreshFearIndexesInBackground() {
-            const [vixVal, vixTwnVal] = await Promise.all([
-                fetchLatestVix().catch(e => null),
-                fetchTaiwanVix().catch(e => null)
-            ]);
-
-            let updated = false;
-            if (vixVal && vixVal > 0) {
-                document.getElementById('vix-val').value = vixVal.toFixed(2);
-                updated = true;
-            }
-            if (vixTwnVal && vixTwnVal > 0) {
-                document.getElementById('vixtwn-val').value = vixTwnVal.toFixed(2);
-                updated = true;
-            }
-            if (updated) {
-                updateFearIndex();
-                saveDataToLocal();
             }
         }
 
@@ -1022,12 +813,17 @@
         async function fetchLatestPrices() {
             const dot = document.getElementById('api-status-dot');
             const txt = document.getElementById('api-status-text');
+            const timeLabel = document.getElementById('global-update-time');
             dot.className = "w-2 h-2 rounded-full bg-yellow-500 animate-pulse";
             txt.innerText = "連線更新中";
             
+            const now = new Date();
+            const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0') + ':' + now.getSeconds().toString().padStart(2, '0');
+            state.lastGlobalUpdate = timeStr;
+
             const tickers = state.assets.map(a => normalizeTicker(a.ticker)).filter(t => t !== '');
             const cachedUpdatedItems = await fetchCachedMarketData();
-
+            
             const pricePromises = tickers.map(ticker => fetchPriceViaGAS(ticker));
             const prices = await Promise.all(pricePromises);
 
@@ -1035,10 +831,16 @@
             prices.forEach((price, index) => {
                 if (price && price > 0) {
                     state.assets[index].marketPrice = price;
+                    state.assets[index].lastUpdated = timeStr;
+                    state.assets[index].updateStatus = 'success';
                     updatedItems.push(state.assets[index].id);
+                } else {
+                    state.assets[index].updateStatus = 'cache';
                 }
             });
-
+            
+            timeLabel.innerText = `(最後同步: ${timeStr})`;
+            saveDataToLocal();
             renderAssetCards();
             calculate();
 
@@ -1052,8 +854,6 @@
                 dot.className = "w-2 h-2 rounded-full bg-red-500";
                 txt.innerText = "使用本地快取報價";
             }
-
-            refreshFearIndexesInBackground();
         }
     </script>
 </body>
