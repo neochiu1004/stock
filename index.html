@@ -821,32 +821,45 @@
             const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0') + ':' + now.getSeconds().toString().padStart(2, '0');
             state.lastGlobalUpdate = timeStr;
 
-            const tickers = state.assets.map(a => normalizeTicker(a.ticker)).filter(t => t !== '');
+            // MCE: 改用物件陣列記錄 ID，避免過濾空代號後產生 index 錯位
+            const validRequests = state.assets
+                .map(a => ({ id: a.id, ticker: normalizeTicker(a.ticker) }))
+                .filter(req => req.ticker !== '');
+            
             const cachedUpdatedItems = await fetchCachedMarketData();
             
-            const pricePromises = tickers.map(ticker => fetchPriceViaGAS(ticker));
+            // 根據有效請求的 ticker 獲取價格
+            const pricePromises = validRequests.map(req => fetchPriceViaGAS(req.ticker));
             const prices = await Promise.all(pricePromises);
 
             const updatedItems = [];
             prices.forEach((price, index) => {
-                if (price && price > 0) {
-                    state.assets[index].marketPrice = price;
-                    state.assets[index].lastUpdated = timeStr;
-                    state.assets[index].updateStatus = 'success';
-                    updatedItems.push(state.assets[index].id);
-                } else {
-                    state.assets[index].updateStatus = 'cache';
+                // MCE: 透過記錄的 id 尋找原始 state 陣列中的確切位置
+                const targetId = validRequests[index].id;
+                const assetIndex = state.assets.findIndex(a => a.id === targetId);
+                
+                if (assetIndex !== -1) {
+                    if (price && price > 0) {
+                        state.assets[assetIndex].marketPrice = price;
+                        state.assets[assetIndex].lastUpdated = timeStr;
+                        state.assets[assetIndex].updateStatus = 'success';
+                        updatedItems.push(targetId);
+                    } else {
+                        state.assets[assetIndex].updateStatus = 'cache';
+                    }
                 }
             });
             
             timeLabel.innerText = `(最後同步: ${timeStr})`;
-            saveDataToLocal();
+            
+            // MCE: 嚴格移除此處的 saveDataToLocal(); 避免舊畫面覆蓋新數據
+            
             renderAssetCards();
             calculate();
 
             if (updatedItems.length > 0) {
                 dot.className = "w-2 h-2 rounded-full bg-brand-500";
-                txt.innerText = updatedItems.length >= tickers.length ? "股價同步成功" : `已更新 ${updatedItems.length} 項`;
+                txt.innerText = updatedItems.length >= validRequests.length ? "股價同步成功" : `已更新 ${updatedItems.length} 項`;
             } else if (cachedUpdatedItems.length > 0) {
                 dot.className = "w-2 h-2 rounded-full bg-brand-500";
                 txt.innerText = "使用行情快取";
