@@ -39,6 +39,7 @@
     <header class="border-b border-slate-800 bg-darkbg-900/80 backdrop-blur sticky top-0 z-50 px-4 py-3">
         <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
             <div class="flex items-center gap-3">
+                <!-- ⚡ 閃電 Logo：點擊展開或收合 API 輸入區 -->
                 <div class="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl border border-emerald-500/30 cursor-pointer transition-all active:scale-95" onclick="toggleApiInput()" title="點擊設定富果 API 金鑰">
                     <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
@@ -57,6 +58,7 @@
                     <span id="global-update-time" class="text-brand-400 text-[10px] ml-1 font-bold"></span>
                 </div>
 
+                <!-- 隱藏式 API Key 欄位與一鍵貼上 -->
                 <div id="api-key-container" class="hidden flex items-center gap-1 bg-darkbg-800 p-1 rounded-lg border border-slate-700/60 transition-all">
                     <input type="password" id="api-key-input" placeholder="富果 API Key" onchange="saveDataToLocal()" class="w-32 px-2 py-1 bg-darkbg-900 border border-slate-700 rounded text-white focus:border-brand-500 focus:outline-none placeholder-slate-600 text-[10px]">
                     <button type="button" onclick="pasteApiKey()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded text-[10px] font-bold transition-all">📋 貼上</button>
@@ -179,6 +181,7 @@
                         <div class="w-28 h-28 relative"><canvas id="currentChart"></canvas></div>
                     </div>
                     <div class="flex flex-col items-center">
+                        <!-- 標題會依據策略動態變更 -->
                         <span class="text-[10px] font-bold text-brand-400 mb-1" id="lbl-target-chart-title">目標期待分布</span>
                         <div class="w-28 h-28 relative"><canvas id="targetChart"></canvas></div>
                     </div>
@@ -190,7 +193,7 @@
                         <div id="current-legend-container" class="space-y-1.5"></div>
                     </div>
                     <div>
-                        <span class="text-[10px] font-bold text-brand-400 block mb-2 text-center">🎯 目標設定比重</span>
+                        <span class="text-[10px] font-bold text-brand-400 block mb-2 text-center" id="lbl-legend-target-title">🎯 目標設定比重</span>
                         <div id="target-legend-container" class="space-y-1.5"></div>
                     </div>
                 </div>
@@ -284,6 +287,29 @@
         </div>
     </div>
 
+    <!-- ⚠️ 自訂刪除確認 Modal (完美解決 Iframe 彈窗阻斷 Bug) -->
+    <div id="modal-confirm-delete" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-darkbg-800 border border-red-500/30 rounded-2xl p-5 w-full max-w-sm shadow-2xl space-y-4">
+            <div class="flex items-center gap-3 text-red-400">
+                <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <h3 class="text-sm font-black text-white">確認刪除資產桶？</h3>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+                警告：您正要刪除 <span id="delete-asset-name-label" class="text-white font-bold"></span>。此資產內含有歷史交易明細，刪除後將連同帳本數據<span class="text-red-400 font-bold">永久抹除</span>，且無法還原！
+            </p>
+            <div class="flex gap-2">
+                <button type="button" onclick="closeDeleteConfirmModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-2 rounded-xl text-xs transition-all">
+                    取消
+                </button>
+                <button type="button" id="btn-confirm-delete-execute" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-2 rounded-xl text-xs transition-all">
+                    確定永久刪除
+                </button>
+            </div>
+        </div>
+    </div>
+
     <footer class="border-t border-slate-800 bg-slate-950 py-3 text-center text-[10px] text-slate-600 px-4">
         <p>© 2026 雙核心自訂控盤控制台 V4. 本工具完全於您裝置本地離線運算，絕不上傳任何個人資產數據。</p>
     </footer>
@@ -307,6 +333,7 @@
         };
         let currentChartInstance = null, targetChartInstance = null;
         let currentActiveAssetId = null;
+        let assetIdPendingDelete = null;
 
         window.onload = function() {
             const todayStr = new Date().toISOString().slice(0, 10);
@@ -318,6 +345,41 @@
             renderAssetCards();
             calculate();
         };
+
+        // 智慧型彈窗提示系統 (替代 Iframe 被阻斷的 alert)
+        function showToast(message, type = 'info') {
+            const existing = document.getElementById('ui-toast');
+            if (existing) existing.remove();
+
+            const toast = document.createElement('div');
+            toast.id = 'ui-toast';
+            toast.className = `fixed top-5 left-1/2 -translate-x-1/2 z-[100] px-4 py-3 rounded-xl border shadow-2xl flex items-center gap-2.5 text-xs font-bold transition-all transform translate-y-[-20px] opacity-0`;
+            
+            if (type === 'error') {
+                toast.className += ' bg-red-950/90 border-red-500/30 text-red-200';
+            } else if (type === 'success') {
+                toast.className += ' bg-emerald-950/90 border-emerald-500/30 text-emerald-200';
+            } else {
+                toast.className += ' bg-slate-900/90 border-slate-700/50 text-slate-200';
+            }
+
+            toast.innerHTML = `
+                <span class="text-base">${type === 'error' ? '⚠️' : (type === 'success' ? '🎉' : 'ℹ️')}</span>
+                <span>${message}</span>
+            `;
+
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.remove('translate-y-[-20px]', 'opacity-0');
+                toast.classList.add('translate-y-0', 'opacity-100');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-[-20px]', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
 
         function toggleApiInput() {
             const container = document.getElementById('api-key-container');
@@ -336,23 +398,13 @@
                         state.fugleApiKey = text.trim();
                         saveDataToLocal();
                         calculate();
-                        
-                        const dot = document.getElementById('api-status-dot');
-                        const txt = document.getElementById('api-status-text');
-                        if (dot && txt) {
-                            dot.className = "w-2 h-2 rounded-full bg-brand-500 animate-bounce";
-                            txt.innerText = "金鑰貼上成功！";
-                            setTimeout(() => {
-                                dot.className = "w-2 h-2 rounded-full bg-yellow-500 animate-pulse";
-                                txt.innerText = "通道準備中";
-                            }, 1800);
-                        }
+                        showToast("金鑰已成功套用！", "success");
                     }
                 } else {
-                    alert("⚠️ 剪貼簿為空。");
+                    showToast("剪貼簿中無可用文字", "error");
                 }
             } catch (err) {
-                alert("🔒 由於瀏覽器安全保護，請直接點擊輸入框，並手動使用鍵盤或右鍵貼上。");
+                showToast("請直接點選輸入框手動貼上 (Ctrl+V)", "info");
             }
         }
 
@@ -408,7 +460,7 @@
         function exportData() {
             saveDataToLocal();
             const dataStr = localStorage.getItem('ark_rebalancer_v4_dynamic');
-            if (!dataStr) return alert("無庫存配置數據可匯出！");
+            if (!dataStr) return showToast("無庫存配置數據可匯出", "error");
             const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
             const exportFileDefaultName = `方舟V4全自訂備份_${new Date().toISOString().slice(0,10)}.json`;
             const linkElement = document.createElement('a');
@@ -426,12 +478,12 @@
                     const parsed = JSON.parse(e.target.result);
                     if(parsed.assets) {
                         localStorage.setItem('ark_rebalancer_v4_dynamic', JSON.stringify(parsed));
-                        alert("🎉 V4 全自訂控制台數據還原同步完成！");
-                        location.reload();
+                        showToast("組合控制台數據還原完成！", "success");
+                        setTimeout(() => location.reload(), 1000);
                     } else {
-                        alert("同步錯誤：檔案似乎是舊版格式，請使用 V4 版匯出檔。");
+                        showToast("檔案格式錯誤，請使用 V4 導出的備份檔", "error");
                     }
-                } catch (err) { alert("同步錯誤：不支援的 JSON 格式。"); }
+                } catch (err) { showToast("解析檔案失敗", "error"); }
             };
             reader.readAsText(file);
         }
@@ -457,7 +509,7 @@
             const el = document.createElement('textarea');
             el.value = txt; document.body.appendChild(el); el.select();
             document.execCommand('copy'); document.body.removeChild(el);
-            alert('指令清單已成功複製到剪貼簿！');
+            showToast("調倉行動指引已複製到剪貼簿", "success");
         }
 
         function renderAssetCards() {
@@ -492,15 +544,15 @@
 
                 html += `
                 <div class="p-4 rounded-2xl border space-y-4 relative group transition-all ${cardClasses}">
-                    <!-- BUG修復1：已將 opacity-0 移除，改為手機與電腦皆能直接看到的常駐按鈕 -->
-                    <button type="button" onclick="removeAsset('${asset.id}')" class="absolute top-2.5 right-2.5 text-red-400/80 hover:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded px-2 py-1 font-bold text-[10px] transition-all z-10">✕ 移除</button>
+                    <!-- 自訂安全刪除按鈕 (常駐且完美運作) -->
+                    <button type="button" onclick="removeAsset('${asset.id}')" class="absolute top-2.5 right-2.5 text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded px-2 py-1 font-bold text-[10px] transition-all z-10">✕ 移除</button>
                     
                     <div class="flex justify-between items-center border-b border-slate-700/50 pb-2.5">
                         <div class="flex items-center gap-2">
                             <span class="text-xs bg-slate-900 text-slate-400 font-mono font-bold px-2 py-0.5 rounded border border-slate-700/50">${asset.ticker || '無代號'}</span>
                             <h3 class="text-sm font-black text-white truncate max-w-[140px]" title="${asset.name}">${asset.name}</h3>
                         </div>
-                        <span class="text-[9px] ${timeBadgeClass} font-mono shrink-0 mr-12 sm:mr-14">${timeBadgeText}</span>
+                        <span class="text-[9px] ${timeBadgeClass} font-mono shrink-0 mr-14 sm:mr-16">${timeBadgeText}</span>
                     </div>
 
                     <div class="grid grid-cols-2 gap-x-6 gap-y-2.5 text-xs">
@@ -580,7 +632,7 @@
                 renderAssetCards();
                 calculate();
                 
-                // BUG修復3：新增後自動滾動到最下方，確保使用者能看到新卡片
+                // 新增後自動滾動定位，提升體驗
                 setTimeout(() => {
                     const container = document.getElementById('dynamic-assets-container');
                     if (container && container.lastElementChild) {
@@ -588,19 +640,42 @@
                     }
                 }, 100);
             } catch (err) {
-                alert("新增發生錯誤：" + err.message);
+                showToast("新增發生錯誤：" + err.message, "error");
             }
         }
 
+        // 安全自訂刪除機制
         function removeAsset(id) {
             let asset = state.assets.find(a => a.id === id);
-            if(asset && asset.txs && asset.txs.length > 0) {
-                if(!confirm(`⚠️ 警告：【${asset.name}】內含 ${asset.txs.length} 筆歷史記帳明細，移除該資產桶將連同帳本一併永久刪除，確定要移除嗎？`)) return;
+            if(!asset) return;
+            
+            // 如果含有歷史明細，彈出內建擬真 Modal 進行二次防禦
+            if(asset.txs && asset.txs.length > 0) {
+                assetIdPendingDelete = id;
+                document.getElementById('delete-asset-name-label').innerText = `【${asset.name}】`;
+                document.getElementById('modal-confirm-delete').classList.remove('hidden');
+                
+                // 綁定確認動作
+                document.getElementById('btn-confirm-delete-execute').onclick = function() {
+                    executeRemoveAsset(assetIdPendingDelete);
+                    closeDeleteConfirmModal();
+                };
+            } else {
+                executeRemoveAsset(id);
             }
+        }
+
+        function executeRemoveAsset(id) {
             state.assets = state.assets.filter(a => a.id !== id);
             saveDataToLocal();
             renderAssetCards();
             calculate();
+            showToast("資產已成功移除", "info");
+        }
+
+        function closeDeleteConfirmModal() {
+            document.getElementById('modal-confirm-delete').classList.add('hidden');
+            assetIdPendingDelete = null;
         }
 
         function openLedgerModal(assetId) {
@@ -715,7 +790,7 @@
             let date = document.getElementById('input-date-dynamic').value;
             let price = parseFloat(document.getElementById('input-price-dynamic').value) || 0;
             let shares = parseInt(document.getElementById('input-shares-dynamic').value) || 0;
-            if (!date || price <= 0 || shares <= 0) return alert('數值錯誤：請填入完整日期、正數價格與股數！');
+            if (!date || price <= 0 || shares <= 0) return showToast("請填入完整日期、價格與股數", "error");
             let fee = calculateTaiwanStockFee(price, shares, state.discount);
             let asset = state.assets.find(a => a.id === currentActiveAssetId);
             asset.txs.push({ id: Date.now(), date, price, shares, fee, type, isEditing: false });
@@ -765,7 +840,7 @@
             let shares = parseInt(document.getElementById(`edit-shares-${id}`).value);
             
             if (!date || isNaN(price) || price < 0 || isNaN(shares) || shares < 0) {
-                return alert('儲存失敗：日期不可為空，且價格與股數不可為負數！');
+                return showToast("儲存失敗：欄位格式不正確", "error");
             }
             
             tx.type = type;
@@ -835,6 +910,7 @@
                 plStatElement.className = "text-base font-black mt-0.5 truncate text-slate-400";
             }
 
+            // Beta 計算：基於自訂 Beta 權重值計算組合 Beta
             let currBeta = 0;
             let tgtBeta = 0;
             state.assets.forEach(asset => {
@@ -854,9 +930,9 @@
                         <p class="text-xs text-red-200">防禦現金預留 <span class="text-white font-bold">${cashWeight}%</span> + 資產總和 <span class="text-white font-bold">${totalAssetWeight.toFixed(1)}%</span></p>
                         <p class="text-lg font-black text-white mt-1">總計 = ${totalWeight.toFixed(1)}%</p>
                         <hr class="border-red-900/50 my-3">
-                        <p class="text-[11px] text-red-300 font-bold">請於主畫面點擊各資產「⚙️ 調整設定」修正「目標比重(%)」，使其加總嚴格等於 100% 才能解鎖精算引擎。</p>
+                        <p class="text-[11px] text-red-300 font-bold">請點擊各資產「⚙️ 調整設定」修正「目標比重(%)」，使其加總嚴格等於 100% 才能解鎖精算引擎。</p>
                     </div>`;
-                updateDynamicCharts(currentAssetValues, totalCurrent, cashWeight, totalTarget, false);
+                updateDynamicCharts(currentAssetValues, totalCurrent, cashWeight, totalTarget, false, null, 0);
                 return; 
             }
 
@@ -882,13 +958,30 @@
 
                 if(deltaShares < 0) {
                     if (!state.inflowOnly) {
-                        actions.push({ type: 'SELL', ticker: asset.name, shares: Math.abs(deltaShares), value: Math.abs(deltaShares * asset.marketPrice) });
+                        actions.push({ id: asset.id, type: 'SELL', ticker: asset.name, shares: Math.abs(deltaShares), value: Math.abs(deltaShares * asset.marketPrice) });
                     }
                 }
                 if(deltaShares > 0) {
-                    actions.push({ type: 'BUY', ticker: asset.name, shares: deltaShares, value: deltaShares * asset.marketPrice });
+                    actions.push({ id: asset.id, type: 'BUY', ticker: asset.name, shares: deltaShares, value: deltaShares * asset.marketPrice });
                 }
             });
+
+            // 🧬 計算並模擬按照指令買入後，資產的預期比例與預期現金 (不賣股策略精算)
+            let expectedAssetValues = {};
+            state.assets.forEach(asset => {
+                expectedAssetValues[asset.id] = currentAssetValues[asset.id];
+            });
+            actions.forEach(act => {
+                if (act.type === 'BUY' && act.id) {
+                    expectedAssetValues[act.id] += act.value;
+                }
+            });
+            let expectedTotalStocksVal = 0;
+            state.assets.forEach(asset => {
+                expectedTotalStocksVal += expectedAssetValues[asset.id];
+            });
+            let expectedCash = totalTarget - expectedTotalStocksVal;
+            if (expectedCash < 0) expectedCash = 0;
 
             let innerStepsHtml = `
                 <div class="flex justify-between items-center border-b border-slate-700/60 pb-2">
@@ -921,10 +1014,13 @@
             }
             innerStepsHtml += `</div>`;
             rightZoneContainer.innerHTML = innerStepsHtml;
-            updateDynamicCharts(currentAssetValues, totalCurrent, cashWeight, totalTarget, true);
+
+            // 將預期模擬數值傳入圖表引擎
+            updateDynamicCharts(currentAssetValues, totalCurrent, cashWeight, totalTarget, true, expectedAssetValues, expectedCash);
         }
 
-        function updateDynamicCharts(currentVals, totalCurrent, tgtCashPct, totalTarget, isValid) {
+        // 修改雙圓餅圖圖例：當勾選「不賣股」時，智慧渲染預期交易後比例
+        function updateDynamicCharts(currentVals, totalCurrent, tgtCashPct, totalTarget, isValid, expectedAssetValues, expectedCash) {
             let labels = [];
             let currData = [];
             let tgtData = [];
@@ -942,11 +1038,23 @@
                 
                 let c_pct = totalCurrent > 0 ? (c_val / totalCurrent) * 100 : 0;
                 currData.push(c_pct.toFixed(1));
-                tgtData.push((parseFloat(a.targetWeight) || 0).toFixed(1));
+
+                // 智慧判斷：若勾選不賣股且有預期模擬值，則在 Chart 與 Legend 中改呈現象徵買入後的預期占比
+                let rightPctText = "";
+                if (state.inflowOnly && expectedAssetValues) {
+                    let expVal = expectedAssetValues[a.id] || 0;
+                    let expPct = totalTarget > 0 ? (expVal / totalTarget) * 100 : 0;
+                    tgtData.push(expPct.toFixed(1));
+                    rightPctText = expPct.toFixed(1) + "%";
+                } else {
+                    tgtData.push((parseFloat(a.targetWeight) || 0).toFixed(1));
+                    rightPctText = (parseFloat(a.targetWeight) || 0).toFixed(1) + "%";
+                }
                 
                 let ledger = aggregateAssetLedger(a.id);
                 let color = bgColors[i % bgColors.length];
 
+                // 左圖例：目前持股與股數
                 currentHtml += `
                     <div class="flex items-center justify-between p-1.5 bg-darkbg-900/50 rounded border border-slate-700/50">
                         <div class="flex items-center gap-1.5 overflow-hidden">
@@ -956,19 +1064,30 @@
                         <span class="font-mono text-blue-400 ml-2 shrink-0">${ledger.shares.toLocaleString()} 股</span>
                     </div>`;
                     
+                // 右圖例：動態預期比例
                 targetHtml += `
                     <div class="flex items-center justify-between p-1.5 bg-darkbg-900/50 rounded border border-slate-700/50">
                         <div class="flex items-center gap-1.5 overflow-hidden">
                             <div class="w-2 h-2 rounded-full shrink-0" style="background-color: ${color}"></div>
                             <span class="truncate text-slate-300 font-bold">${a.name}</span>
                         </div>
-                        <span class="font-mono text-brand-400 ml-2 shrink-0">${(parseFloat(a.targetWeight) || 0)}%</span>
+                        <span class="font-mono text-brand-400 ml-2 shrink-0">${rightPctText}</span>
                     </div>`;
             });
 
+            // 現金處理
             labels.push("預留現金");
             currData.push(totalCurrent > 0 ? ((state.cash / totalCurrent) * 100).toFixed(1) : 0);
-            tgtData.push(tgtCashPct.toFixed(1));
+            
+            let rightCashPctText = "";
+            if (state.inflowOnly && expectedAssetValues) {
+                let expCashPct = totalTarget > 0 ? (expectedCash / totalTarget) * 100 : 0;
+                tgtData.push(expCashPct.toFixed(1));
+                rightCashPctText = expCashPct.toFixed(1) + "%";
+            } else {
+                tgtData.push(tgtCashPct.toFixed(1));
+                rightCashPctText = tgtCashPct.toFixed(1) + "%";
+            }
             
             let cashColor = bgColors[state.assets.length % bgColors.length];
             
@@ -987,20 +1106,19 @@
                         <div class="w-2 h-2 rounded-full shrink-0" style="background-color: ${cashColor}"></div>
                         <span class="truncate text-slate-300 font-bold">預留現金</span>
                     </div>
-                    <span class="font-mono text-brand-400 ml-2 shrink-0">${tgtCashPct.toFixed(1)}%</span>
+                    <span class="font-mono text-brand-400 ml-2 shrink-0">${rightCashPctText}</span>
                 </div></div>`;
 
             if (currentLegend) currentLegend.innerHTML = currentHtml;
             if (targetLegend) targetLegend.innerHTML = targetHtml;
 
-            // BUG修復2：只顯示純比率的 Tooltip 邏輯
+            // 圓餅圖 Tooltip 清理：完全移除名稱文字與方形色塊，純粹顯示百分比比例
             const chartConfig = (data) => ({
                 type: 'doughnut',
                 data: {
-                    labels: labels.map(() => ''),
+                    labels: labels.map(() => ''), // 強制清空 labels，圓餅圖周圍絕不顯露贅字
                     datasets: [{ 
                         data: data, 
-                        // 修正顏色數量對應防呆機制
                         backgroundColor: data.map((_, idx) => bgColors[idx % bgColors.length]), 
                         borderWidth: 1, 
                         borderColor: '#1e293b' 
@@ -1012,9 +1130,9 @@
                     plugins: { 
                         legend: { display: false },
                         tooltip: {
-                            displayColors: false, // 關閉顏色的方形提示塊
+                            displayColors: false, // 徹底隱藏 Tooltip 內的顏色方塊
                             callbacks: {
-                                title: function() { return null; }, // 徹底隱藏標題名稱
+                                title: function() { return null; }, // 隱藏 Tooltip 標題
                                 label: function(context) {
                                     return ` ${context.raw}%`; // 只留純比率
                                 }
@@ -1029,18 +1147,36 @@
 
             currentChartInstance = new Chart(document.getElementById('currentChart').getContext('2d'), chartConfig(currData));
             
+            const targetTitleEl = document.getElementById('lbl-target-chart-title');
+            const targetLegendTitleEl = document.getElementById('lbl-legend-target-title');
+            
             if(!isValid) {
                 targetChartInstance = new Chart(document.getElementById('targetChart').getContext('2d'), {
                     type: 'doughnut',
                     data: { labels: [''], datasets: [{ data: [100], backgroundColor: ['#475569'], borderWidth: 1, borderColor: '#1e293b' }] },
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
                 });
-                document.getElementById('lbl-target-chart-title').innerText = "目標設定異常";
-                document.getElementById('lbl-target-chart-title').className = "text-[10px] font-bold text-red-400 mb-1 animate-pulse";
+                if (targetTitleEl) {
+                    targetTitleEl.innerText = "目標設定異常";
+                    targetTitleEl.className = "text-[10px] font-bold text-red-400 mb-1 animate-pulse";
+                }
             } else {
                 targetChartInstance = new Chart(document.getElementById('targetChart').getContext('2d'), chartConfig(tgtData));
-                document.getElementById('lbl-target-chart-title').innerText = "目標期待分布";
-                document.getElementById('lbl-target-chart-title').className = "text-[10px] font-bold text-brand-400 mb-1";
+                
+                // 動態切換右側圖例與標題
+                if (targetTitleEl && targetLegendTitleEl) {
+                    if (state.inflowOnly) {
+                        targetTitleEl.innerText = "預期買入後分布";
+                        targetTitleEl.className = "text-[10px] font-bold text-emerald-400 mb-1";
+                        targetLegendTitleEl.innerText = "📈 預期買入比例";
+                        targetLegendTitleEl.className = "text-[10px] font-bold text-emerald-400 block mb-2 text-center";
+                    } else {
+                        targetTitleEl.innerText = "目標期待分布";
+                        targetTitleEl.className = "text-[10px] font-bold text-brand-400 mb-1";
+                        targetLegendTitleEl.innerText = "🎯 目標設定比重";
+                        targetLegendTitleEl.className = "text-[10px] font-bold text-brand-400 block mb-2 text-center";
+                    }
+                }
             }
         }
 
@@ -1126,7 +1262,7 @@
 
         async function fetchLatestPrices() {
             if (!state.fugleApiKey) {
-                alert("⚠️ 尚未設定 富果 (Fugle) API Key。請點選左上角閃電 Logo 展開輸入。");
+                showToast("尚未設定富果 (Fugle) API Key", "error");
                 return;
             }
 
