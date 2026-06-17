@@ -97,7 +97,7 @@
 
                 <div class="flex items-center justify-between gap-4 text-xs">
                     <span class="text-slate-300 font-medium">證券交割帳戶餘額 (現金)</span>
-                    <input type="number" id="shares-cash" value="15000" oninput="calculate()" class="w-32 px-2.5 py-1.5 bg-darkbg-900 border border-slate-700 rounded-lg font-bold text-right text-white focus:border-brand-500 focus:outline-none transition-all">
+                    <input type="number" inputmode="decimal" id="shares-cash" value="15000" onblur="calculate()" class="w-32 px-2.5 py-1.5 bg-darkbg-900 border border-slate-700 rounded-lg font-bold text-right text-white focus:border-brand-500 focus:outline-none transition-all">
                 </div>
             </div>
 
@@ -108,11 +108,11 @@
                 <div class="text-xs space-y-2">
                     <div class="flex items-center justify-between gap-4">
                         <span class="text-slate-300 font-medium">計畫本次新投入資金 (元)</span>
-                        <input type="number" id="new-injection" value="0" oninput="calculate()" class="w-32 px-2.5 py-1.5 bg-darkbg-900 border border-slate-700 rounded-lg font-bold text-right text-emerald-400 focus:border-brand-500 focus:outline-none transition-all">
+                        <input type="number" inputmode="decimal" id="new-injection" value="0" onblur="calculate()" class="w-32 px-2.5 py-1.5 bg-darkbg-900 border border-slate-700 rounded-lg font-bold text-right text-emerald-400 focus:border-brand-500 focus:outline-none transition-all">
                     </div>
                     <div class="flex items-center justify-between gap-4">
                         <span class="text-slate-300 font-medium">券商手續費折扣 (折數)</span>
-                        <input type="number" id="fee-discount" step="0.1" value="2.8" oninput="calculate()" class="w-32 px-2.5 py-1.5 bg-darkbg-900 border border-slate-700 rounded-lg font-bold text-right text-white focus:border-brand-500 focus:outline-none transition-all">
+                        <input type="number" inputmode="decimal" id="fee-discount" step="0.1" value="2.8" onblur="calculate()" class="w-32 px-2.5 py-1.5 bg-darkbg-900 border border-slate-700 rounded-lg font-bold text-right text-white focus:border-brand-500 focus:outline-none transition-all">
                     </div>
                     <div class="flex items-center justify-between gap-4">
                         <span class="text-slate-300 font-medium">交易單位限制</span>
@@ -138,7 +138,7 @@
                     </div>
                     <div class="flex items-center justify-between gap-4">
                         <span class="text-slate-300 font-medium">失衡紅燈觸發閥值 (%)</span>
-                        <input type="number" id="imbalance-threshold" value="5" step="0.1" oninput="calculate()" class="w-32 px-2.5 py-1.5 bg-darkbg-900 border border-slate-700 rounded-lg font-bold text-right text-red-400 focus:border-red-500 focus:outline-none transition-all">
+                        <input type="number" inputmode="decimal" id="imbalance-threshold" value="5" step="0.1" onblur="calculate()" class="w-32 px-2.5 py-1.5 bg-darkbg-900 border border-slate-700 rounded-lg font-bold text-right text-red-400 focus:border-red-500 focus:outline-none transition-all">
                     </div>
                     <div class="flex items-center justify-between gap-4">
                         <span class="text-slate-300 font-medium">不賣股，單純買入平衡</span>
@@ -147,8 +147,8 @@
                 </div>
             </div>
         </section>
-<section class="lg:col-span-7 space-y-4">
-            
+
+        <section class="lg:col-span-7 space-y-4">
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div class="bg-darkbg-800 border border-slate-700/50 rounded-xl p-3 shadow-md">
                     <span class="text-[10px] text-slate-400 block font-medium">組合資產總規模</span>
@@ -179,13 +179,19 @@
                         <div class="w-28 h-28 relative"><canvas id="targetChart"></canvas></div>
                     </div>
                 </div>
-                <div id="chart-legend-container" class="mt-4 space-y-2"></div>
+                
+                <!-- 雙欄位圖例：分別顯示目前與目標詳情 -->
+                <div class="grid grid-cols-2 gap-4 mt-5">
+                    <div id="current-legend-container"></div>
+                    <div id="target-legend-container"></div>
+                </div>
             </div>
 
             <div class="bg-darkbg-800 border border-slate-700/50 rounded-xl p-4 shadow-md space-y-3" id="panel-dynamic-right-zone"></div>
         </section>
     </main>
 
+    <!-- 交易明細帳本 Modal -->
     <div id="modal-dynamic-ledger" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-darkbg-800 border border-slate-700 rounded-2xl p-5 w-full max-w-md shadow-2xl space-y-4">
             <div class="flex justify-between items-center border-b border-slate-700 pb-2">
@@ -210,11 +216,11 @@
             <div class="grid grid-cols-2 gap-2 text-xs">
                 <div>
                     <label class="block text-[10px] text-slate-400 mb-1">交易單價</label>
-                    <input type="number" id="input-price-dynamic" step="0.05" class="w-full p-2 bg-darkbg-900 border border-slate-700 rounded text-white font-bold focus:border-brand-500 focus:outline-none">
+                    <input type="number" inputmode="decimal" id="input-price-dynamic" step="0.05" class="w-full p-2 bg-darkbg-900 border border-slate-700 rounded text-white font-bold focus:border-brand-500 focus:outline-none">
                 </div>
                 <div>
                     <label class="block text-[10px] text-slate-400 mb-1">交易股數</label>
-                    <input type="number" id="input-shares-dynamic" step="1" class="w-full p-2 bg-darkbg-900 border border-slate-700 rounded text-white font-bold focus:border-brand-500 focus:outline-none">
+                    <input type="number" inputmode="decimal" id="input-shares-dynamic" step="1" class="w-full p-2 bg-darkbg-900 border border-slate-700 rounded text-white font-bold focus:border-brand-500 focus:outline-none">
                 </div>
             </div>
             <button onclick="addTransactionRecord()" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-bold py-2 rounded-xl text-xs transition-all">確認新增一筆交易</button>
@@ -230,7 +236,7 @@
 
     <script>
         let state = {
-            twelveDataKey: "", // 新增：保存使用者專屬 API Key
+            fugleApiKey: "", // 已替換為富果專屬金鑰
             defenseWeight: 0,
             inflowOnly: false,
             imbalanceThreshold: 5,
@@ -240,9 +246,9 @@
             discount: 2.8,
             unit: 1,
             assets: [
-                { id: "a1", name: "元大台灣50", ticker: "0050.TW", beta: 1.0, targetWeight: 40, marketPrice: 195.5, lastUpdated: "--", updateStatus: "cache", txs: [{ id: 101, date: '2026-05-12', price: 185.00, shares: 1000, fee: 20, type: 'BUY' }] },
-                { id: "a2", name: "元大台灣50正2", ticker: "00631L.TW", beta: 2.0, targetWeight: 40, marketPrice: 225.0, lastUpdated: "--", updateStatus: "cache", txs: [{ id: 102, date: '2026-05-15', price: 215.00, shares: 500, fee: 20, type: 'BUY' }] },
-                { id: "a3", name: "群益臺灣加權正2", ticker: "00685L.TW", beta: 2.0, targetWeight: 20, marketPrice: 112.0, lastUpdated: "--", updateStatus: "cache", txs: [{ id: 103, date: '2026-05-18', price: 108.50, shares: 1000, fee: 20, type: 'BUY' }] }
+                { id: "a1", name: "元大台灣50", ticker: "0050", beta: 1.0, targetWeight: 40, marketPrice: 195.5, lastUpdated: "--", updateStatus: "cache", txs: [{ id: 101, date: '2026-05-12', price: 185.00, shares: 1000, fee: 20, type: 'BUY' }] },
+                { id: "a2", name: "元大台灣50正2", ticker: "00631L", beta: 2.0, targetWeight: 40, marketPrice: 225.0, lastUpdated: "--", updateStatus: "cache", txs: [{ id: 102, date: '2026-05-15', price: 215.00, shares: 500, fee: 20, type: 'BUY' }] },
+                { id: "a3", name: "群益臺灣加權正2", ticker: "00685L", beta: 2.0, targetWeight: 20, marketPrice: 112.0, lastUpdated: "--", updateStatus: "cache", txs: [{ id: 103, date: '2026-05-18', price: 108.50, shares: 1000, fee: 20, type: 'BUY' }] }
             ]
         };
         let currentChartInstance = null, targetChartInstance = null;
@@ -257,9 +263,6 @@
             autoCalculateDefenseWeight();
             renderAssetCards();
             calculate();
-            
-            // 由於改為使用限流較嚴格的 Twelve Data，取消自動觸發全域更新，改由使用者手動點擊
-            // fetchLatestPrices(); 
         };
 
         function autoCalculateDefenseWeight() {
@@ -271,7 +274,6 @@
         }
 
         function saveDataToLocal() {
-            // 讀取並保存 API Key
             const keyInput = document.getElementById('api-key-input');
             if (keyInput) state.fugleApiKey = keyInput.value.trim();
 
@@ -310,10 +312,10 @@
                 state.imbalanceThreshold = parsed.imbalanceThreshold || 5;
                 state.lastGlobalUpdate = parsed.lastGlobalUpdate || "--";
                 
-                // 還原 API Key 到輸入框
-                state.twelveDataKey = parsed.twelveDataKey || "";
+                // 相容舊版 twelveDataKey，統一轉入 fugleApiKey
+                state.fugleApiKey = parsed.fugleApiKey || parsed.twelveDataKey || "";
                 const keyInput = document.getElementById('api-key-input');
-                if (keyInput) keyInput.value = state.twelveDataKey;
+                if (keyInput) keyInput.value = state.fugleApiKey;
 
                 document.getElementById('shares-cash').value = parsed.cash || 0;
                 document.getElementById('new-injection').value = parsed.injection || 0;
@@ -324,7 +326,8 @@
                 autoCalculateDefenseWeight();
             } catch(e) { console.error("Persistence decoding error fallback preloaded", e); }
         }
-function exportData() {
+
+        function exportData() {
             saveDataToLocal();
             const dataStr = localStorage.getItem('ark_rebalancer_v4_dynamic');
             if (!dataStr) return alert("無庫存配置數據可匯出！");
@@ -415,18 +418,21 @@ function exportData() {
                     
                     <div class="grid grid-cols-12 gap-2.5 items-end">
                         <div class="col-span-12 sm:col-span-5 flex flex-col gap-1 pt-1">
-                            <input type="text" id="name-${asset.id}" value="${asset.name}" onblur="saveDataToLocal();"
+                            <!-- 修改點：使用 onblur 防止重繪奪取焦點 -->
+                            <input type="text" id="name-${asset.id}" value="${asset.name}" onblur="saveDataToLocal(); renderAssetCards(); calculate();"
                                 class="text-sm font-bold text-white bg-transparent border-b border-slate-700 focus:border-brand-500 focus:outline-none w-full placeholder-slate-500" placeholder="資產顯示名稱">
                             <input type="text" id="ticker-${asset.id}" value="${asset.ticker}" onblur="handleTickerChange('${asset.id}', this.value);"
                                 class="text-[10px] text-slate-400 font-mono bg-transparent border-b border-slate-700 focus:border-brand-500 focus:outline-none w-full placeholder-slate-600" placeholder="代號 (如 2330)">
                         </div>
                         <div class="col-span-4 sm:col-span-2">
                             <label class="block text-[9px] text-slate-400 mb-0.5 font-bold">目標比重(%)</label>
+                            <!-- 修改點：加入 inputmode="decimal" 且為 onblur -->
                             <input type="number" inputmode="decimal" id="weight-${asset.id}" value="${asset.targetWeight}" step="0.1" onblur="saveDataToLocal(); calculate();"
                                 class="w-full px-1.5 py-1.5 bg-darkbg-900 border border-slate-600 focus:border-brand-500 rounded-lg text-brand-400 font-black text-xs text-center transition-all">
                         </div>
                         <div class="col-span-4 sm:col-span-2">
                             <label class="block text-[9px] text-slate-400 mb-0.5 font-bold">市價</label>
+                            <!-- 修改點：加入 inputmode="decimal" 且為 onblur -->
                             <input type="number" inputmode="decimal" id="price-${asset.id}" value="${asset.marketPrice}" step="0.05" onblur="saveDataToLocal(); calculate();"
                                 class="w-full px-1.5 py-1.5 bg-darkbg-900 border border-slate-600 focus:border-brand-500 rounded-lg text-white font-bold text-xs text-center transition-all">
                         </div>
@@ -453,10 +459,9 @@ function exportData() {
             let asset = state.assets.find(a => a.id === assetId);
             if (!asset) return;
             asset.ticker = normalizeTicker(value);
-            saveDataToLocal(); // 記得要配合將內部的 twelveDataKey 改成 fugleApiKey
+            saveDataToLocal();
             
             if (asset.ticker) {
-                // 防呆機制
                 if (!state.fugleApiKey) {
                     alert("⚠️ 尚未設定 富果 (Fugle) API Key，無法取得即時報價。請在畫面上方輸入 Key。");
                     return;
@@ -540,8 +545,9 @@ function exportData() {
                                 </select>
                             </div>
                             <div><label class="block text-[9px] text-slate-400 mb-0.5">日期</label><input type="date" id="edit-date-${t.id}" value="${t.date}" class="w-full p-1 bg-darkbg-900 border border-slate-600 rounded text-white font-bold text-[10px]"></div>
-                            <div><label class="block text-[9px] text-slate-400 mb-0.5">單價</label><input type="number" id="edit-price-${t.id}" value="${t.price}" step="0.05" class="w-full p-1 bg-darkbg-900 border border-slate-600 rounded text-white font-bold text-[10px]"></div>
-                            <div><label class="block text-[9px] text-slate-400 mb-0.5">股數</label><input type="number" id="edit-shares-${t.id}" value="${t.shares}" step="1" class="w-full p-1 bg-darkbg-900 border border-slate-600 rounded text-white font-bold text-[10px]"></div>
+                            <!-- 修改點：編輯狀態也加上 inputmode="decimal" -->
+                            <div><label class="block text-[9px] text-slate-400 mb-0.5">單價</label><input type="number" inputmode="decimal" id="edit-price-${t.id}" value="${t.price}" step="0.05" class="w-full p-1 bg-darkbg-900 border border-slate-600 rounded text-white font-bold text-[10px]"></div>
+                            <div><label class="block text-[9px] text-slate-400 mb-0.5">股數</label><input type="number" inputmode="decimal" id="edit-shares-${t.id}" value="${t.shares}" step="1" class="w-full p-1 bg-darkbg-900 border border-slate-600 rounded text-white font-bold text-[10px]"></div>
                         </div>
                         <div class="flex justify-end gap-2 mt-1">
                             <button onclick="cancelEdit(${t.id})" class="text-slate-300 hover:text-white px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg transition-all font-medium text-[10px]">取消</button>
@@ -779,71 +785,102 @@ function exportData() {
             }
             innerStepsHtml += `</div>`;
             rightZoneContainer.innerHTML = innerStepsHtml;
+            
             updateDynamicCharts(currentAssetValues, totalCurrent, cashWeight, totalTarget, true);
         }
-function updateDynamicCharts(currentVals, totalCurrent, tgtCashPct, totalTarget, isValid) {
+
+               function updateDynamicCharts(currentVals, totalCurrent, tgtCashPct, totalTarget, isValid) {
             let labels = [];
             let currData = [];
             let tgtData = [];
             let bgColors = ['#3b82f6', '#22c55e', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e', '#64748b', '#06b6d4', '#f472b6'];
             
-            // 1. 準備圓餅圖數據 (只留 名稱 和 百分比)
+            const currentLegend = document.getElementById('current-legend-container');
+            const targetLegend = document.getElementById('target-legend-container');
+            
+            let currentHtml = '<div class="text-[10px] space-y-1.5">';
+            let targetHtml = '<div class="text-[10px] space-y-1.5">';
+
             state.assets.forEach((a, i) => {
                 let c_val = currentVals[a.id] || 0;
-                labels.push(a.name); // <--- 這裡只 push 名稱，圓餅圖就不會顯示金額
+                labels.push(a.name);
+                
                 let c_pct = totalCurrent > 0 ? (c_val / totalCurrent) * 100 : 0;
                 currData.push(c_pct.toFixed(1));
                 tgtData.push((parseFloat(a.targetWeight) || 0).toFixed(1));
+                
+                let ledger = aggregateAssetLedger(a.id);
+                let color = bgColors[i % bgColors.length];
+
+                // 左側：目前持股資訊 (僅名稱與股數)
+                currentHtml += `
+                    <div class="flex items-center justify-between p-1.5 bg-darkbg-900/50 rounded border border-slate-700/50">
+                        <div class="flex items-center gap-1.5 overflow-hidden">
+                            <div class="w-2 h-2 rounded-full shrink-0" style="background-color: ${color}"></div>
+                            <span class="truncate text-slate-300 font-bold">${a.name}</span>
+                        </div>
+                        <span class="font-mono text-blue-400 ml-2 shrink-0">${ledger.shares.toLocaleString()} 股</span>
+                    </div>`;
+                    
+                // 右側：目標期待資訊 (僅名稱與比例)
+                targetHtml += `
+                    <div class="flex items-center justify-between p-1.5 bg-darkbg-900/50 rounded border border-slate-700/50">
+                        <div class="flex items-center gap-1.5 overflow-hidden">
+                            <div class="w-2 h-2 rounded-full shrink-0" style="background-color: ${color}"></div>
+                            <span class="truncate text-slate-300 font-bold">${a.name}</span>
+                        </div>
+                        <span class="font-mono text-brand-400 ml-2 shrink-0">${(parseFloat(a.targetWeight) || 0)}%</span>
+                    </div>`;
             });
+
+            // 加入現金項目
             labels.push("預留現金");
             currData.push(totalCurrent > 0 ? ((state.cash / totalCurrent) * 100).toFixed(1) : 0);
             tgtData.push(tgtCashPct.toFixed(1));
-
-            // 2. 建立常駐金額清單 (文字列表)
-            let legendHtml = '<div class="grid grid-cols-2 gap-2 mt-4 text-[10px]">';
-            state.assets.forEach((a, i) => {
-                legendHtml += `
-                    <div class="flex items-center gap-1.5 bg-darkbg-900/50 p-1.5 rounded border border-slate-700/50">
-                        <div class="w-2 h-2 rounded-full" style="background-color: ${bgColors[i % bgColors.length]}"></div>
-                        <span class="text-slate-300 truncate">${a.name}</span>
-                        <span class="ml-auto font-mono text-white">NT$ ${Math.round(currentVals[a.id]).toLocaleString()}</span>
-                    </div>`;
-            });
-            legendHtml += `
-                <div class="flex items-center gap-1.5 bg-darkbg-900/50 p-1.5 rounded border border-slate-700/50">
-                    <div class="w-2 h-2 rounded-full" style="background-color: ${bgColors[state.assets.length % bgColors.length]}"></div>
-                    <span class="text-slate-300 truncate">預留現金</span>
-                    <span class="ml-auto font-mono text-white">NT$ ${Math.round(state.cash).toLocaleString()}</span>
-                </div></div>`;
             
-            const legendContainer = document.getElementById('chart-legend-container');
-            if (legendContainer) legendContainer.innerHTML = legendHtml;
+            let cashColor = bgColors[state.assets.length % bgColors.length];
+            
+            // 左側：預留現金 (因為現金沒有股數，右側顯示 - 保持版面平衡)
+            currentHtml += `
+                <div class="flex items-center justify-between p-1.5 bg-darkbg-900/50 rounded border border-slate-700/50">
+                    <div class="flex items-center gap-1.5 overflow-hidden">
+                        <div class="w-2 h-2 rounded-full shrink-0" style="background-color: ${cashColor}"></div>
+                        <span class="truncate text-slate-300 font-bold">預留現金</span>
+                    </div>
+                    <span class="font-mono text-blue-400 ml-2 shrink-0">-</span>
+                </div></div>`;
+                
+            // 右側：預留現金 (顯示比例)
+            targetHtml += `
+                <div class="flex items-center justify-between p-1.5 bg-darkbg-900/50 rounded border border-slate-700/50">
+                    <div class="flex items-center gap-1.5 overflow-hidden">
+                        <div class="w-2 h-2 rounded-full shrink-0" style="background-color: ${cashColor}"></div>
+                        <span class="truncate text-slate-300 font-bold">預留現金</span>
+                    </div>
+                    <span class="font-mono text-brand-400 ml-2 shrink-0">${tgtCashPct.toFixed(1)}%</span>
+                </div></div>`;
 
-            // 3. 設定圓餅圖 (禁用所有顯示金額的設定)
+            if (currentLegend) currentLegend.innerHTML = currentHtml;
+            if (targetLegend) targetLegend.innerHTML = targetHtml;
+
+            // Chart.js 核心設定：隱藏重複文字，保留百分比 Tooltip
             const chartConfig = (data) => ({
                 type: 'doughnut',
                 data: {
-                    labels: labels.map(() => ''), // 將 labels 全部設為空字串，隱藏圖表上的文字
-                    datasets: [{ 
-                        data: data, 
-                        backgroundColor: bgColors, 
-                        borderWidth: 1, 
-                        borderColor: '#1e293b' 
-                    }]
+                    labels: labels.map(() => ''), // 將標籤設為空，禁止繪圖庫自動輸出文字
+                    datasets: [{ data: data, backgroundColor: bgColors, borderWidth: 1, borderColor: '#1e293b' }]
                 },
                 options: { 
                     responsive: true, 
                     maintainAspectRatio: false, 
                     plugins: { 
-                        legend: { display: false }, // 強制關閉圖例
+                        legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                // 這裡重新定義 Tooltip 顯示內容
                                 title: function() { return ''; }, // 隱藏標題
                                 label: function(context) {
-                                    // 透過 index 抓取原始名稱，確保只顯示一次
-                                    let label = labels[context.dataIndex] || '';
-                                    return ` ${label}: ${context.raw}%`;
+                                    let lbl = labels[context.dataIndex] || '';
+                                    return ` ${lbl}: ${context.raw}%`; // 乾淨顯示「名稱 + 百分比」
                                 }
                             }
                         }
@@ -856,12 +893,11 @@ function updateDynamicCharts(currentVals, totalCurrent, tgtCashPct, totalTarget,
 
             currentChartInstance = new Chart(document.getElementById('currentChart').getContext('2d'), chartConfig(currData));
             
-            // 目標圖表處理
             if(!isValid) {
                 targetChartInstance = new Chart(document.getElementById('targetChart').getContext('2d'), {
                     type: 'doughnut',
-                    data: { labels: ['權重錯誤'], datasets: [{ data: [100], backgroundColor: ['#475569'], borderWidth: 1, borderColor: '#1e293b' }] },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                    data: { labels: [''], datasets: [{ data: [100], backgroundColor: ['#475569'], borderWidth: 1, borderColor: '#1e293b' }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
                 });
                 document.getElementById('lbl-target-chart-title').innerText = "目標設定異常";
                 document.getElementById('lbl-target-chart-title').className = "text-[10px] font-bold text-red-400 mb-1 animate-pulse";
@@ -871,6 +907,7 @@ function updateDynamicCharts(currentVals, totalCurrent, tgtCashPct, totalTarget,
                 document.getElementById('lbl-target-chart-title').className = "text-[10px] font-bold text-brand-400 mb-1";
             }
         }
+
 
         function calculateTaiwanStockFee(price, shares, discount) {
             let rawFee = price * shares * 0.001425;
@@ -885,9 +922,6 @@ function updateDynamicCharts(currentVals, totalCurrent, tgtCashPct, totalTarget,
             // 富果 API (Fugle) 只需要純數字代號，自動移除使用者輸入的 .TW 或 .TWO 後綴
             return raw.replace(/\.TWO?$/, "");
         }
-        
-        // 請確保在腳本開頭的 state 變數中，將 twelveDataKey 替換為 fugleApiKey
-        // 並在 saveDataToLocal 與 loadSavedData 中，將讀寫屬性改為 state.fugleApiKey
 
         function parseQuoteNumber(value) {
             if (value === undefined || value === null) return null;
@@ -906,7 +940,6 @@ function updateDynamicCharts(currentVals, totalCurrent, tgtCashPct, totalTarget,
         }
 
         async function fetchPriceViaGAS(ticker, specificAssetId = null) {
-            // 函數名稱保留以維持舊有架構相容性，但內部已全面轉換為 Fugle API 直連
             if (!ticker || !state.fugleApiKey) return null;
             
             // 富果行情 API v1.0 端點
@@ -924,14 +957,13 @@ function updateDynamicCharts(currentVals, totalCurrent, tgtCashPct, totalTarget,
                 if (specificAssetId) {
                     let asset = state.assets.find(a => a.id === specificAssetId);
                     if (asset) {
-                        // 富果 API 包含精準的中文簡稱，恢復「新資產」自動補齊功能
+                        // 自動抓取精準中文簡稱
                         if (asset.name === "新資產" && data.name) {
                             asset.name = data.name;
                         }
                     }
                 }
                 
-                // 優先取盤中最後成交價 lastPrice，若無則降級取收盤價或參考價
                 let priceStr = data.lastPrice || data.closePrice || (data.lastTrade && data.lastTrade.price) || data.referencePrice;
                 return parseQuoteNumber(priceStr);
             } catch (e) {
@@ -961,7 +993,6 @@ function updateDynamicCharts(currentVals, totalCurrent, tgtCashPct, totalTarget,
         }
 
         async function fetchLatestPrices() {
-            // 防呆保護
             if (!state.fugleApiKey) {
                 alert("⚠️ 尚未設定 富果 (Fugle) API Key，無法取得即時報價。請在右上角輸入您的專屬 Key。");
                 return;
