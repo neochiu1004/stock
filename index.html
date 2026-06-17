@@ -39,7 +39,6 @@
     <header class="border-b border-slate-800 bg-darkbg-900/80 backdrop-blur sticky top-0 z-50 px-4 py-3">
         <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
             <div class="flex items-center gap-3">
-                <!-- ⚡ 閃電 Logo：點擊展開或折疊 API 輸入框 -->
                 <div class="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl border border-emerald-500/30 cursor-pointer transition-all active:scale-95" onclick="toggleApiInput()" title="點擊設定富果 API 金鑰">
                     <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
@@ -58,17 +57,16 @@
                     <span id="global-update-time" class="text-brand-400 text-[10px] ml-1 font-bold"></span>
                 </div>
 
-                <!-- 隱藏式 API Key 欄位與一鍵貼上 -->
                 <div id="api-key-container" class="hidden flex items-center gap-1 bg-darkbg-800 p-1 rounded-lg border border-slate-700/60 transition-all">
                     <input type="password" id="api-key-input" placeholder="富果 API Key" onchange="saveDataToLocal()" class="w-32 px-2 py-1 bg-darkbg-900 border border-slate-700 rounded text-white focus:border-brand-500 focus:outline-none placeholder-slate-600 text-[10px]">
-                    <button onclick="pasteApiKey()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded text-[10px] font-bold transition-all">📋 貼上</button>
+                    <button type="button" onclick="pasteApiKey()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded text-[10px] font-bold transition-all">📋 貼上</button>
                 </div>
                 
                 <div class="flex gap-1">
-                    <button onclick="fetchLatestPrices()" class="bg-brand-600 hover:bg-brand-500 text-white px-2.5 py-1.5 rounded-lg font-medium transition-all active:scale-95">更新數據</button>
-                    <button onclick="copyActionPlan()" class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1.5 rounded-lg font-medium transition-all">拷貝行動</button>
-                    <button onclick="exportData()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-2.5 py-1.5 rounded-lg font-medium transition-all">匯出</button>
-                    <button onclick="document.getElementById('import-file').click()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-2.5 py-1.5 rounded-lg font-medium transition-all">匯入</button>
+                    <button type="button" onclick="fetchLatestPrices()" class="bg-brand-600 hover:bg-brand-500 text-white px-2.5 py-1.5 rounded-lg font-medium transition-all active:scale-95">更新數據</button>
+                    <button type="button" onclick="copyActionPlan()" class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1.5 rounded-lg font-medium transition-all">拷貝行動</button>
+                    <button type="button" onclick="exportData()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-2.5 py-1.5 rounded-lg font-medium transition-all">匯出</button>
+                    <button type="button" onclick="document.getElementById('import-file').click()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-2.5 py-1.5 rounded-lg font-medium transition-all">匯入</button>
                     <input type="file" id="import-file" class="hidden" accept=".json" onchange="importData(event)">
                 </div>
             </div>
@@ -92,12 +90,11 @@
                     <h2 class="text-sm font-bold text-slate-300 flex items-center gap-1">
                         <span class="text-brand-500">1.</span> 資產總市值與即時數據
                     </h2>
-                    <button onclick="addAsset()" class="bg-brand-600 hover:bg-brand-500 text-white text-[10px] font-bold px-2 py-1 rounded transition-all flex items-center gap-1">
+                    <button type="button" onclick="addAsset()" class="bg-brand-600 hover:bg-brand-500 text-white text-[10px] font-bold px-2 py-1 rounded transition-all flex items-center gap-1 relative z-10">
                         ➕ 新增股票桶
                     </button>
                 </div>
                 
-                <!-- 資產卡片渲染區 -->
                 <div id="dynamic-assets-container" class="space-y-4"></div>
 
                 <hr class="border-slate-700/50">
@@ -187,7 +184,6 @@
                     </div>
                 </div>
                 
-                <!-- 雙欄位圖例：左右並排且極簡 -->
                 <div class="grid grid-cols-2 gap-4 mt-5">
                     <div>
                         <span class="text-[10px] font-bold text-blue-400 block mb-2 text-center">📊 目前持股股數</span>
@@ -204,7 +200,7 @@
         </section>
     </main>
 
-    <!-- 複合式資產設定與交易帳本 Modal (整合點擊畫面) -->
+    <!-- 複合式資產設定與交易帳本 Modal -->
     <div id="modal-dynamic-ledger" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
         <div class="bg-darkbg-800 border border-slate-700 rounded-2xl p-5 w-full max-w-lg shadow-2xl space-y-4 my-8">
             <div class="flex justify-between items-center border-b border-slate-700 pb-2.5">
@@ -212,10 +208,9 @@
                     <span class="text-brand-500 text-base">⚙️</span>
                     <span id="ledger-dynamic-title">資產設定與明細帳本</span>
                 </h3>
-                <button onclick="closeLedgerModal()" class="text-slate-400 hover:text-white text-sm font-bold transition-colors">✕</button>
+                <button type="button" onclick="closeLedgerModal()" class="text-slate-400 hover:text-white text-sm font-bold transition-colors">✕</button>
             </div>
             
-            <!-- 第一區：參數設定區 (比重、加權係數) -->
             <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700/50 space-y-3">
                 <span class="text-[11px] font-bold text-brand-400 block">📊 資產權重與風險配置</span>
                 <div class="grid grid-cols-2 gap-3 text-xs">
@@ -241,13 +236,12 @@
                     </div>
                 </div>
                 <div class="flex justify-end pt-1">
-                    <button onclick="saveModalSettingsOnly()" id="modal-save-btn" class="bg-brand-600 hover:bg-brand-500 text-white text-[11px] font-bold px-4 py-2 rounded-lg transition-all active:scale-95 shadow">
+                    <button type="button" onclick="saveModalSettingsOnly()" id="modal-save-btn" class="bg-brand-600 hover:bg-brand-500 text-white text-[11px] font-bold px-4 py-2 rounded-lg transition-all active:scale-95 shadow">
                         💾 儲存上方配置設定
                     </button>
                 </div>
             </div>
 
-            <!-- 第二區：新增交易紀錄 -->
             <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700/50 space-y-3">
                 <span class="text-[11px] font-bold text-blue-400 block">📝 新增批次交易流水紀錄</span>
                 <div class="grid grid-cols-2 gap-2 text-xs">
@@ -271,25 +265,28 @@
                         <input type="number" inputmode="decimal" id="input-shares-dynamic" step="1" class="w-full p-2 bg-darkbg-900 border border-slate-700 rounded text-white font-bold focus:border-brand-500 focus:outline-none">
                     </div>
                 </div>
-                <button onclick="addTransactionRecord()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded-xl text-xs transition-all shadow-md">確認新增一筆明細</button>
+                <button type="button" onclick="addTransactionRecord()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded-xl text-xs transition-all shadow-md">確認新增一筆明細</button>
             </div>
 
-            <!-- 第三區：交易清單流水帳 -->
             <div class="space-y-2">
                 <div class="flex justify-between items-center px-1">
                     <span class="text-xs font-bold text-slate-400">📜 歷史交易清單</span>
-                    <button onclick="clearAllTransactions()" class="text-red-400 hover:text-red-300 text-[10px] font-bold transition-all">⚠️ 清空明細</button>
+                    <button type="button" onclick="clearAllTransactions()" class="text-red-400 hover:text-red-300 text-[10px] font-bold transition-all">⚠️ 清空明細</button>
                 </div>
                 <div class="max-h-36 overflow-y-auto space-y-2 pr-1" id="tx-list-dynamic"></div>
             </div>
 
             <div class="flex justify-end pt-2 border-t border-slate-800">
-                <button onclick="closeLedgerModal()" class="w-full sm:w-auto bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold px-5 py-2 rounded-xl text-xs transition-all">
+                <button type="button" onclick="closeLedgerModal()" class="w-full sm:w-auto bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold px-5 py-2 rounded-xl text-xs transition-all">
                     關閉並返回主頁
                 </button>
             </div>
         </div>
     </div>
+
+    <footer class="border-t border-slate-800 bg-slate-950 py-3 text-center text-[10px] text-slate-600 px-4">
+        <p>© 2026 雙核心自訂控盤控制台 V4. 本工具完全於您裝置本地離線運算，絕不上傳任何個人資產數據。</p>
+    </footer>
 
     <script>
         let state = {
@@ -322,7 +319,6 @@
             calculate();
         };
 
-        // 隱藏/顯示 API 設置列
         function toggleApiInput() {
             const container = document.getElementById('api-key-container');
             if (container) {
@@ -330,7 +326,6 @@
             }
         }
 
-        // 一鍵貼上
         async function pasteApiKey() {
             try {
                 const text = await navigator.clipboard.readText();
@@ -465,7 +460,6 @@
             alert('指令清單已成功複製到剪貼簿！');
         }
 
-        // 重新設計資產卡片渲染：徹底精簡，左右雙欄對齊，極致整齊
         function renderAssetCards() {
             let container = document.getElementById('dynamic-assets-container');
             if(!container) return;
@@ -498,21 +492,18 @@
 
                 html += `
                 <div class="p-4 rounded-2xl border space-y-4 relative group transition-all ${cardClasses}">
-                    <!-- 右上角移除按鈕 -->
-                    <button onclick="removeAsset('${asset.id}')" class="absolute top-2.5 right-2.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded px-1.5 py-0.5 font-bold text-[10px] opacity-0 group-hover:opacity-100 transition-all">✕ 移除</button>
+                    <!-- BUG修復1：已將 opacity-0 移除，改為手機與電腦皆能直接看到的常駐按鈕 -->
+                    <button type="button" onclick="removeAsset('${asset.id}')" class="absolute top-2.5 right-2.5 text-red-400/80 hover:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded px-2 py-1 font-bold text-[10px] transition-all z-10">✕ 移除</button>
                     
-                    <!-- 頂部區塊：名稱與代號、更新時間 -->
                     <div class="flex justify-between items-center border-b border-slate-700/50 pb-2.5">
                         <div class="flex items-center gap-2">
                             <span class="text-xs bg-slate-900 text-slate-400 font-mono font-bold px-2 py-0.5 rounded border border-slate-700/50">${asset.ticker || '無代號'}</span>
-                            <h3 class="text-sm font-black text-white truncate max-w-[150px]" title="${asset.name}">${asset.name}</h3>
+                            <h3 class="text-sm font-black text-white truncate max-w-[140px]" title="${asset.name}">${asset.name}</h3>
                         </div>
-                        <span class="text-[9px] ${timeBadgeClass} font-mono shrink-0 mr-4">${timeBadgeText}</span>
+                        <span class="text-[9px] ${timeBadgeClass} font-mono shrink-0 mr-12 sm:mr-14">${timeBadgeText}</span>
                     </div>
 
-                    <!-- 價格與財務資訊雙欄排版 (細節排版整齊) -->
                     <div class="grid grid-cols-2 gap-x-6 gap-y-2.5 text-xs">
-                        <!-- 左欄：現值規模 -->
                         <div class="space-y-1.5">
                             <div class="flex justify-between text-slate-400 text-[10px]">
                                 <span>即時市價:</span>
@@ -528,7 +519,6 @@
                             </div>
                         </div>
 
-                        <!-- 右欄：成本與損益 -->
                         <div class="space-y-1.5 border-l border-slate-700/40 pl-6">
                             <div class="flex justify-between text-slate-400 text-[10px]">
                                 <span>平均成本:</span>
@@ -545,7 +535,6 @@
                         </div>
                     </div>
 
-                    <!-- 比重與加權配置摘要 (表格化) -->
                     <div class="grid grid-cols-3 gap-2 bg-slate-900/60 p-2 rounded-xl border border-slate-800/80 text-[10px] items-center">
                         <div class="text-center border-r border-slate-800">
                             <span class="text-slate-500 block mb-0.5">實際比重</span>
@@ -561,8 +550,7 @@
                         </div>
                     </div>
 
-                    <!-- 進階管理與流水記帳入口 -->
-                    <button onclick="openLedgerModal('${asset.id}')" class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 active:scale-[0.98]">
+                    <button type="button" onclick="openLedgerModal('${asset.id}')" class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 active:scale-[0.98]">
                         <svg class="w-3.5 h-3.5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -574,28 +562,64 @@
             container.innerHTML = html;
         }
 
-        // 開啟進階設定與明細視窗，載入目前的數值
+        function addAsset() {
+            try {
+                let newId = "a_" + Date.now();
+                state.assets.push({ 
+                    id: newId, 
+                    name: "新資產", 
+                    ticker: "", 
+                    beta: 1.0, 
+                    targetWeight: 0, 
+                    marketPrice: 100.0, 
+                    lastUpdated: "--", 
+                    updateStatus: "cache", 
+                    txs: [] 
+                });
+                saveDataToLocal();
+                renderAssetCards();
+                calculate();
+                
+                // BUG修復3：新增後自動滾動到最下方，確保使用者能看到新卡片
+                setTimeout(() => {
+                    const container = document.getElementById('dynamic-assets-container');
+                    if (container && container.lastElementChild) {
+                        container.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
+            } catch (err) {
+                alert("新增發生錯誤：" + err.message);
+            }
+        }
+
+        function removeAsset(id) {
+            let asset = state.assets.find(a => a.id === id);
+            if(asset && asset.txs && asset.txs.length > 0) {
+                if(!confirm(`⚠️ 警告：【${asset.name}】內含 ${asset.txs.length} 筆歷史記帳明細，移除該資產桶將連同帳本一併永久刪除，確定要移除嗎？`)) return;
+            }
+            state.assets = state.assets.filter(a => a.id !== id);
+            saveDataToLocal();
+            renderAssetCards();
+            calculate();
+        }
+
         function openLedgerModal(assetId) {
             currentActiveAssetId = assetId;
             let asset = state.assets.find(a => a.id === assetId);
             if(!asset) return;
             
-            // 載入基本資訊至輸入框
             document.getElementById('ledger-dynamic-title').innerText = `【${asset.name}】進階配置與帳本`;
             document.getElementById('modal-asset-name').value = asset.name;
             document.getElementById('modal-asset-ticker').value = asset.ticker;
             document.getElementById('modal-asset-weight').value = asset.targetWeight;
             document.getElementById('modal-asset-beta').value = asset.beta !== undefined ? asset.beta : 1.0;
             document.getElementById('modal-asset-price').value = asset.marketPrice;
-
-            // 預設新增明細時的單價
             document.getElementById('input-price-dynamic').value = asset.marketPrice;
             
             document.getElementById('modal-dynamic-ledger').classList.remove('hidden');
             renderLedgerTable();
         }
 
-        // 獨立儲存參數設定邏輯
         function saveModalSettingsOnly() {
             if(!currentActiveAssetId) return;
             let asset = state.assets.find(a => a.id === currentActiveAssetId);
@@ -617,7 +641,6 @@
             renderAssetCards();
             calculate();
 
-            // 儲存反饋特效
             const btn = document.getElementById('modal-save-btn');
             if(btn) {
                 const originalText = btn.innerText;
@@ -662,8 +685,8 @@
                             <div><label class="block text-[9px] text-slate-400 mb-0.5">股數</label><input type="number" inputmode="decimal" id="edit-shares-${t.id}" value="${t.shares}" step="1" class="w-full p-1 bg-darkbg-900 border border-slate-600 rounded text-white font-bold text-[10px]"></div>
                         </div>
                         <div class="flex justify-end gap-2 mt-1">
-                            <button onclick="cancelEdit(${t.id})" class="text-slate-300 hover:text-white px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg transition-all font-medium text-[10px]">取消</button>
-                            <button onclick="saveTransactionEdit(${t.id})" class="text-white hover:bg-brand-500 px-3 py-1 bg-brand-600 rounded-lg transition-all font-bold text-[10px]">💾 儲存</button>
+                            <button type="button" onclick="cancelEdit(${t.id})" class="text-slate-300 hover:text-white px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg transition-all font-medium text-[10px]">取消</button>
+                            <button type="button" onclick="saveTransactionEdit(${t.id})" class="text-white hover:bg-brand-500 px-3 py-1 bg-brand-600 rounded-lg transition-all font-bold text-[10px]">💾 儲存</button>
                         </div>
                     </div>`;
                 } else {
@@ -677,8 +700,8 @@
                             <span class="text-[10px] text-slate-500 ml-1 block mt-0.5">(手續費: ${t.fee} 元)</span>
                         </div>
                         <div class="flex flex-col gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onclick="editTransaction(${t.id})" class="text-blue-400 font-bold px-2 py-0.5 border border-blue-500/20 rounded bg-blue-500/10 hover:bg-blue-500/20 flex-1">✏️ 編輯</button>
-                            <button onclick="deleteTransaction(${t.id})" class="text-red-400 font-bold px-2 py-0.5 border border-red-500/20 rounded bg-red-500/10 hover:bg-red-500/20 flex-1">🗑️ 刪除</button>
+                            <button type="button" onclick="editTransaction(${t.id})" class="text-blue-400 font-bold px-2 py-0.5 border border-blue-500/20 rounded bg-blue-500/10 hover:bg-blue-500/20 flex-1">✏️ 編輯</button>
+                            <button type="button" onclick="deleteTransaction(${t.id})" class="text-red-400 font-bold px-2 py-0.5 border border-red-500/20 rounded bg-red-500/10 hover:bg-red-500/20 flex-1">🗑️ 刪除</button>
                         </div>
                     </div>`;
                 }
@@ -812,7 +835,6 @@
                 plStatElement.className = "text-base font-black mt-0.5 truncate text-slate-400";
             }
 
-            // Beta 計算：基於自訂 Beta 權重計算組合 Beta
             let currBeta = 0;
             let tgtBeta = 0;
             state.assets.forEach(asset => {
@@ -902,7 +924,6 @@
             updateDynamicCharts(currentAssetValues, totalCurrent, cashWeight, totalTarget, true);
         }
 
-        // 修改雙圓餅圖圖例：嚴格分離「持股數」與「預期百分比」
         function updateDynamicCharts(currentVals, totalCurrent, tgtCashPct, totalTarget, isValid) {
             let labels = [];
             let currData = [];
@@ -926,7 +947,6 @@
                 let ledger = aggregateAssetLedger(a.id);
                 let color = bgColors[i % bgColors.length];
 
-                // 左圖例：目前分布 (僅名稱與股數，對齊整齊)
                 currentHtml += `
                     <div class="flex items-center justify-between p-1.5 bg-darkbg-900/50 rounded border border-slate-700/50">
                         <div class="flex items-center gap-1.5 overflow-hidden">
@@ -936,7 +956,6 @@
                         <span class="font-mono text-blue-400 ml-2 shrink-0">${ledger.shares.toLocaleString()} 股</span>
                     </div>`;
                     
-                // 右圖例：預期目標 (僅名稱與目標設定比例)
                 targetHtml += `
                     <div class="flex items-center justify-between p-1.5 bg-darkbg-900/50 rounded border border-slate-700/50">
                         <div class="flex items-center gap-1.5 overflow-hidden">
@@ -947,7 +966,6 @@
                     </div>`;
             });
 
-            // 現金處理
             labels.push("預留現金");
             currData.push(totalCurrent > 0 ? ((state.cash / totalCurrent) * 100).toFixed(1) : 0);
             tgtData.push(tgtCashPct.toFixed(1));
@@ -975,12 +993,18 @@
             if (currentLegend) currentLegend.innerHTML = currentHtml;
             if (targetLegend) targetLegend.innerHTML = targetHtml;
 
-            // Chart.js 核心設定：去除圖表上文字與標題
+            // BUG修復2：只顯示純比率的 Tooltip 邏輯
             const chartConfig = (data) => ({
                 type: 'doughnut',
                 data: {
-                    labels: labels.map(() => ''), // 將標籤強制清空，拒絕在圖表上印出文字
-                    datasets: [{ data: data, backgroundColor: bgColors, borderWidth: 1, borderColor: '#1e293b' }]
+                    labels: labels.map(() => ''),
+                    datasets: [{ 
+                        data: data, 
+                        // 修正顏色數量對應防呆機制
+                        backgroundColor: data.map((_, idx) => bgColors[idx % bgColors.length]), 
+                        borderWidth: 1, 
+                        borderColor: '#1e293b' 
+                    }]
                 },
                 options: { 
                     responsive: true, 
@@ -988,11 +1012,11 @@
                     plugins: { 
                         legend: { display: false },
                         tooltip: {
+                            displayColors: false, // 關閉顏色的方形提示塊
                             callbacks: {
-                                title: function() { return ''; }, // 徹底隱藏標題，避免名稱重複
+                                title: function() { return null; }, // 徹底隱藏標題名稱
                                 label: function(context) {
-                                    let lbl = labels[context.dataIndex] || '';
-                                    return ` ${lbl}: ${context.raw}%`;
+                                    return ` ${context.raw}%`; // 只留純比率
                                 }
                             }
                         }
