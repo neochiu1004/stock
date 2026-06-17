@@ -415,19 +415,19 @@ function exportData() {
                     
                     <div class="grid grid-cols-12 gap-2.5 items-end">
                         <div class="col-span-12 sm:col-span-5 flex flex-col gap-1 pt-1">
-                            <input type="text" id="name-${asset.id}" value="${asset.name}" onchange="saveDataToLocal(); renderAssetCards(); calculate();"
+                            <input type="text" id="name-${asset.id}" value="${asset.name}" onblur="saveDataToLocal();"
                                 class="text-sm font-bold text-white bg-transparent border-b border-slate-700 focus:border-brand-500 focus:outline-none w-full placeholder-slate-500" placeholder="資產顯示名稱">
-                            <input type="text" id="ticker-${asset.id}" value="${asset.ticker}" onchange="handleTickerChange('${asset.id}', this.value);"
-                                class="text-[10px] text-slate-400 font-mono bg-transparent border-b border-slate-700 focus:border-brand-500 focus:outline-none w-full placeholder-slate-600" placeholder="代號 (如 2330.TW)">
+                            <input type="text" id="ticker-${asset.id}" value="${asset.ticker}" onblur="handleTickerChange('${asset.id}', this.value);"
+                                class="text-[10px] text-slate-400 font-mono bg-transparent border-b border-slate-700 focus:border-brand-500 focus:outline-none w-full placeholder-slate-600" placeholder="代號 (如 2330)">
                         </div>
                         <div class="col-span-4 sm:col-span-2">
                             <label class="block text-[9px] text-slate-400 mb-0.5 font-bold">目標比重(%)</label>
-                            <input type="number" id="weight-${asset.id}" value="${asset.targetWeight}" step="0.1" oninput="saveDataToLocal(); renderAssetCards(); calculate();"
+                            <input type="number" inputmode="decimal" id="weight-${asset.id}" value="${asset.targetWeight}" step="0.1" onblur="saveDataToLocal(); calculate();"
                                 class="w-full px-1.5 py-1.5 bg-darkbg-900 border border-slate-600 focus:border-brand-500 rounded-lg text-brand-400 font-black text-xs text-center transition-all">
                         </div>
                         <div class="col-span-4 sm:col-span-2">
                             <label class="block text-[9px] text-slate-400 mb-0.5 font-bold">市價</label>
-                            <input type="number" id="price-${asset.id}" value="${asset.marketPrice}" step="0.05" oninput="saveDataToLocal(); calculate();"
+                            <input type="number" inputmode="decimal" id="price-${asset.id}" value="${asset.marketPrice}" step="0.05" onblur="saveDataToLocal(); calculate();"
                                 class="w-full px-1.5 py-1.5 bg-darkbg-900 border border-slate-600 focus:border-brand-500 rounded-lg text-white font-bold text-xs text-center transition-all">
                         </div>
                         <div class="col-span-4 sm:col-span-3 flex flex-col justify-end h-full gap-1">
@@ -787,53 +787,63 @@ function updateDynamicCharts(currentVals, totalCurrent, tgtCashPct, totalTarget,
             let tgtData = [];
             let bgColors = ['#3b82f6', '#22c55e', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e', '#64748b', '#06b6d4', '#f472b6'];
             
-            // 建立常駐金額清單的 HTML
-            let legendHtml = '<div class="grid grid-cols-2 gap-2 mt-4 text-[10px]">';
-            
+            // 1. 準備圓餅圖數據 (只留 名稱 和 百分比)
             state.assets.forEach((a, i) => {
                 let c_val = currentVals[a.id] || 0;
-                labels.push(a.name); // 圓餅圖只顯示名稱
+                labels.push(a.name); // <--- 這裡只 push 名稱，圓餅圖就不會顯示金額
                 let c_pct = totalCurrent > 0 ? (c_val / totalCurrent) * 100 : 0;
                 currData.push(c_pct.toFixed(1));
                 tgtData.push((parseFloat(a.targetWeight) || 0).toFixed(1));
-                
-                // 新增常駐清單項目
+            });
+            labels.push("預留現金");
+            currData.push(totalCurrent > 0 ? ((state.cash / totalCurrent) * 100).toFixed(1) : 0);
+            tgtData.push(tgtCashPct.toFixed(1));
+
+            // 2. 建立常駐金額清單 (文字列表)
+            let legendHtml = '<div class="grid grid-cols-2 gap-2 mt-4 text-[10px]">';
+            state.assets.forEach((a, i) => {
                 legendHtml += `
                     <div class="flex items-center gap-1.5 bg-darkbg-900/50 p-1.5 rounded border border-slate-700/50">
                         <div class="w-2 h-2 rounded-full" style="background-color: ${bgColors[i % bgColors.length]}"></div>
                         <span class="text-slate-300 truncate">${a.name}</span>
-                        <span class="ml-auto font-mono text-white">NT$ ${Math.round(c_val).toLocaleString()}</span>
+                        <span class="ml-auto font-mono text-white">NT$ ${Math.round(currentVals[a.id]).toLocaleString()}</span>
                     </div>`;
             });
-            
-            // 加入現金項目
             legendHtml += `
                 <div class="flex items-center gap-1.5 bg-darkbg-900/50 p-1.5 rounded border border-slate-700/50">
                     <div class="w-2 h-2 rounded-full" style="background-color: ${bgColors[state.assets.length % bgColors.length]}"></div>
                     <span class="text-slate-300 truncate">預留現金</span>
                     <span class="ml-auto font-mono text-white">NT$ ${Math.round(state.cash).toLocaleString()}</span>
                 </div></div>`;
-
-            // 將金額清單注入到圖表容器的 parent 元素中（請確保您的 HTML 結構有預留位置）
-            // 這裡直接將 HTML 插入到當前圖表容器下方的某個 ID，例如 'chart-legend-container'
+            
             const legendContainer = document.getElementById('chart-legend-container');
             if (legendContainer) legendContainer.innerHTML = legendHtml;
 
-            const chartConfig = (data, isTarget) => ({
+            // 3. 設定圓餅圖 (禁用所有顯示金額的設定)
+            const chartConfig = (data) => ({
                 type: 'doughnut',
                 data: {
-                    labels: labels, // 現在只有名稱
-                    datasets: [{ data: data, backgroundColor: bgColors, borderWidth: 1, borderColor: '#1e293b' }]
+                    labels: labels.map(() => ''), // 將 labels 全部設為空字串，隱藏圖表上的文字
+                    datasets: [{ 
+                        data: data, 
+                        backgroundColor: bgColors, 
+                        borderWidth: 1, 
+                        borderColor: '#1e293b' 
+                    }]
                 },
                 options: { 
                     responsive: true, 
                     maintainAspectRatio: false, 
                     plugins: { 
-                        legend: { display: false },
+                        legend: { display: false }, // 強制關閉圖例
                         tooltip: {
                             callbacks: {
+                                // 這裡重新定義 Tooltip 顯示內容
+                                title: function() { return ''; }, // 隱藏標題
                                 label: function(context) {
-                                    return ` ${context.label}: ${context.raw}%`; // Tooltip 僅顯示 名稱 + %
+                                    // 透過 index 抓取原始名稱，確保只顯示一次
+                                    let label = labels[context.dataIndex] || '';
+                                    return ` ${label}: ${context.raw}%`;
                                 }
                             }
                         }
@@ -844,7 +854,9 @@ function updateDynamicCharts(currentVals, totalCurrent, tgtCashPct, totalTarget,
             if (currentChartInstance) currentChartInstance.destroy();
             if (targetChartInstance) targetChartInstance.destroy();
 
-            currentChartInstance = new Chart(document.getElementById('currentChart').getContext('2d'), chartConfig(currData, false));
+            currentChartInstance = new Chart(document.getElementById('currentChart').getContext('2d'), chartConfig(currData));
+            
+            // 目標圖表處理
             if(!isValid) {
                 targetChartInstance = new Chart(document.getElementById('targetChart').getContext('2d'), {
                     type: 'doughnut',
