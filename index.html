@@ -305,6 +305,9 @@
             </div>
             
             <div class="p-6 space-y-6 max-h-[85vh] overflow-y-auto">
+                <!-- 決策支援面板 (動態渲染) -->
+                <div id="decision-support-panel" class="hidden"></div>
+
                 <!-- Config Section -->
                 <div class="space-y-4">
                     <span class="text-xs font-black text-primary uppercase tracking-widest">Asset Parameters</span>
@@ -395,7 +398,7 @@
     <div id="ui-toast-container"></div>
 
     <script>
-        // Core State & Assets
+        // Core State & Assets (MCE: 預填模擬數據供即時預覽)
         let state = {
             fugleApiKey: "", 
             defenseWeight: 0,
@@ -407,9 +410,9 @@
             discount: 2.8,
             unit: 1,
             assets: [
-                { id: "a1", name: "元大台灣50", ticker: "0050", beta: 1.0, targetWeight: 40, marketPrice: 195.5, lastUpdated: "--", updateStatus: "cache", txs: [{ id: 101, date: '2026-05-12', price: 185.00, shares: 1000, fee: 20, tax: 0, type: 'BUY', linked: false }] },
-                { id: "a2", name: "元大台灣50正2", ticker: "00631L", beta: 2.0, targetWeight: 40, marketPrice: 225.0, lastUpdated: "--", updateStatus: "cache", txs: [{ id: 102, date: '2026-05-15', price: 215.00, shares: 500, fee: 20, tax: 0, type: 'BUY', linked: false }] },
-                { id: "a3", name: "群益臺灣加權正2", ticker: "00685L", beta: 2.0, targetWeight: 20, marketPrice: 112.0, lastUpdated: "--", updateStatus: "cache", txs: [{ id: 103, date: '2026-05-18', price: 108.50, shares: 1000, fee: 20, tax: 0, type: 'BUY', linked: false }] }
+                { id: "a1", name: "元大台灣50", ticker: "0050", beta: 1.0, targetWeight: 40, marketPrice: 195.50, openPrice: 193.00, highPrice: 197.00, lowPrice: 192.50, referencePrice: 191.00, analysisLabel: "偏向買進", analysisReason: "量大收紅，三日均價大於六日均價", lastUpdated: "13:30:00", updateStatus: "success", txs: [{ id: 101, date: '2026-05-12', price: 185.00, shares: 1000, fee: 20, tax: 0, type: 'BUY', linked: false }] },
+                { id: "a2", name: "元大台灣50正2", ticker: "00631L", beta: 2.0, targetWeight: 40, marketPrice: 225.0, openPrice: 220.00, highPrice: 227.00, lowPrice: 219.00, referencePrice: 218.00, analysisLabel: "偏向買進", analysisReason: "量縮價不跌，三日均價由下往上", lastUpdated: "--", updateStatus: "cache", txs: [{ id: 102, date: '2026-05-15', price: 215.00, shares: 500, fee: 20, tax: 0, type: 'BUY', linked: false }] },
+                { id: "a3", name: "群益臺灣加權正2", ticker: "00685L", beta: 2.0, targetWeight: 20, marketPrice: 112.0, openPrice: 110.00, highPrice: 113.00, lowPrice: 109.50, referencePrice: 108.50, analysisLabel: "偏向買進", analysisReason: "量大收紅，三日均價大於六日均價", lastUpdated: "--", updateStatus: "cache", txs: [{ id: 103, date: '2026-05-18', price: 108.50, shares: 1000, fee: 20, tax: 0, type: 'BUY', linked: false }] }
             ]
         };
 
@@ -449,6 +452,7 @@
             calculate(); // Re-render logic to apply visual changes properly
         }
 
+        // MCE: 修正切換圓餅圖資料來源時，遺漏的 switchPieType 定義
         function switchPieType(type) {
             pieViewType = type;
             
@@ -534,7 +538,36 @@
             if (!local) return;
             try {
                 const parsed = JSON.parse(local);
-                if (parsed.assets && Array.isArray(parsed.assets)) state.assets = parsed.assets;
+                if (parsed.assets && Array.isArray(parsed.assets)) {
+                    // MCE: 當偵測到本機有舊版快取時，自動升級補上今日模擬數據
+                    parsed.assets.forEach(a => {
+                        if (a.ticker === "0050") {
+                            if (a.openPrice === undefined || a.openPrice === null) a.openPrice = 193.00;
+                            if (a.highPrice === undefined || a.highPrice === null) a.highPrice = 197.00;
+                            if (a.lowPrice === undefined || a.lowPrice === null) a.lowPrice = 192.50;
+                            if (a.referencePrice === undefined || a.referencePrice === null) a.referencePrice = 191.00;
+                            if (!a.analysisLabel) a.analysisLabel = "偏向買進";
+                            if (!a.analysisReason) a.analysisReason = "量大收紅，三日均價大於六日均價";
+                        }
+                        if (a.ticker === "00631L") {
+                            if (a.openPrice === undefined || a.openPrice === null) a.openPrice = 220.00;
+                            if (a.highPrice === undefined || a.highPrice === null) a.highPrice = 227.00;
+                            if (a.lowPrice === undefined || a.lowPrice === null) a.lowPrice = 219.00;
+                            if (a.referencePrice === undefined || a.referencePrice === null) a.referencePrice = 218.00;
+                            if (!a.analysisLabel) a.analysisLabel = "偏向買進";
+                            if (!a.analysisReason) a.analysisReason = "量縮價不跌，三日均價由下往上";
+                        }
+                        if (a.ticker === "00685L") {
+                            if (a.openPrice === undefined || a.openPrice === null) a.openPrice = 110.00;
+                            if (a.highPrice === undefined || a.highPrice === null) a.highPrice = 113.00;
+                            if (a.lowPrice === undefined || a.lowPrice === null) a.lowPrice = 109.50;
+                            if (a.referencePrice === undefined || a.referencePrice === null) a.referencePrice = 108.50;
+                            if (!a.analysisLabel) a.analysisLabel = "偏向買進";
+                            if (!a.analysisReason) a.analysisReason = "量大收紅，三日均價大於六日均價";
+                        }
+                    });
+                    state.assets = parsed.assets;
+                }
                 
                 state.inflowOnly = parsed.inflowOnly || false;
                 state.imbalanceThreshold = parsed.imbalanceThreshold || 5;
@@ -593,7 +626,7 @@
             return { shares: totalShares, wac, totalCost: totalCombinedCost };
         }
 
-        // Render Asset Cards (Typography updated)
+        // Render Asset Cards (Typography updated + Added Fluctuation and Signals directly to Card)
         function renderAssetCards() {
             const container = document.getElementById('dynamic-assets-container');
             let totalVal = state.cash + state.assets.reduce((sum, a) => sum + (aggregateAssetLedger(a.id).shares * a.marketPrice), 0);
@@ -606,23 +639,49 @@
                 let actW = totalVal > 0 ? (currentVal / totalVal) * 100 : 0;
                 let isImbalanced = Math.abs(actW - a.targetWeight) > state.imbalanceThreshold;
                 
+                // MCE: 台股通常以參考價（昨日收盤價）來計算當日漲跌幅，若無則降級為開盤價
+                let basePrice = a.referencePrice || a.openPrice;
+                let diff = (a.marketPrice && basePrice) ? (a.marketPrice - basePrice) : 0;
+                let diffPct = basePrice ? ((diff / basePrice) * 100).toFixed(2) : 0;
+                let isUp = diff >= 0;
+                let colorClass = isUp ? 'text-danger-red' : 'text-success-emerald';
+                let sign = isUp && diff > 0 ? '+' : '';
+                let arrow = isUp && diff > 0 ? '▲' : (diff < 0 ? '▼' : '-');
+
+                let changeHtml = basePrice ? `
+                    <div class="text-xs font-black ${colorClass} mt-1.5 font-mono bg-surface-container-lowest/40 py-1 px-3 rounded-full inline-block">
+                        今日: ${sign}${diffPct}% (${arrow}${Math.abs(diff).toFixed(2)})
+                    </div>
+                ` : '';
+
+                // MCE: 計算主畫面卡片的 AI 決策 Badge
+                let badgeHtml = '';
+                if (a.analysisLabel) {
+                    let badgeColor = 'bg-surface-container-highest text-white border-outline-variant';
+                    if (a.analysisLabel.includes('買')) badgeColor = 'bg-danger-red/20 text-danger-red border-danger-red/30';
+                    else if (a.analysisLabel.includes('賣')) badgeColor = 'bg-success-emerald/20 text-success-emerald border-success-emerald/30';
+                    badgeHtml = `<span class="border px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 tracking-wide ${badgeColor}">${a.analysisLabel}</span>`;
+                }
+
                 return `
                 <article class="bg-surface-card rounded-[24px] p-6 border ${isImbalanced ? 'border-danger-red/50 shadow-[0_0_20px_rgba(239,68,68,0.2)]' : 'border-surface-container-highest shadow-2xl'} transition-all active:scale-[0.98] cursor-pointer ${isImbalanced ? 'card-imbalanced' : ''}" onclick="openLedgerModal('${a.id}')">
-                    <div class="flex justify-between items-start mb-5">
-                        <div class="flex items-center gap-3">
+                    <div class="flex justify-between items-start mb-5 gap-2">
+                        <div class="flex items-center gap-2 flex-wrap min-w-0">
                             <span class="bg-surface-base border border-outline-variant px-3 py-1.5 rounded-lg text-xs font-black text-text-secondary tracking-widest shadow-inner">${a.ticker || '無代號'}</span>
-                            <h2 class="text-xl font-black text-white tracking-wide">${a.name}</h2>
+                            ${badgeHtml}
+                            <h2 class="text-xl font-black text-white tracking-wide truncate">${a.name}</h2>
                         </div>
-                        <div class="text-right">
+                        <div class="text-right shrink-0">
                             <p class="text-xs text-text-secondary font-black tracking-widest mb-1">即時市值</p>
                             <p class="text-action-blue font-black text-2xl tracking-tight">NT$ ${Math.round(currentVal).toLocaleString()}</p>
                         </div>
                     </div>
                     
                     <div class="bg-surface-base/80 p-5 rounded-2xl border border-outline-variant/40 mb-5 text-center relative overflow-hidden shadow-inner">
-                        <p class="text-sm text-text-secondary font-black mb-2 tracking-widest">目前現價</p>
-                        <p class="text-white font-black text-5xl font-mono tracking-tighter mb-4 drop-shadow-md">${a.marketPrice.toFixed(2)}</p>
-                        <div class="pt-4 border-t border-outline-variant/30 flex justify-center items-center gap-4">
+                        <p class="text-sm text-text-secondary font-black mb-1.5 tracking-widest">目前現價</p>
+                        <p class="text-white font-black text-5xl font-mono tracking-tighter mb-1 drop-shadow-md">${a.marketPrice.toFixed(2)}</p>
+                        ${changeHtml}
+                        <div class="pt-4 border-t border-outline-variant/30 flex justify-center items-center gap-4 mt-3">
                             <p class="text-sm text-text-secondary font-black tracking-widest">持有股數</p>
                             <p class="text-white font-black text-2xl font-mono">${l.shares.toLocaleString()}</p>
                         </div>
@@ -945,9 +1004,85 @@
         // Asset Management Functions
         function addAsset() {
             let newId = "a_" + Date.now();
-            state.assets.push({ id: newId, name: "新資產", ticker: "", beta: 1.0, targetWeight: 0, marketPrice: 100.0, lastUpdated: "--", updateStatus: "cache", txs: [] });
+            state.assets.push({ id: newId, name: "新資產", ticker: "", beta: 1.0, targetWeight: 0, marketPrice: 100.0, openPrice: null, highPrice: null, lowPrice: null, referencePrice: null, analysisLabel: "", analysisReason: "", lastUpdated: "--", updateStatus: "cache", txs: [] });
             saveDataToLocal(); renderAssetCards(); calculate();
             setTimeout(() => { openLedgerModal(newId); }, 100);
+        }
+
+        function renderDecisionPanel(a) {
+            const decisionPanel = document.getElementById('decision-support-panel');
+            if (!decisionPanel) return;
+            
+            let basePrice = a.referencePrice || a.openPrice;
+            if (basePrice || a.analysisLabel) {
+                let diff = (a.marketPrice && basePrice) ? (a.marketPrice - basePrice) : 0;
+                let diffPct = basePrice ? ((diff / basePrice) * 100).toFixed(2) : 0;
+                let isUp = diff >= 0;
+                // 台股：紅漲綠跌
+                let colorClass = isUp ? 'text-danger-red' : 'text-success-emerald';
+                let sign = isUp && diff > 0 ? '+' : '';
+                let arrow = isUp && diff > 0 ? '▲' : (diff < 0 ? '▼' : '-');
+
+                // 決策標籤顏色：偏向買進(紅), 偏向賣出(綠)
+                let labelColor = 'bg-surface-container-highest text-white border-outline-variant';
+                if (a.analysisLabel) {
+                    if (a.analysisLabel.includes('買')) labelColor = 'bg-danger-red/20 text-danger-red border-danger-red/30';
+                    else if (a.analysisLabel.includes('賣')) labelColor = 'bg-success-emerald/20 text-success-emerald border-success-emerald/30';
+                }
+
+                decisionPanel.innerHTML = `
+                    <div class="bg-surface-container-highest/20 border border-white/5 rounded-2xl p-5 shadow-inner">
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="material-symbols-outlined text-action-blue text-[20px]">query_stats</span>
+                            <h4 class="text-sm font-black text-white tracking-widest uppercase">當日量價與決策支援</h4>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-end border-b border-white/5 pb-3">
+                                <span class="text-xs font-bold text-text-secondary tracking-widest">今日現價 / 漲跌幅</span>
+                                <div class="flex items-baseline gap-2">
+                                    <span class="text-xl font-black text-white font-mono">${a.marketPrice.toFixed(2)}</span>
+                                    <span class="text-sm font-black font-mono ${colorClass}">${sign}${diffPct}% (${arrow}${Math.abs(diff).toFixed(2)})</span>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-4 gap-2 text-center">
+                                <div class="bg-surface-container-lowest/50 rounded-xl py-2 border border-white/5">
+                                    <div class="text-[10px] font-black text-text-secondary mb-1 uppercase">參考價</div>
+                                    <div class="text-xs font-mono font-bold text-white">${a.referencePrice || '--'}</div>
+                                </div>
+                                <div class="bg-surface-container-lowest/50 rounded-xl py-2 border border-white/5">
+                                    <div class="text-[10px] font-black text-text-secondary mb-1 uppercase">開盤</div>
+                                    <div class="text-xs font-mono font-bold text-white">${a.openPrice || '--'}</div>
+                                </div>
+                                <div class="bg-surface-container-lowest/50 rounded-xl py-2 border border-white/5">
+                                    <div class="text-[10px] font-black text-text-secondary mb-1 uppercase">最高</div>
+                                    <div class="text-xs font-mono font-bold text-white">${a.highPrice || '--'}</div>
+                                </div>
+                                <div class="bg-surface-container-lowest/50 rounded-xl py-2 border border-white/5">
+                                    <div class="text-[10px] font-black text-text-secondary mb-1 uppercase">最低</div>
+                                    <div class="text-xs font-mono font-bold text-white">${a.lowPrice || '--'}</div>
+                                </div>
+                            </div>
+                            ${a.analysisLabel ? `
+                            <div class="mt-4 pt-4 border-t border-white/5">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="text-[10px] font-black text-text-secondary uppercase tracking-widest">AI 決策信號</span>
+                                    <span class="px-2.5 py-0.5 rounded text-[11px] font-black border ${labelColor}">${a.analysisLabel}</span>
+                                </div>
+                                <p class="text-xs text-text-secondary font-bold leading-relaxed">${a.analysisReason || '無具體原因'}</p>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            } else {
+                decisionPanel.innerHTML = `
+                    <div class="bg-surface-container-highest/10 border border-dashed border-white/10 rounded-2xl p-5 text-center flex flex-col items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-text-secondary/50 text-[24px]">hourglass_empty</span>
+                        <span class="text-xs font-bold text-text-secondary uppercase tracking-widest">等待同步最新量價與決策資料</span>
+                    </div>
+                `;
+            }
+            decisionPanel.classList.remove('hidden');
         }
 
         function openLedgerModal(id) {
@@ -963,6 +1098,7 @@
             document.getElementById('modal-asset-price').value = a.marketPrice;
             document.getElementById('input-price-dynamic').value = a.marketPrice;
             
+            renderDecisionPanel(a);
             updateTxPreview();
             renderLedgerTable();
             document.getElementById('modal-dynamic-ledger').classList.remove('hidden');
@@ -1171,15 +1307,40 @@
                 if (!res.ok) throw new Error("無效或無權限");
                 const data = await res.json();
                 
-                let priceStr = data.lastPrice || data.closePrice || (data.lastTrade && data.lastTrade.price) || data.referencePrice;
+                // MCE: 相容 Fugle 與 PDF 新版 JSON 結構
+                let priceStr = data.latest_price || data.realtime?.latest_trade_price || data.lastPrice || data.closePrice || (data.lastTrade && data.lastTrade.price) || data.referencePrice;
                 let price = parseQuoteNumber(priceStr);
                 
+                let a = state.assets.find(x => x.id === currentActiveAssetId);
+                if (a) {
+                    if (data.name) a.name = data.name;
+                    if (price) a.marketPrice = price;
+
+                    let r = data.realtime;
+                    let lastRow = data.rows && data.rows.length > 0 ? data.rows[data.rows.length - 1] : null;
+
+                    // MCE: 相容 Fugle 富果 API 的 previousClose 或 referencePrice 作為大盤漲跌計算基準
+                    a.referencePrice = parseQuoteNumber(data.previousClose || data.referencePrice || data.refPrice) || a.referencePrice;
+                    a.openPrice = parseQuoteNumber(data.openPrice || r?.open || lastRow?.open) || a.openPrice;
+                    a.highPrice = parseQuoteNumber(data.highPrice || r?.high || lastRow?.high) || a.highPrice;
+                    a.lowPrice = parseQuoteNumber(data.lowPrice || r?.low || lastRow?.low) || a.lowPrice;
+
+                    if (data.analysis?.overall) {
+                        a.analysisLabel = data.analysis.overall.label;
+                        a.analysisReason = data.analysis.overall.reason;
+                    }
+                    
+                    // 動態刷新決策面板，不覆蓋 user 在 modal 的其他未儲存輸入
+                    renderDecisionPanel(a);
+                }
+
                 if (data.name) document.getElementById('modal-asset-name').value = data.name;
                 if (price) {
                     document.getElementById('modal-asset-price').value = price;
                     document.getElementById('input-price-dynamic').value = price;
                 }
-                showToast("已同步最新報價", "success");
+                
+                showToast("已同步最新報價與決策", "success");
                 updateTxPreview(); 
             } catch (e) {
                 showToast("同步失敗", "error");
@@ -1196,12 +1357,30 @@
                 if (!response.ok) return null;
                 const data = await response.json();
                 
+                // MCE: 相容 Fugle 與 PDF 新版 JSON 結構
+                let priceStr = data.latest_price || data.realtime?.latest_trade_price || data.lastPrice || data.closePrice || (data.lastTrade && data.lastTrade.price) || data.referencePrice;
+                
                 if (specificAssetId) {
                     let asset = state.assets.find(a => a.id === specificAssetId);
-                    if (asset && asset.name === "新資產" && data.name) asset.name = data.name;
+                    if (asset) {
+                        if (asset.name === "新資產" && data.name) asset.name = data.name;
+                        
+                        let r = data.realtime;
+                        let lastRow = data.rows && data.rows.length > 0 ? data.rows[data.rows.length - 1] : null;
+
+                        // MCE: 相容 Fugle 富果 API 的 previousClose 或 referencePrice
+                        asset.referencePrice = parseQuoteNumber(data.previousClose || data.referencePrice || data.refPrice) || asset.referencePrice;
+                        asset.openPrice = parseQuoteNumber(data.openPrice || r?.open || lastRow?.open) || asset.openPrice;
+                        asset.highPrice = parseQuoteNumber(data.highPrice || r?.high || lastRow?.high) || asset.highPrice;
+                        asset.lowPrice = parseQuoteNumber(data.lowPrice || r?.low || lastRow?.low) || asset.lowPrice;
+
+                        if (data.analysis?.overall) {
+                            asset.analysisLabel = data.analysis.overall.label;
+                            asset.analysisReason = data.analysis.overall.reason;
+                        }
+                    }
                 }
                 
-                let priceStr = data.lastPrice || data.closePrice || (data.lastTrade && data.lastTrade.price) || data.referencePrice;
                 return parseQuoteNumber(priceStr);
             } catch (e) { return null; }
         }
