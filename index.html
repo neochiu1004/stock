@@ -379,6 +379,45 @@
         </div>
     </div>
 
+    <!-- Quick Rebalance Execution Modal -->
+    <div class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" id="modal-quick-execute">
+        <div class="bg-surface-container-high border border-outline-variant/30 rounded-3xl p-6 w-full max-w-sm space-y-4">
+            <div class="flex justify-between items-center border-b border-white/5 pb-3">
+                <h3 class="text-base font-black text-white">執行再平衡記帳</h3>
+                <button class="text-text-secondary hover:text-white" onclick="closeQuickExecuteModal()">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div class="bg-surface-base/80 p-4 rounded-2xl border border-white/5 text-center">
+                    <span id="quick-execute-action-badge" class="px-2.5 py-1 rounded text-xs font-black"></span>
+                    <p class="text-lg font-black text-white mt-2" id="quick-execute-asset-name"></p>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-text-secondary mb-1.5 block">執行單價 (NT$)</label>
+                        <input class="w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-sm font-mono font-bold text-white focus:ring-1 focus:ring-primary outline-none" id="quick-input-price" inputmode="decimal" step="0.05" type="number" oninput="updateQuickTxPreview()"/>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-text-secondary mb-1.5 block">執行股數</label>
+                        <input class="w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-sm font-mono font-bold text-white focus:ring-1 focus:ring-primary outline-none" id="quick-input-shares" inputmode="decimal" step="1" oninput="updateQuickTxPreview()"/>
+                    </div>
+                </div>
+                <div class="text-xs font-mono text-text-secondary bg-surface-container-high/50 p-3 rounded-lg border border-white/5 flex flex-col gap-1" id="quick-tx-preview-box">
+                    即時計算中...
+                </div>
+                <div class="flex items-center gap-3">
+                    <input checked="" class="w-5 h-5 rounded text-primary focus:ring-primary bg-surface-container-lowest border-outline-variant" id="quick-input-linked" type="checkbox"/>
+                    <label class="text-xs text-text-secondary font-bold" for="quick-input-linked">連動扣減交割帳戶現金</label>
+                </div>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button class="flex-1 bg-surface-container-highest text-white py-3 rounded-xl text-sm font-bold border border-outline-variant active:scale-95 transition-all" onclick="closeQuickExecuteModal()">取消</button>
+                <button class="flex-1 bg-primary text-on-primary py-3 rounded-xl text-sm font-black shadow-lg active:scale-95 transition-all" onclick="submitQuickExecute()">確認執行記帳</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Confirm Modal -->
     <div class="fixed inset-0 z-[60] hidden bg-black/90 backdrop-blur-md flex items-center justify-center p-6" id="modal-confirm-delete">
         <div class="bg-surface-container-high border border-danger-red/30 rounded-3xl p-8 w-full max-w-sm text-center space-y-6">
@@ -398,7 +437,7 @@
     <div id="ui-toast-container"></div>
 
     <script>
-        // Core State & Assets (MCE: 預填模擬數據供即時預覽)
+        // Core State & Assets (MCE: 預填模擬數據與基準參考價 + 支援排除功能)
         let state = {
             fugleApiKey: "", 
             defenseWeight: 0,
@@ -409,6 +448,7 @@
             injection: 0,
             discount: 2.8,
             unit: 1,
+            ignoredRebalanceIds: [], // MCE: 記錄手動排除的計畫明細
             assets: [
                 { id: "a1", name: "元大台灣50", ticker: "0050", beta: 1.0, targetWeight: 40, marketPrice: 195.50, openPrice: 193.00, highPrice: 197.00, lowPrice: 192.50, referencePrice: 191.00, analysisLabel: "偏向買進", analysisReason: "量大收紅，三日均價大於六日均價", lastUpdated: "13:30:00", updateStatus: "success", txs: [{ id: 101, date: '2026-05-12', price: 185.00, shares: 1000, fee: 20, tax: 0, type: 'BUY', linked: false }] },
                 { id: "a2", name: "元大台灣50正2", ticker: "00631L", beta: 2.0, targetWeight: 40, marketPrice: 225.0, openPrice: 220.00, highPrice: 227.00, lowPrice: 219.00, referencePrice: 218.00, analysisLabel: "偏向買進", analysisReason: "量縮價不跌，三日均價由下往上", lastUpdated: "--", updateStatus: "cache", txs: [{ id: 102, date: '2026-05-15', price: 215.00, shares: 500, fee: 20, tax: 0, type: 'BUY', linked: false }] },
@@ -423,6 +463,7 @@
 
         let currentActiveAssetId = null;
         let assetIdPendingDelete = null;
+        let quickExecuteData = null; // 存放快速記帳交易暫存資訊
 
         window.onload = function() {
             const todayStr = new Date().toISOString().slice(0, 10);
@@ -452,7 +493,7 @@
             calculate(); // Re-render logic to apply visual changes properly
         }
 
-        // MCE: 修正切換圓餅圖資料來源時，遺漏的 switchPieType 定義
+        // 切換圓餅圖資料來源
         function switchPieType(type) {
             pieViewType = type;
             
@@ -530,6 +571,7 @@
             localStorage.setItem('ark_rebalancer_v4_mobile_a', JSON.stringify(state));
         }
 
+        // MCE: 修正舊快取遺留問題並安全擴展欄位
         function loadSavedData() {
             let local = localStorage.getItem('ark_rebalancer_v4_mobile_a');
             if (!local) local = localStorage.getItem('ark_rebalancer_v4_mobile');
@@ -539,7 +581,7 @@
             try {
                 const parsed = JSON.parse(local);
                 if (parsed.assets && Array.isArray(parsed.assets)) {
-                    // MCE: 當偵測到本機有舊版快取時，自動升級補上今日模擬數據
+                    // MCE: 當偵測到本機有舊版快取時，自動升級補上今日模擬數據與參考價
                     parsed.assets.forEach(a => {
                         if (a.ticker === "0050") {
                             if (a.openPrice === undefined || a.openPrice === null) a.openPrice = 193.00;
@@ -577,6 +619,7 @@
                 state.injection = parsed.injection || 0;
                 state.discount = parsed.discount || 2.8;
                 state.unit = parsed.unit || 1;
+                state.ignoredRebalanceIds = parsed.ignoredRebalanceIds || []; // 恢復排除的標的
 
                 document.getElementById('api-key-input').value = state.fugleApiKey;
                 document.getElementById('shares-cash').value = state.cash;
@@ -626,7 +669,7 @@
             return { shares: totalShares, wac, totalCost: totalCombinedCost };
         }
 
-        // Render Asset Cards (Typography updated + Added Fluctuation and Signals directly to Card)
+        // Render Asset Cards (MCE: 將「未實現損益」格子重構，讓百分比與獲利金額顯示在同一個格子內，一覽無遺)
         function renderAssetCards() {
             const container = document.getElementById('dynamic-assets-container');
             let totalVal = state.cash + state.assets.reduce((sum, a) => sum + (aggregateAssetLedger(a.id).shares * a.marketPrice), 0);
@@ -639,7 +682,7 @@
                 let actW = totalVal > 0 ? (currentVal / totalVal) * 100 : 0;
                 let isImbalanced = Math.abs(actW - a.targetWeight) > state.imbalanceThreshold;
                 
-                // MCE: 台股通常以參考價（昨日收盤價）來計算當日漲跌幅，若無則降級為開盤價
+                // MCE: 計算主畫面卡片的漲跌幅顯示
                 let basePrice = a.referencePrice || a.openPrice;
                 let diff = (a.marketPrice && basePrice) ? (a.marketPrice - basePrice) : 0;
                 let diffPct = basePrice ? ((diff / basePrice) * 100).toFixed(2) : 0;
@@ -663,6 +706,40 @@
                     badgeHtml = `<span class="border px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 tracking-wide ${badgeColor}">${a.analysisLabel}</span>`;
                 }
 
+                // MCE: 方案 A (單軌基準偏移條) - 以持股總成本為 100% 基準線，當前現值為動態進度條
+                let costBarHtml = '';
+                if (l.shares > 0 && l.totalCost > 0) {
+                    let ratio = (currentVal / l.totalCost) * 100;
+                    // 以 150% 作為視覺最高上限，避免極端數值將進度條推擠變形
+                    let displayRatio = Math.min(150, Math.max(0, ratio));
+                    let fillWidthPct = (displayRatio / 150) * 100;
+                    let markerLeftPct = (100 / 150) * 100; // 成本線固定於總軌寬 66.67% 處
+                    
+                    let barColor = ratio >= 100 ? 'bg-danger-red' : 'bg-success-emerald';
+                    let textColor = ratio >= 100 ? 'text-danger-red' : 'text-success-emerald';
+                    let labelText = ratio >= 100 ? `溢價: +${(ratio - 100).toFixed(1)}%` : `折價: ${(ratio - 100).toFixed(1)}%`;
+
+                    costBarHtml = `
+                    <div class="mt-4 pt-4 border-t border-outline-variant/20">
+                        <div class="flex justify-between items-center text-xs font-black mb-1.5">
+                            <span class="text-text-secondary">持股成本偏移度</span>
+                            <span class="${textColor} font-mono">${labelText}</span>
+                        </div>
+                        <div class="relative w-full h-3 bg-surface-container-lowest rounded-full overflow-hidden border border-outline-variant/10">
+                            <!-- 進度填滿條 -->
+                            <div class="h-full rounded-full ${barColor} transition-all duration-500" style="width: ${fillWidthPct}%"></div>
+                            <!-- 100% 成本基準對齊線 -->
+                            <div class="absolute top-0 h-full w-0.5 bg-white shadow-[0_0_4px_rgba(255,255,255,1)]" style="left: ${markerLeftPct}%" title="100% 成本線"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-text-secondary mt-1 font-mono">
+                            <span>0%</span>
+                            <span class="text-white font-bold">100% (成本基準)</span>
+                            <span>150%+</span>
+                        </div>
+                    </div>
+                    `;
+                }
+
                 return `
                 <article class="bg-surface-card rounded-[24px] p-6 border ${isImbalanced ? 'border-danger-red/50 shadow-[0_0_20px_rgba(239,68,68,0.2)]' : 'border-surface-container-highest shadow-2xl'} transition-all active:scale-[0.98] cursor-pointer ${isImbalanced ? 'card-imbalanced' : ''}" onclick="openLedgerModal('${a.id}')">
                     <div class="flex justify-between items-start mb-5 gap-2">
@@ -677,7 +754,7 @@
                         </div>
                     </div>
                     
-                    <div class="bg-surface-base/80 p-5 rounded-2xl border border-outline-variant/40 mb-5 text-center relative overflow-hidden shadow-inner">
+                    <div class="bg-surface-base/80 p-5 rounded-2xl border border-outline-variant/40 mb-4 text-center relative overflow-hidden shadow-inner">
                         <p class="text-sm text-text-secondary font-black mb-1.5 tracking-widest">目前現價</p>
                         <p class="text-white font-black text-5xl font-mono tracking-tighter mb-1 drop-shadow-md">${a.marketPrice.toFixed(2)}</p>
                         ${changeHtml}
@@ -687,16 +764,36 @@
                         </div>
                     </div>
 
+                    <!-- WAC & 持股成本數據展示區 -->
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="bg-surface-base/60 p-3 rounded-2xl border border-outline-variant/20 shadow-inner">
+                            <p class="text-[10px] text-text-secondary font-black mb-0.5 tracking-widest">平均持股成本 (WAC)</p>
+                            <p class="font-mono font-bold text-sm text-white">NT$ ${l.wac.toFixed(2)}</p>
+                        </div>
+                        <div class="bg-surface-base/60 p-3 rounded-2xl border border-outline-variant/20 shadow-inner">
+                            <p class="text-[10px] text-text-secondary font-black mb-0.5 tracking-widest">持股總成本</p>
+                            <p class="font-mono font-bold text-sm text-white">NT$ ${Math.round(l.totalCost).toLocaleString()}</p>
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-surface-base/80 p-4 rounded-2xl border border-outline-variant/40 shadow-inner">
+                        <div class="bg-surface-base/80 p-4 rounded-2xl border border-outline-variant/40 shadow-inner flex flex-col justify-between">
                             <p class="text-xs text-text-secondary font-black mb-1.5 tracking-widest">配置權重</p>
                             <p class="font-black text-2xl ${isImbalanced ? 'text-danger-red' : 'text-primary'}">${actW.toFixed(1)}% <span class="text-text-secondary text-sm font-bold">/ ${a.targetWeight}%</span></p>
                         </div>
-                        <div class="bg-surface-base/80 p-4 rounded-2xl border border-outline-variant/40 shadow-inner">
+                        
+                        <!-- MCE: 將「未實現損益金額」與「百分比%」合併在同一個格子內，並依損益顏色美化顯示 -->
+                        <div class="bg-surface-base/80 p-4 rounded-2xl border border-outline-variant/40 shadow-inner flex flex-col justify-between">
                             <p class="text-xs text-text-secondary font-black mb-1.5 tracking-widest">未實現損益</p>
-                            <p class="font-black text-2xl ${pl >= 0 ? 'text-danger-red' : 'text-success-emerald'}">${pl >= 0 ? '+' : ''}${plPct.toFixed(1)}%</p>
+                            <div>
+                                <p class="font-black text-2xl ${pl >= 0 ? 'text-danger-red' : 'text-success-emerald'}">${pl >= 0 ? '+' : ''}${plPct.toFixed(1)}%</p>
+                                <p class="font-bold text-xs ${pl >= 0 ? 'text-danger-red/80' : 'text-success-emerald/80'} font-mono mt-0.5">${pl >= 0 ? '+' : ''}NT$ ${Math.round(pl).toLocaleString()}</p>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- 動態渲染的單軌基準偏移條 -->
+                    ${costBarHtml}
                 </article>`;
             }).join('');
         }
@@ -778,6 +875,9 @@
             }
 
             state.assets.forEach(asset => {
+                // MCE: 如果標的已被手動排除，則不生成其計畫
+                if (state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(asset.id)) return;
+
                 let t_weight = (parseFloat(asset.targetWeight) || 0) / 100;
                 let t_val = totalTarget * t_weight;
                 let c_val = currentAssetValues[asset.id];
@@ -821,7 +921,10 @@
             let innerStepsHtml = `
                 <div class="space-y-4">
                     <div class="flex justify-between items-center px-1">
-                        <span class="text-xs font-black text-text-secondary uppercase tracking-widest">Rebalance Plan</span>
+                        <div>
+                            <span class="text-xs font-black text-text-secondary uppercase tracking-widest">Rebalance Plan</span>
+                            <span class="text-[10px] text-text-secondary block mt-0.5">點擊卡片快速記帳，點擊右側 [X] 排除</span>
+                        </div>
                         <span class="px-3 py-1 ${state.injection > 0 ? 'bg-secondary/10 text-secondary border-secondary/20' : 'bg-primary/10 text-primary border-primary/20'} border rounded-full text-[10px] font-black uppercase">Auto Generated</span>
                     </div>
                     <div class="space-y-3">`;
@@ -836,20 +939,46 @@
                     let badgeColor = isSell ? 'bg-success-emerald/20 text-success-emerald' : (isInject ? 'bg-secondary/20 text-secondary' : 'bg-danger-red/20 text-danger-red');
                     let actionText = isSell ? '掛單賣出' : (isInject ? '預定匯入' : '掛單買進');
                     
+                    // MCE: 如果不是新資金，則綁定點擊快速執行記帳事件，並渲染排除 X 按鈕
+                    let clickAttr = isInject ? '' : `onclick="openQuickExecuteModal('${act.id}', '${act.type}', ${act.shares}, ${state.assets.find(as => as.id === act.id).marketPrice})"`;
+                    let deleteBtnHtml = isInject ? '' : `
+                        <button onclick="ignoreRebalanceAction(event, '${act.id}')" class="text-text-secondary hover:text-danger-red hover:bg-white/5 p-2 rounded-xl transition-all" title="手動排除此項計畫">
+                            <span class="material-symbols-outlined text-base">close</span>
+                        </button>
+                    `;
+
                     innerStepsHtml += `
-                        <div class="flex items-center justify-between p-4 bg-surface-container-highest/20 rounded-xl border border-white/5 shadow-sm">
-                            <div class="flex items-center gap-4">
-                                <span class="w-8 h-8 flex items-center justify-center rounded-full text-xs font-black ${badgeColor}">${idx+1}</span>
-                                <div>
-                                    <p class="text-sm font-black text-white">${actionText} ${act.ticker}</p>
+                        <div ${clickAttr} class="flex items-center justify-between p-4 bg-surface-container-highest/20 rounded-xl border border-white/5 shadow-sm hover:border-primary/50 hover:bg-surface-container-highest/30 transition-all cursor-pointer group">
+                            <div class="flex items-center gap-4 min-w-0">
+                                <span class="w-8 h-8 flex items-center justify-center rounded-full text-xs font-black shrink-0 ${badgeColor}">${idx+1}</span>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-black text-white flex items-center gap-1.5 truncate">
+                                        ${actionText} ${act.ticker}
+                                        ${!isInject ? '<span class="material-symbols-outlined text-xs text-text-secondary opacity-0 group-hover:opacity-100 transition-opacity">edit_note</span>' : ''}
+                                    </p>
                                     <p class="text-xs font-mono text-text-secondary uppercase mt-0.5">${act.shares > 0 ? act.shares.toLocaleString() + ' SHARES' : 'FUNDS'}</p>
                                 </div>
                             </div>
-                            <p class="text-sm font-mono font-bold text-white">NT$ ${Math.round(act.value).toLocaleString()}</p>
+                            <div class="flex items-center gap-3 shrink-0">
+                                <p class="text-sm font-mono font-bold text-white">NT$ ${Math.round(act.value).toLocaleString()}</p>
+                                ${deleteBtnHtml}
+                            </div>
                         </div>`;
                 });
             }
-            innerStepsHtml += `</div></div>`;
+            innerStepsHtml += `</div>`;
+
+            // MCE: 若有手動排除的計畫項目，顯示還原控制列
+            if (state.ignoredRebalanceIds && state.ignoredRebalanceIds.length > 0) {
+                innerStepsHtml += `
+                    <div class="pt-3 border-t border-white/5 flex justify-between items-center text-xs mt-3">
+                        <span class="text-text-secondary font-bold">已排除 ${state.ignoredRebalanceIds.length} 個標的計畫</span>
+                        <button onclick="restoreIgnoredRebalanceActions()" class="text-primary font-black hover:underline uppercase tracking-wide">恢復所有計畫明細</button>
+                    </div>
+                `;
+            }
+
+            innerStepsHtml += `</div>`;
             rightZoneContainer.innerHTML = innerStepsHtml;
 
             updateDynamicCharts(currentAssetValues, totalCurrent, cashWeight, totalTarget, true, expectedAssetValues, expectedCash);
@@ -1235,7 +1364,7 @@
                 document.getElementById('shares-cash').value = state.cash;
             }
 
-            asset.txs.push({ id: Date.now(), date, price, shares, fee, tax, type, linked });
+            asset.txs.push({ id: Date.now(), date: date, price, shares, fee, tax, type, linked });
             
             document.getElementById('input-shares-dynamic').value = '';
             updateTxPreview();
@@ -1455,6 +1584,9 @@
             let totalTarget = totalCurrentPortfolioStocksMarketValue + state.cash + state.injection;
 
             state.assets.forEach(asset => {
+                // 如果手動排除，複製時也跳過
+                if (state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(asset.id)) return;
+
                 let t_val = totalTarget * ((parseFloat(asset.targetWeight) || 0) / 100);
                 let c_val = aggregateAssetLedger(asset.id).shares * asset.marketPrice;
                 if(asset.marketPrice <= 0) return;
