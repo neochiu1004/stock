@@ -86,7 +86,7 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Hanken Grotesk', 'Noto Sans TC', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Hanken Grotesk', 'Noto Sans TC', sans-serif; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
         .safe-pt { padding-top: max(0.75rem, env(safe-area-inset-top)); }
         .safe-pb { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
@@ -178,9 +178,8 @@
                 </div>
             </div>
 
-            <!-- Enhanced Chart Card (Single Pie & Gap Bar) -->
+            <!-- Enhanced Chart Card -->
             <div class="bg-surface-container-low border border-surface-container-highest rounded-2xl p-5 shadow-xl">
-                <!-- A+B View Switcher (Tabs) -->
                 <div class="flex p-1.5 bg-surface-container-highest/40 rounded-xl mb-5 border border-white/5">
                     <button class="flex-1 py-2 text-sm font-black rounded-lg transition-all bg-surface-card text-white shadow-md border border-outline-variant" id="tab-pie" onclick="switchViewMode('PIE')">圓餅佔比</button>
                     <button class="flex-1 py-2 text-sm font-black rounded-lg transition-all text-text-secondary hover:text-white" id="tab-gap" onclick="switchViewMode('GAP')">偏離進度</button>
@@ -195,11 +194,10 @@
                     <div class="flex justify-center py-4">
                         <div class="w-56 h-56 relative"><canvas id="mainChart"></canvas></div>
                     </div>
-                    <!-- Single Legend Container -->
                     <div class="grid grid-cols-2 gap-x-4 gap-y-3 mt-4 px-2" id="main-legend-container"></div>
                 </div>
 
-                <!-- GAP View (Progress Bars) -->
+                <!-- GAP View -->
                 <div id="view-gap" class="hidden space-y-4">
                     <div class="flex justify-between items-end mb-2 px-1 border-b border-surface-container-highest pb-2">
                         <span class="text-xs font-black text-text-secondary uppercase">Asset Allocation Gap</span>
@@ -208,10 +206,13 @@
                             <span class="flex items-center gap-1.5 text-white"><span class="w-1 h-3 bg-white shadow-[0_0_2px_black]"></span> 目標</span>
                         </div>
                     </div>
-                    <div id="gap-bars-container" class="space-y-5 px-1">
-                        <!-- Rendered by updateDynamicCharts -->
-                    </div>
+                    <div id="gap-bars-container" class="space-y-5 px-1"></div>
                 </div>
+            </div>
+            
+            <!-- Multi-Segment Allocation Slider Section -->
+            <div id="allocation-slider-container" class="bg-surface-container border border-surface-container-highest rounded-2xl p-5 shadow-xl select-none">
+                <!-- Rendered dynamically by renderSliderUI() -->
             </div>
         </section>
 
@@ -238,8 +239,14 @@
                 <div class="pt-5 border-t border-white/5 space-y-4">
                     <div class="flex items-center justify-between group">
                         <div class="flex flex-col">
-                            <span class="text-sm font-bold text-on-surface">證券帳戶現金</span>
-                            <span class="text-xs text-text-secondary font-mono mt-0.5">Settlement Cash</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-bold text-on-surface">證券帳戶現金</span>
+                                <label class="relative inline-flex items-center cursor-pointer" title="加入/排除再平衡">
+                                    <input type="checkbox" id="toggle-cash-active" class="sr-only peer" onchange="toggleCashActive()">
+                                    <div class="w-8 h-4 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-primary"></div>
+                                </label>
+                            </div>
+                            <span class="text-xs text-text-secondary font-mono mt-0.5" id="cash-status-label">Settlement Cash</span>
                         </div>
                         <input class="w-36 px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl font-mono font-bold text-right text-base text-text-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all" id="shares-cash" inputmode="decimal" onblur="saveDataToLocal(); calculate();" type="number" value="15000"/>
                     </div>
@@ -289,7 +296,7 @@
         </p>
     </footer>
 
-    <!-- Asset Detail Modal (Bottom Sheet Style) -->
+    <!-- Asset Detail Modal -->
     <div class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center" id="modal-dynamic-ledger">
         <div class="bg-surface-container-high border-t sm:border border-surface-container-highest rounded-t-3xl sm:rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden modal-bottom-sheet">
             <div class="px-6 py-5 border-b border-surface-container-highest flex justify-between items-center bg-surface-container-highest/20">
@@ -305,12 +312,13 @@
             </div>
             
             <div class="p-6 space-y-6 max-h-[85vh] overflow-y-auto">
-                <!-- 決策支援面板 (動態渲染) -->
                 <div id="decision-support-panel" class="hidden"></div>
 
-                <!-- Config Section -->
                 <div class="space-y-4">
-                    <span class="text-xs font-black text-primary uppercase tracking-widest">Asset Parameters</span>
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-black text-primary uppercase tracking-widest">Asset Parameters</span>
+                        <span class="text-[10px] text-text-secondary bg-surface-container-highest px-2 py-0.5 rounded" id="modal-active-badge"></span>
+                    </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="col-span-2 flex gap-4">
                             <div class="flex-1">
@@ -324,7 +332,7 @@
                         </div>
                         <div>
                             <label class="text-xs font-bold text-text-secondary mb-1.5 block">目標比重 %</label>
-                            <input class="w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-sm font-mono font-black text-primary focus:ring-1 focus:ring-primary outline-none" id="modal-asset-weight" inputmode="decimal" step="0.1" type="number"/>
+                            <input class="w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-sm font-mono font-black text-primary focus:ring-1 focus:ring-primary outline-none disabled:opacity-50 disabled:bg-surface-base" id="modal-asset-weight" inputmode="decimal" step="0.1" type="number"/>
                         </div>
                         <div>
                             <label class="text-xs font-bold text-text-secondary mb-1.5 block">BETA 加權</label>
@@ -337,12 +345,11 @@
                     </div>
                     
                     <div class="flex gap-3 pt-2">
-                        <button class="flex-1 bg-surface-container-highest text-white py-3 rounded-xl text-sm font-bold border border-outline-variant active:scale-95 transition-all" id="btn-sync-ticker" onclick="syncModalTicker()">🔍 API 同步報價</button>
+                        <button class="flex-1 bg-surface-container-highest text-white py-3 rounded-xl text-sm font-bold border border-outline-variant active:scale-95 transition-all" id="btn-sync-ticker" onclick="syncModalTicker()">🔍 API 同步</button>
                         <button class="flex-1 bg-primary text-on-primary py-3 rounded-xl text-sm font-black shadow-lg active:scale-95 transition-all" id="modal-save-btn" onclick="saveModalSettingsOnly()">💾 儲存配置</button>
                     </div>
                 </div>
 
-                <!-- Ledger Section -->
                 <div class="pt-6 border-t border-white/5 space-y-5">
                     <span class="text-xs font-black text-action-blue uppercase tracking-widest">Transaction Record</span>
                     <div class="bg-surface-container-lowest/50 p-5 rounded-2xl border border-outline-variant space-y-4">
@@ -355,11 +362,7 @@
                             <input class="px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-sm font-mono font-bold text-white focus:outline-none focus:border-primary" id="input-price-dynamic" inputmode="decimal" step="0.05" oninput="updateTxPreview()" placeholder="單價" type="number"/>
                             <input class="px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-sm font-mono font-bold text-white focus:outline-none focus:border-primary" id="input-shares-dynamic" inputmode="decimal" step="1" oninput="updateTxPreview()" placeholder="股數" type="number"/>
                         </div>
-                        
-                        <div class="text-xs font-mono text-text-secondary bg-surface-container-high/50 p-3 rounded-lg border border-white/5 flex flex-col justify-between items-start gap-1" id="tx-preview-box">
-                            等待輸入資料...
-                        </div>
-                        
+                        <div class="text-xs font-mono text-text-secondary bg-surface-container-high/50 p-3 rounded-lg border border-white/5 flex flex-col justify-between items-start gap-1" id="tx-preview-box"></div>
                         <div class="flex items-center gap-3 pt-1">
                             <input checked="" class="w-5 h-5 rounded text-primary focus:ring-primary bg-surface-container-lowest border-outline-variant" id="input-linked-dynamic" type="checkbox"/>
                             <label class="text-xs text-text-secondary font-bold" for="input-linked-dynamic">連動交割帳戶現金 <span id="current-cash-preview" class="text-white ml-1"></span></label>
@@ -375,45 +378,6 @@
                         <div class="space-y-2" id="tx-list-dynamic"></div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Rebalance Execution Modal -->
-    <div class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" id="modal-quick-execute">
-        <div class="bg-surface-container-high border border-outline-variant/30 rounded-3xl p-6 w-full max-w-sm space-y-4">
-            <div class="flex justify-between items-center border-b border-white/5 pb-3">
-                <h3 class="text-base font-black text-white">執行再平衡記帳</h3>
-                <button class="text-text-secondary hover:text-white" onclick="closeQuickExecuteModal()">
-                    <span class="material-symbols-outlined">close</span>
-                </button>
-            </div>
-            <div class="space-y-4">
-                <div class="bg-surface-base/80 p-4 rounded-2xl border border-white/5 text-center">
-                    <span id="quick-execute-action-badge" class="px-2.5 py-1 rounded text-xs font-black"></span>
-                    <p class="text-lg font-black text-white mt-2" id="quick-execute-asset-name"></p>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="text-xs font-bold text-text-secondary mb-1.5 block">執行單價 (NT$)</label>
-                        <input class="w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-sm font-mono font-bold text-white focus:ring-1 focus:ring-primary outline-none" id="quick-input-price" inputmode="decimal" step="0.05" type="number" oninput="updateQuickTxPreview()"/>
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-text-secondary mb-1.5 block">執行股數</label>
-                        <input class="w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-sm font-mono font-bold text-white focus:ring-1 focus:ring-primary outline-none" id="quick-input-shares" inputmode="decimal" step="1" oninput="updateQuickTxPreview()"/>
-                    </div>
-                </div>
-                <div class="text-xs font-mono text-text-secondary bg-surface-container-high/50 p-3 rounded-lg border border-white/5 flex flex-col gap-1" id="quick-tx-preview-box">
-                    即時計算中...
-                </div>
-                <div class="flex items-center gap-3">
-                    <input checked="" class="w-5 h-5 rounded text-primary focus:ring-primary bg-surface-container-lowest border-outline-variant" id="quick-input-linked" type="checkbox"/>
-                    <label class="text-xs text-text-secondary font-bold" for="quick-input-linked">連動扣減交割帳戶現金</label>
-                </div>
-            </div>
-            <div class="flex gap-3 pt-2">
-                <button class="flex-1 bg-surface-container-highest text-white py-3 rounded-xl text-sm font-bold border border-outline-variant active:scale-95 transition-all" onclick="closeQuickExecuteModal()">取消</button>
-                <button class="flex-1 bg-primary text-on-primary py-3 rounded-xl text-sm font-black shadow-lg active:scale-95 transition-all" onclick="submitQuickExecute()">確認執行記帳</button>
             </div>
         </div>
     </div>
@@ -437,127 +401,78 @@
     <div id="ui-toast-container"></div>
 
     <script>
-        // Core State & Assets (MCE: 預填模擬數據與基準參考價 + 支援排除功能)
+        const CHART_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e', '#64748b', '#06b6d4', '#f472b6'];
+
         let state = {
             fugleApiKey: "", 
-            defenseWeight: 0,
             inflowOnly: false,
             imbalanceThreshold: 5,
             lastGlobalUpdate: "--",
             cash: 15000,
+            cashActive: true,
+            cashWeight: 0,
             injection: 0,
             discount: 2.8,
             unit: 1,
-            ignoredRebalanceIds: [], // MCE: 記錄手動排除的計畫明細
+            ignoredRebalanceIds: [],
             assets: [
-                { id: "a1", name: "元大台灣50", ticker: "0050", beta: 1.0, targetWeight: 40, marketPrice: 195.50, openPrice: 193.00, highPrice: 197.00, lowPrice: 192.50, referencePrice: 191.00, analysisLabel: "偏向買進", analysisReason: "量大收紅，三日均價大於六日均價", lastUpdated: "13:30:00", updateStatus: "success", txs: [{ id: 101, date: '2026-05-12', price: 185.00, shares: 1000, fee: 20, tax: 0, type: 'BUY', linked: false }] },
-                { id: "a2", name: "元大台灣50正2", ticker: "00631L", beta: 2.0, targetWeight: 40, marketPrice: 225.0, openPrice: 220.00, highPrice: 227.00, lowPrice: 219.00, referencePrice: 218.00, analysisLabel: "偏向買進", analysisReason: "量縮價不跌，三日均價由下往上", lastUpdated: "--", updateStatus: "cache", txs: [{ id: 102, date: '2026-05-15', price: 215.00, shares: 500, fee: 20, tax: 0, type: 'BUY', linked: false }] },
-                { id: "a3", name: "群益臺灣加權正2", ticker: "00685L", beta: 2.0, targetWeight: 20, marketPrice: 112.0, openPrice: 110.00, highPrice: 113.00, lowPrice: 109.50, referencePrice: 108.50, analysisLabel: "偏向買進", analysisReason: "量大收紅，三日均價大於六日均價", lastUpdated: "--", updateStatus: "cache", txs: [{ id: 103, date: '2026-05-18', price: 108.50, shares: 1000, fee: 20, tax: 0, type: 'BUY', linked: false }] }
+                { id: "a1", name: "元大台灣50", ticker: "0050", beta: 1.0, active: true, targetWeight: 40, savedTargetWeight: 40, marketPrice: 195.50, openPrice: 193.00, highPrice: 197.00, lowPrice: 192.50, referencePrice: 191.00, analysisLabel: "偏向買進", analysisReason: "量大收紅，三日均價大於六日均價", lastUpdated: "13:30:00", updateStatus: "success", txs: [{ id: 101, date: '2026-05-12', price: 185.00, shares: 1000, fee: 20, tax: 0, type: 'BUY', linked: false }] },
+                { id: "a2", name: "元大台灣50正2", ticker: "00631L", beta: 2.0, active: true, targetWeight: 40, savedTargetWeight: 40, marketPrice: 225.0, openPrice: 220.00, highPrice: 227.00, lowPrice: 219.00, referencePrice: 218.00, analysisLabel: "偏向買進", analysisReason: "量縮價不跌，三日均價由下往上", lastUpdated: "--", updateStatus: "cache", txs: [{ id: 102, date: '2026-05-15', price: 215.00, shares: 500, fee: 20, tax: 0, type: 'BUY', linked: false }] },
+                { id: "a3", name: "群益臺灣加權正2", ticker: "00685L", beta: 2.0, active: true, targetWeight: 20, savedTargetWeight: 20, marketPrice: 112.0, openPrice: 110.00, highPrice: 113.00, lowPrice: 109.50, referencePrice: 108.50, analysisLabel: "偏向買進", analysisReason: "量大收紅，三日均價大於六日均價", lastUpdated: "--", updateStatus: "cache", txs: [{ id: 103, date: '2026-05-18', price: 108.50, shares: 1000, fee: 20, tax: 0, type: 'BUY', linked: false }] }
             ]
         };
 
-        // 新增 View State
-        let currentViewMode = 'PIE'; // 'PIE' | 'GAP'
-        let pieViewType = 'CURRENT'; // 'CURRENT' | 'TARGET'
+        let currentViewMode = 'PIE';
+        let pieViewType = 'CURRENT';
         let mainChartInstance = null;
-
         let currentActiveAssetId = null;
         let assetIdPendingDelete = null;
-        let quickExecuteData = null; // 存放快速記帳交易暫存資訊
+
+        // Slider State
+        let isDragging = false;
+        let dragIndex = -1;
+        let dragStartX = 0;
+        let trackRect = null;
+        let dragItems = [];
 
         window.onload = function() {
             const todayStr = new Date().toISOString().slice(0, 10);
             document.getElementById('input-date-dynamic').value = todayStr;
             
             loadSavedData();
-            autoCalculateDefenseWeight();
-            renderAssetCards();
-            calculate();
+            normalizeWeights(); // Auto normalizes and calls calculate
         };
 
-        // View Switchers
-        function switchViewMode(mode) {
-            currentViewMode = mode;
-            
-            // Update Tab UI
-            const activeClass = 'flex-1 py-2 text-sm font-black rounded-lg transition-all bg-surface-card text-white shadow-md border border-outline-variant';
-            const inactiveClass = 'flex-1 py-2 text-sm font-black rounded-lg transition-all text-text-secondary hover:text-white border border-transparent';
-            
-            document.getElementById('tab-pie').className = mode === 'PIE' ? activeClass : inactiveClass;
-            document.getElementById('tab-gap').className = mode === 'GAP' ? activeClass : inactiveClass;
-
-            // Toggle Container Visibility
-            document.getElementById('view-pie').classList.toggle('hidden', mode !== 'PIE');
-            document.getElementById('view-gap').classList.toggle('hidden', mode !== 'GAP');
-
-            calculate(); // Re-render logic to apply visual changes properly
-        }
-
-        // 切換圓餅圖資料來源
-        function switchPieType(type) {
-            pieViewType = type;
-            
-            // Update Toggle UI
-            const currBtn = document.getElementById('btn-pie-curr');
-            const tgtBtn = document.getElementById('btn-pie-tgt');
-
-            if(type === 'CURRENT') {
-                currBtn.className = 'px-5 py-2 rounded-full text-sm font-black bg-action-blue text-white shadow border border-action-blue transition-colors';
-                tgtBtn.className = 'px-5 py-2 rounded-full text-sm font-black bg-surface-container text-text-secondary border border-outline-variant hover:text-white transition-colors';
-            } else {
-                currBtn.className = 'px-5 py-2 rounded-full text-sm font-black bg-surface-container text-text-secondary border border-outline-variant hover:text-white transition-colors';
-                tgtBtn.className = 'px-5 py-2 rounded-full text-sm font-black bg-primary text-on-primary shadow border border-primary transition-colors';
-            }
-
-            calculate(); // Re-render chart data
-        }
-
-        // UI Utils (Mobile-First Toast)
+        // UI & Core Utils
         function showToast(message, type = 'info') {
             const container = document.getElementById('ui-toast-container');
             const toast = document.createElement('div');
             toast.className = `fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] px-6 py-4 rounded-2xl border shadow-2xl flex items-center gap-3 text-sm font-black transition-all transform translate-y-10 opacity-0 min-w-[200px] justify-center`;
-            
             if (type === 'error') toast.className += ' bg-danger-red/10 border-danger-red text-danger-red backdrop-blur-xl';
             else if (type === 'success') toast.className += ' bg-primary/10 border-primary text-primary backdrop-blur-xl';
             else toast.className += ' bg-surface-container-highest border-outline-variant text-white backdrop-blur-xl';
 
             toast.innerHTML = `<span>${message}</span>`;
             container.appendChild(toast);
-            
-            requestAnimationFrame(() => {
-                toast.classList.remove('translate-y-10', 'opacity-0');
-            });
-
+            requestAnimationFrame(() => toast.classList.remove('translate-y-10', 'opacity-0'));
             setTimeout(() => {
                 toast.classList.add('translate-y-10', 'opacity-0');
                 setTimeout(() => toast.remove(), 500);
             }, 3000);
         }
 
-        function toggleApiInput() {
-            const container = document.getElementById('api-key-container');
-            container.classList.toggle('hidden');
-        }
-
+        function toggleApiInput() { document.getElementById('api-key-container').classList.toggle('hidden'); }
         async function pasteApiKey() {
             try {
                 const text = await navigator.clipboard.readText();
                 if (text && text.trim()) {
                     document.getElementById('api-key-input').value = text.trim();
-                    saveDataToLocal();
-                    showToast("API Key 套用成功", "success");
+                    saveDataToLocal(); showToast("API Key 套用成功", "success");
                 }
             } catch (err) { showToast("請手動輸入金鑰", "info"); }
         }
 
-        // Logic Functions
-        function autoCalculateDefenseWeight() {
-            let totalAssetWeight = state.assets.reduce((sum, a) => sum + (parseFloat(a.targetWeight) || 0), 0);
-            let computedDefense = 100 - totalAssetWeight;
-            state.defenseWeight = computedDefense < 0 ? 0 : parseFloat(computedDefense.toFixed(1));
-        }
-
+        // Data Management
         function saveDataToLocal() {
             state.fugleApiKey = document.getElementById('api-key-input').value.trim();
             state.cash = parseFloat(document.getElementById('shares-cash').value) || 0;
@@ -567,59 +482,39 @@
             state.imbalanceThreshold = parseFloat(document.getElementById('imbalance-threshold').value) || 5;
             state.inflowOnly = document.getElementById('inflow-only').checked;
             
-            autoCalculateDefenseWeight();
             localStorage.setItem('ark_rebalancer_v4_mobile_a', JSON.stringify(state));
         }
 
-        // MCE: 修正舊快取遺留問題並安全擴展欄位
         function loadSavedData() {
             let local = localStorage.getItem('ark_rebalancer_v4_mobile_a');
-            if (!local) local = localStorage.getItem('ark_rebalancer_v4_mobile');
-            if (!local) local = localStorage.getItem('ark_rebalancer_v4_dynamic');
-            
             if (!local) return;
             try {
                 const parsed = JSON.parse(local);
-                if (parsed.assets && Array.isArray(parsed.assets)) {
-                    // MCE: 當偵測到本機有舊版快取時，自動升級補上今日模擬數據與參考價
+                if (parsed.assets) {
                     parsed.assets.forEach(a => {
-                        if (a.ticker === "0050") {
-                            if (a.openPrice === undefined || a.openPrice === null) a.openPrice = 193.00;
-                            if (a.highPrice === undefined || a.highPrice === null) a.highPrice = 197.00;
-                            if (a.lowPrice === undefined || a.lowPrice === null) a.lowPrice = 192.50;
-                            if (a.referencePrice === undefined || a.referencePrice === null) a.referencePrice = 191.00;
-                            if (!a.analysisLabel) a.analysisLabel = "偏向買進";
-                            if (!a.analysisReason) a.analysisReason = "量大收紅，三日均價大於六日均價";
-                        }
-                        if (a.ticker === "00631L") {
-                            if (a.openPrice === undefined || a.openPrice === null) a.openPrice = 220.00;
-                            if (a.highPrice === undefined || a.highPrice === null) a.highPrice = 227.00;
-                            if (a.lowPrice === undefined || a.lowPrice === null) a.lowPrice = 219.00;
-                            if (a.referencePrice === undefined || a.referencePrice === null) a.referencePrice = 218.00;
-                            if (!a.analysisLabel) a.analysisLabel = "偏向買進";
-                            if (!a.analysisReason) a.analysisReason = "量縮價不跌，三日均價由下往上";
-                        }
-                        if (a.ticker === "00685L") {
-                            if (a.openPrice === undefined || a.openPrice === null) a.openPrice = 110.00;
-                            if (a.highPrice === undefined || a.highPrice === null) a.highPrice = 113.00;
-                            if (a.lowPrice === undefined || a.lowPrice === null) a.lowPrice = 109.50;
-                            if (a.referencePrice === undefined || a.referencePrice === null) a.referencePrice = 108.50;
-                            if (!a.analysisLabel) a.analysisLabel = "偏向買進";
-                            if (!a.analysisReason) a.analysisReason = "量大收紅，三日均價大於六日均價";
-                        }
+                        if (a.active === undefined) a.active = true;
+                        if (a.savedTargetWeight === undefined) a.savedTargetWeight = a.targetWeight || 0;
                     });
                     state.assets = parsed.assets;
                 }
                 
                 state.inflowOnly = parsed.inflowOnly || false;
                 state.imbalanceThreshold = parsed.imbalanceThreshold || 5;
-                state.lastGlobalUpdate = parsed.lastGlobalUpdate || "--";
-                state.fugleApiKey = parsed.fugleApiKey || parsed.twelveDataKey || "";
                 state.cash = parsed.cash || 0;
+                state.cashActive = parsed.cashActive !== false;
+                
+                // Legacy migration: calculate cashWeight if it didn't exist
+                if (parsed.cashWeight === undefined) {
+                    let totalAssetW = state.assets.reduce((sum, a) => sum + (parseFloat(a.targetWeight) || 0), 0);
+                    state.cashWeight = Math.max(0, 100 - totalAssetW);
+                } else {
+                    state.cashWeight = parsed.cashWeight;
+                }
+
                 state.injection = parsed.injection || 0;
                 state.discount = parsed.discount || 2.8;
                 state.unit = parsed.unit || 1;
-                state.ignoredRebalanceIds = parsed.ignoredRebalanceIds || []; // 恢復排除的標的
+                state.ignoredRebalanceIds = parsed.ignoredRebalanceIds || [];
 
                 document.getElementById('api-key-input').value = state.fugleApiKey;
                 document.getElementById('shares-cash').value = state.cash;
@@ -628,12 +523,238 @@
                 document.getElementById('trade-unit').value = state.unit;
                 document.getElementById('imbalance-threshold').value = state.imbalanceThreshold;
                 document.getElementById('inflow-only').checked = state.inflowOnly;
-                
-                document.getElementById('global-update-time').innerText = state.lastGlobalUpdate !== "--" ? `SYNC: ${state.lastGlobalUpdate}` : "";
-                autoCalculateDefenseWeight();
             } catch(e) { console.error("Data restore error", e); }
         }
 
+        // Active/Normalization Logic
+        function getActiveItems() {
+            let items = [];
+            state.assets.forEach((a, i) => {
+                if (a.active !== false) {
+                    items.push({ type: 'asset', id: a.id, weight: parseFloat(a.targetWeight) || 0, color: CHART_COLORS[i % CHART_COLORS.length], name: a.name });
+                }
+            });
+            if (state.cashActive !== false) {
+                let cashColor = CHART_COLORS[state.assets.length % CHART_COLORS.length];
+                items.push({ type: 'cash', id: 'cash', weight: parseFloat(state.cashWeight) || 0, color: cashColor, name: 'Settlement Cash' });
+            }
+            return items;
+        }
+
+        function updateItemWeight(item, weight) {
+            if (item.type === 'cash') state.cashWeight = weight;
+            else {
+                let a = state.assets.find(x => x.id === item.id);
+                if (a) a.targetWeight = weight;
+            }
+        }
+
+        function normalizeWeights() {
+            let items = getActiveItems();
+            if (items.length === 0) {
+                // Failsafe: if nothing active, just render
+                saveDataToLocal(); renderAssetCards(); renderSliderUI(); calculate();
+                return;
+            }
+            
+            let total = items.reduce((sum, item) => sum + item.weight, 0);
+            let newTotal = 0;
+
+            items.forEach((item, index) => {
+                if (index === items.length - 1) {
+                    // Last item absorbs floating point errors
+                    updateItemWeight(item, 100 - newTotal);
+                } else {
+                    let w = total === 0 ? (100 / items.length) : (item.weight / total) * 100;
+                    updateItemWeight(item, w);
+                    newTotal += w;
+                }
+            });
+            
+            saveDataToLocal();
+            renderAssetCards();
+            renderSliderUI();
+            calculate();
+        }
+
+        function resetProportions() {
+            let items = getActiveItems();
+            if (items.length === 0) return;
+            let avg = 100 / items.length;
+            items.forEach(item => updateItemWeight(item, avg));
+            normalizeWeights();
+            showToast("比例已重設均分", "success");
+        }
+
+        function toggleAssetActive(id) {
+            let a = state.assets.find(x => x.id === id);
+            if (!a) return;
+            if (a.active !== false) {
+                a.active = false;
+                a.savedTargetWeight = a.targetWeight;
+                a.targetWeight = 0;
+            } else {
+                a.active = true;
+                a.targetWeight = a.savedTargetWeight || 10; // default kickstart
+            }
+            normalizeWeights();
+        }
+
+        function toggleCashActive() {
+            if (state.cashActive !== false) {
+                state.cashActive = false;
+                state.savedCashWeight = state.cashWeight;
+                state.cashWeight = 0;
+            } else {
+                state.cashActive = true;
+                state.cashWeight = state.savedCashWeight || 10;
+            }
+            normalizeWeights();
+        }
+
+        // Slider Interaction Logic (極致流暢與物理定位修復)
+        function renderSliderUI() {
+            const container = document.getElementById('allocation-slider-container');
+            if (!container) return;
+            let items = getActiveItems();
+            
+            if (items.length === 0) {
+                container.innerHTML = `<div class="text-center py-6 border border-dashed border-danger-red/30 rounded-xl bg-danger-red/10 text-danger-red text-sm font-bold">請至少啟用一項資產或現金參與再平衡</div>`;
+                return;
+            }
+
+            let html = `
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-sm font-black text-white flex items-center gap-2"><span class="material-symbols-outlined text-primary text-xl">tune</span> 目標比例調配</h3>
+                    <div class="flex gap-3 items-center">
+                        <span class="text-[11px] text-text-secondary bg-surface-base px-2 py-1 rounded border border-white/5 font-mono">已加入 ${items.length} 項</span>
+                        <button class="bg-surface-container-highest hover:bg-surface-elevated text-xs font-black text-white px-4 py-1.5 rounded-lg border border-outline-variant transition-colors active:scale-95" onclick="resetProportions()">重設等比</button>
+                    </div>
+                </div>
+                
+                <!-- 新增 Relative Wrapper 確保 Handle 不會飛走 -->
+                <div class="relative w-full h-10">
+                    <div class="absolute inset-0 rounded-full flex overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)] border border-white/10 bg-surface-container-highest" id="slider-track-bg">
+            `;
+
+            // Segments (加上獨立 ID 供高效 DOM 操作)
+            items.forEach((item, i) => {
+                html += `<div id="segment-${i}" class="h-full flex items-center justify-center relative group" style="width: ${item.weight}%; background-color: ${item.color}e6;">
+                            <span id="segment-label-${i}" class="text-[11px] font-black text-white/90 drop-shadow-md font-mono z-10 ${item.weight < 8 ? 'hidden' : ''}">${item.weight.toFixed(1)}%</span>
+                         </div>`;
+            });
+            html += `</div>`;
+
+            // Handles (套用 absolute inset-0 完美疊加在軌道上)
+            if (items.length > 1) {
+                html += `<div class="absolute inset-0 pointer-events-none" id="slider-handles">`;
+                let acc = 0;
+                for (let i = 0; i < items.length - 1; i++) {
+                    acc += items[i].weight;
+                    html += `<div id="handle-${i}" class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-11 h-11 cursor-grab pointer-events-auto flex items-center justify-center z-10 hover:scale-110 active:scale-95 touch-none"
+                                  style="left: ${acc}%;"
+                                  onpointerdown="startDrag(event, ${i})">
+                                  <div class="w-6 h-6 bg-white rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.8)] border-2 flex items-center justify-center pointer-events-none" style="border-color: ${items[i].color};">
+                                    <span class="material-symbols-outlined text-[14px] text-surface-container-lowest font-black" style="transform: scaleX(0.8);">code</span>
+                                  </div>
+                             </div>`;
+                }
+                html += `</div>`;
+            }
+            
+            html += `</div>`; // 結束 Relative Wrapper
+
+            // Legend labels (加上獨立 ID 供即時更新數值)
+            html += `<div class="mt-6 flex flex-wrap justify-center gap-2 px-2">`;
+            items.forEach((item, i) => {
+                html += `<div class="flex items-center gap-1.5 bg-surface-base px-3 py-1.5 rounded-lg border border-white/5 shadow-sm">
+                            <span class="w-2.5 h-2.5 rounded-full shadow-inner" style="background-color: ${item.color}"></span>
+                            <span class="text-[11px] text-text-secondary font-bold max-w-[90px] truncate">${item.name}</span>
+                            <span id="legend-label-${i}" class="text-[11px] text-white font-mono font-black">${item.weight.toFixed(1)}%</span>
+                         </div>`;
+            });
+            html += `</div>`;
+
+            container.innerHTML = html;
+        }
+
+        function startDrag(e, index) {
+            e.preventDefault();
+            isDragging = true;
+            dragIndex = index;
+            const track = document.getElementById('slider-track-bg');
+            trackRect = track.getBoundingClientRect();
+            dragItems = getActiveItems().map(item => ({...item})); 
+
+            document.addEventListener('pointermove', onDrag);
+            document.addEventListener('pointerup', endDrag);
+            document.addEventListener('pointercancel', endDrag);
+        }
+
+        function onDrag(e) {
+            if (!isDragging) return;
+            
+            // 計算當前滑鼠位置對應的百分比
+            let x = e.clientX - trackRect.left;
+            let pct = (x / trackRect.width) * 100;
+
+            let minPct = 0;
+            for(let i=0; i<dragIndex; i++) minPct += dragItems[i].weight;
+
+            let maxPct = 100;
+            for(let i=dragItems.length-1; i>dragIndex+1; i--) maxPct -= dragItems[i].weight;
+
+            // 限制節點不可跨越（最小保留 1% 避免圖層破版）
+            pct = Math.max(minPct + 1, Math.min(maxPct - 1, pct));
+
+            let newLeftWeight = pct - minPct;
+            let newRightWeight = maxPct - pct;
+
+            // 更新暫存數據
+            dragItems[dragIndex].weight = newLeftWeight;
+            dragItems[dragIndex+1].weight = newRightWeight;
+
+            // DOM 物理直接操作：極致滑順
+            const leftSeg = document.getElementById(`segment-${dragIndex}`);
+            const rightSeg = document.getElementById(`segment-${dragIndex + 1}`);
+            const handle = document.getElementById(`handle-${dragIndex}`);
+            const leftLabel = document.getElementById(`segment-label-${dragIndex}`);
+            const rightLabel = document.getElementById(`segment-label-${dragIndex + 1}`);
+            const leftLegend = document.getElementById(`legend-label-${dragIndex}`);
+            const rightLegend = document.getElementById(`legend-label-${dragIndex + 1}`);
+
+            if (leftSeg) leftSeg.style.width = `${newLeftWeight}%`;
+            if (rightSeg) rightSeg.style.width = `${newRightWeight}%`;
+            if (handle) handle.style.left = `${pct}%`;
+
+            if (leftLabel) {
+                leftLabel.innerText = `${newLeftWeight.toFixed(1)}%`;
+                leftLabel.classList.toggle('hidden', newLeftWeight < 8);
+            }
+            if (rightLabel) {
+                rightLabel.innerText = `${newRightWeight.toFixed(1)}%`;
+                rightLabel.classList.toggle('hidden', newRightWeight < 8);
+            }
+            
+            if (leftLegend) leftLegend.innerText = `${newLeftWeight.toFixed(1)}%`;
+            if (rightLegend) rightLegend.innerText = `${newRightWeight.toFixed(1)}%`;
+        }
+
+        function endDrag(e) {
+            if (!isDragging) return;
+            isDragging = false;
+            document.removeEventListener('pointermove', onDrag);
+            document.removeEventListener('pointerup', endDrag);
+            document.removeEventListener('pointercancel', endDrag);
+            
+            // 拖曳結束後，才將最終結果寫入 State 並更新
+            updateItemWeight(dragItems[dragIndex], dragItems[dragIndex].weight);
+            updateItemWeight(dragItems[dragIndex+1], dragItems[dragIndex+1].weight);
+            
+            normalizeWeights(); 
+        }
+
+        // Calculation & Ledger Utils
         function calculateTaiwanStockFee(price, shares, discount) {
             let rawFee = price * shares * 0.001425;
             let discountedFee = rawFee * (discount / 10);
@@ -651,16 +772,13 @@
             let asset = state.assets.find(a => a.id === assetId);
             let txs = (asset && asset.txs) ? asset.txs : [];
             let totalShares = 0, totalCombinedCost = 0;
-            
             txs.forEach(t => {
-                const tType = t.type || 'BUY';
-                const tTax = t.tax || 0;
-                if (tType === 'BUY') {
+                if (t.type === 'BUY') {
                     totalShares += t.shares;
-                    totalCombinedCost += (t.price * t.shares) + t.fee + tTax;
-                } else if (tType === 'SELL') {
+                    totalCombinedCost += (t.price * t.shares) + t.fee + (t.tax || 0);
+                } else if (t.type === 'SELL') {
                     totalShares -= t.shares;
-                    totalCombinedCost -= ((t.price * t.shares) - t.fee - tTax);
+                    totalCombinedCost -= ((t.price * t.shares) - t.fee - (t.tax || 0));
                 }
             });
             if(totalShares < 0) totalShares = 0;
@@ -669,20 +787,27 @@
             return { shares: totalShares, wac, totalCost: totalCombinedCost };
         }
 
-        // Render Asset Cards (MCE: 將「未實現損益」格子重構，讓百分比與獲利金額顯示在同一個格子內，一覽無遺)
+        // Render Asset Cards (完美修復：排除時不加刪除線，不加模糊遮罩，新增頂部狀態標籤，邊框改虛線)
         function renderAssetCards() {
             const container = document.getElementById('dynamic-assets-container');
             let totalVal = state.cash + state.assets.reduce((sum, a) => sum + (aggregateAssetLedger(a.id).shares * a.marketPrice), 0);
             
+            // Sync cash toggle UI
+            document.getElementById('toggle-cash-active').checked = state.cashActive !== false;
+            document.getElementById('cash-status-label').innerText = state.cashActive !== false ? "參與再平衡" : "已排除，不參與再平衡";
+            if(state.cashActive === false) document.getElementById('cash-status-label').className = "text-xs text-danger-red font-bold mt-0.5";
+            else document.getElementById('cash-status-label').className = "text-xs text-text-secondary font-mono mt-0.5";
+
             container.innerHTML = state.assets.map(a => {
                 let l = aggregateAssetLedger(a.id);
                 let currentVal = l.shares * a.marketPrice;
                 let pl = currentVal - l.totalCost;
                 let plPct = l.totalCost > 0 ? (pl / l.totalCost) * 100 : 0;
                 let actW = totalVal > 0 ? (currentVal / totalVal) * 100 : 0;
-                let isImbalanced = Math.abs(actW - a.targetWeight) > state.imbalanceThreshold;
                 
-                // MCE: 計算主畫面卡片的漲跌幅顯示
+                let isActive = a.active !== false;
+                let isImbalanced = isActive && Math.abs(actW - a.targetWeight) > state.imbalanceThreshold;
+                
                 let basePrice = a.referencePrice || a.openPrice;
                 let diff = (a.marketPrice && basePrice) ? (a.marketPrice - basePrice) : 0;
                 let diffPct = basePrice ? ((diff / basePrice) * 100).toFixed(2) : 0;
@@ -697,7 +822,6 @@
                     </div>
                 ` : '';
 
-                // MCE: 計算主畫面卡片的 AI 決策 Badge
                 let badgeHtml = '';
                 if (a.analysisLabel) {
                     let badgeColor = 'bg-surface-container-highest text-white border-outline-variant';
@@ -706,102 +830,87 @@
                     badgeHtml = `<span class="border px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 tracking-wide ${badgeColor}">${a.analysisLabel}</span>`;
                 }
 
-                // MCE: 方案 A (單軌基準偏移條) - 以持股總成本為 100% 基準線，當前現值為動態進度條
-                let costBarHtml = '';
-                if (l.shares > 0 && l.totalCost > 0) {
-                    let ratio = (currentVal / l.totalCost) * 100;
-                    // 以 150% 作為視覺最高上限，避免極端數值將進度條推擠變形
-                    let displayRatio = Math.min(150, Math.max(0, ratio));
-                    let fillWidthPct = (displayRatio / 150) * 100;
-                    let markerLeftPct = (100 / 150) * 100; // 成本線固定於總軌寬 66.67% 處
-                    
-                    let barColor = ratio >= 100 ? 'bg-danger-red' : 'bg-success-emerald';
-                    let textColor = ratio >= 100 ? 'text-danger-red' : 'text-success-emerald';
-                    let labelText = ratio >= 100 ? `溢價: +${(ratio - 100).toFixed(1)}%` : `折價: ${(ratio - 100).toFixed(1)}%`;
+                // [方案 A 新增頂部排除狀態標籤]
+                let activeStatusHtml = !isActive 
+                    ? `<span class="border border-danger-red/30 bg-danger-red/10 text-danger-red px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 tracking-wide">未參與平衡</span>` 
+                    : '';
 
-                    costBarHtml = `
-                    <div class="mt-4 pt-4 border-t border-outline-variant/20">
-                        <div class="flex justify-between items-center text-xs font-black mb-1.5">
-                            <span class="text-text-secondary">持股成本偏移度</span>
-                            <span class="${textColor} font-mono">${labelText}</span>
-                        </div>
-                        <div class="relative w-full h-3 bg-surface-container-lowest rounded-full overflow-hidden border border-outline-variant/10">
-                            <!-- 進度填滿條 -->
-                            <div class="h-full rounded-full ${barColor} transition-all duration-500" style="width: ${fillWidthPct}%"></div>
-                            <!-- 100% 成本基準對齊線 -->
-                            <div class="absolute top-0 h-full w-0.5 bg-white shadow-[0_0_4px_rgba(255,255,255,1)]" style="left: ${markerLeftPct}%" title="100% 成本線"></div>
-                        </div>
-                        <div class="flex justify-between text-[10px] text-text-secondary mt-1 font-mono">
-                            <span>0%</span>
-                            <span class="text-white font-bold">100% (成本基準)</span>
-                            <span>150%+</span>
-                        </div>
-                    </div>
-                    `;
+                let toggleHtml = `
+                    <label class="relative inline-flex items-center cursor-pointer ml-auto shrink-0 z-20" title="加入/排除再平衡">
+                        <input type="checkbox" class="sr-only peer" ${isActive ? 'checked' : ''} onchange="toggleAssetActive('${a.id}')">
+                        <div class="w-9 h-5 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                `;
+
+                // [方案 A 新增排除時虛線外框設計]
+                let cardBorderClass = "";
+                if (!isActive) {
+                    cardBorderClass = "border-dashed border-outline-variant/50 opacity-90";
+                } else if (isImbalanced) {
+                    cardBorderClass = "border-danger-red/50 shadow-[0_0_20px_rgba(239,68,68,0.2)] card-imbalanced";
+                } else {
+                    cardBorderClass = "border-surface-container-highest shadow-2xl";
                 }
 
                 return `
-                <article class="bg-surface-card rounded-[24px] p-6 border ${isImbalanced ? 'border-danger-red/50 shadow-[0_0_20px_rgba(239,68,68,0.2)]' : 'border-surface-container-highest shadow-2xl'} transition-all active:scale-[0.98] cursor-pointer ${isImbalanced ? 'card-imbalanced' : ''}" onclick="openLedgerModal('${a.id}')">
-                    <div class="flex justify-between items-start mb-5 gap-2">
-                        <div class="flex items-center gap-2 flex-wrap min-w-0">
+                <article class="bg-surface-card rounded-[24px] p-6 border ${cardBorderClass} transition-all">
+                    <div class="flex justify-between items-center mb-5 gap-2 relative">
+                        <div class="flex items-center gap-2 flex-wrap min-w-0 pr-12 cursor-pointer w-full" onclick="openLedgerModal('${a.id}')">
                             <span class="bg-surface-base border border-outline-variant px-3 py-1.5 rounded-lg text-xs font-black text-text-secondary tracking-widest shadow-inner">${a.ticker || '無代號'}</span>
                             ${badgeHtml}
-                            <h2 class="text-xl font-black text-white tracking-wide truncate">${a.name}</h2>
+                            ${activeStatusHtml}
+                            <!-- 移除 line-through 刪除線 -->
+                            <h2 class="text-xl font-black text-white tracking-wide truncate ${!isActive ? 'text-text-secondary' : ''}">${a.name}</h2>
                         </div>
-                        <div class="text-right shrink-0">
-                            <p class="text-xs text-text-secondary font-black tracking-widest mb-1">即時市值</p>
-                            <p class="text-action-blue font-black text-2xl tracking-tight">NT$ ${Math.round(currentVal).toLocaleString()}</p>
-                        </div>
+                        <div class="absolute right-0 top-1/2 -translate-y-1/2">${toggleHtml}</div>
                     </div>
                     
-                    <div class="bg-surface-base/80 p-5 rounded-2xl border border-outline-variant/40 mb-4 text-center relative overflow-hidden shadow-inner">
-                        <p class="text-sm text-text-secondary font-black mb-1.5 tracking-widest">目前現價</p>
-                        <p class="text-white font-black text-5xl font-mono tracking-tighter mb-1 drop-shadow-md">${a.marketPrice.toFixed(2)}</p>
-                        ${changeHtml}
-                        <div class="pt-4 border-t border-outline-variant/30 flex justify-center items-center gap-4 mt-3">
-                            <p class="text-sm text-text-secondary font-black tracking-widest">持有股數</p>
-                            <p class="text-white font-black text-2xl font-mono">${l.shares.toLocaleString()}</p>
+                    <div class="cursor-pointer" onclick="openLedgerModal('${a.id}')">
+                        <div class="flex justify-between items-end mb-4">
+                            <div class="bg-surface-base/80 px-4 py-3 rounded-2xl border border-outline-variant/40 shadow-inner">
+                                <p class="text-[10px] text-text-secondary font-black mb-0.5 tracking-widest">目前現價</p>
+                                <p class="text-white font-black text-xl font-mono">${a.marketPrice.toFixed(2)}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-[10px] text-text-secondary font-black tracking-widest mb-1">即時市值</p>
+                                <p class="text-action-blue font-black text-xl font-mono tracking-tight">NT$ ${Math.round(currentVal).toLocaleString()}</p>
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- WAC & 持股成本數據展示區 -->
-                    <div class="grid grid-cols-2 gap-4 mb-4">
-                        <div class="bg-surface-base/60 p-3 rounded-2xl border border-outline-variant/20 shadow-inner">
-                            <p class="text-[10px] text-text-secondary font-black mb-0.5 tracking-widest">平均持股成本 (WAC)</p>
-                            <p class="font-mono font-bold text-sm text-white">NT$ ${l.wac.toFixed(2)}</p>
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div class="bg-surface-base/60 p-3 rounded-2xl border border-outline-variant/20 shadow-inner">
+                                <p class="text-[10px] text-text-secondary font-black mb-0.5 tracking-widest">持股成本</p>
+                                <p class="font-mono font-bold text-sm text-white">NT$ ${Math.round(l.totalCost).toLocaleString()}</p>
+                            </div>
+                            <div class="bg-surface-base/60 p-3 rounded-2xl border border-outline-variant/20 shadow-inner">
+                                <p class="text-[10px] text-text-secondary font-black mb-0.5 tracking-widest">持有股數</p>
+                                <p class="font-mono font-bold text-sm text-white">${l.shares.toLocaleString()}</p>
+                            </div>
                         </div>
-                        <div class="bg-surface-base/60 p-3 rounded-2xl border border-outline-variant/20 shadow-inner">
-                            <p class="text-[10px] text-text-secondary font-black mb-0.5 tracking-widest">持股總成本</p>
-                            <p class="font-mono font-bold text-sm text-white">NT$ ${Math.round(l.totalCost).toLocaleString()}</p>
-                        </div>
-                    </div>
 
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-surface-base/80 p-4 rounded-2xl border border-outline-variant/40 shadow-inner flex flex-col justify-between">
-                            <p class="text-xs text-text-secondary font-black mb-1.5 tracking-widest">配置權重</p>
-                            <p class="font-black text-2xl ${isImbalanced ? 'text-danger-red' : 'text-primary'}">${actW.toFixed(1)}% <span class="text-text-secondary text-sm font-bold">/ ${a.targetWeight}%</span></p>
-                        </div>
-                        
-                        <!-- MCE: 將「未實現損益金額」與「百分比%」合併在同一個格子內，並依損益顏色美化顯示 -->
-                        <div class="bg-surface-base/80 p-4 rounded-2xl border border-outline-variant/40 shadow-inner flex flex-col justify-between">
-                            <p class="text-xs text-text-secondary font-black mb-1.5 tracking-widest">未實現損益</p>
-                            <div>
-                                <p class="font-black text-2xl ${pl >= 0 ? 'text-danger-red' : 'text-success-emerald'}">${pl >= 0 ? '+' : ''}${plPct.toFixed(1)}%</p>
-                                <p class="font-bold text-xs ${pl >= 0 ? 'text-danger-red/80' : 'text-success-emerald/80'} font-mono mt-0.5">${pl >= 0 ? '+' : ''}NT$ ${Math.round(pl).toLocaleString()}</p>
+                        <!-- 移除絕對定位的模糊遮罩，使所有數據100%清晰可見 -->
+                        <div class="grid grid-cols-2 gap-4 relative">
+                            <div class="bg-surface-base/80 p-4 rounded-2xl border border-outline-variant/40 shadow-inner flex flex-col justify-between">
+                                <p class="text-xs text-text-secondary font-black mb-1.5 tracking-widest">配置權重</p>
+                                <p class="font-black text-2xl ${isImbalanced ? 'text-danger-red' : 'text-primary'}">${actW.toFixed(1)}% <span class="text-text-secondary text-sm font-bold">/ ${a.targetWeight.toFixed(1)}%</span></p>
+                            </div>
+                            <div class="bg-surface-base/80 p-4 rounded-2xl border border-outline-variant/40 shadow-inner flex flex-col justify-between">
+                                <p class="text-xs text-text-secondary font-black mb-1.5 tracking-widest">未實現損益</p>
+                                <div>
+                                    <p class="font-black text-2xl ${pl >= 0 ? 'text-danger-red' : 'text-success-emerald'}">${pl >= 0 ? '+' : ''}${plPct.toFixed(1)}%</p>
+                                </div>
                             </div>
                         </div>
                     </div>
-
-                    <!-- 動態渲染的單軌基準偏移條 -->
-                    ${costBarHtml}
                 </article>`;
             }).join('');
         }
 
         function calculate() {
-            let cashWeight = state.defenseWeight;
-            let totalAssetWeight = state.assets.reduce((sum, a) => sum + (parseFloat(a.targetWeight) || 0), 0);
+            let cashWeight = state.cashActive !== false ? state.cashWeight : 0;
+            let totalAssetWeight = state.assets.reduce((sum, a) => sum + (a.active !== false ? parseFloat(a.targetWeight) : 0), 0);
             let totalWeight = cashWeight + totalAssetWeight;
+            
             let rightZoneContainer = document.getElementById('panel-dynamic-right-zone');
             let tradeUnit = state.unit;
             
@@ -818,9 +927,7 @@
                 totalPortfolioInitialCost += ledger.totalCost;
                 
                 if (asset.txs) {
-                    asset.txs.forEach(t => {
-                        totalFrictionCost += (t.fee || 0) + (t.tax || 0);
-                    });
+                    asset.txs.forEach(t => totalFrictionCost += (t.fee || 0) + (t.tax || 0));
                 }
             });
             
@@ -829,7 +936,6 @@
             let unreleasedTotalPlAmount = totalCurrentPortfolioStocksMarketValue - totalPortfolioInitialCost;
             let overallPortfolioRoi = totalPortfolioInitialCost > 0 ? (unreleasedTotalPlAmount / totalPortfolioInitialCost) * 100 : 0;
             
-            // Update Top Dashboard
             document.getElementById('stat-total-asset').innerText = `NT$ ${Math.round(totalTarget).toLocaleString()}`;
             
             let plStatElement = document.getElementById('stat-total-pl');
@@ -842,40 +948,24 @@
                 plStatElement.innerText = "NT$ 0 (0.00%)";
                 plStatElement.className = "text-xl font-black font-mono leading-tight text-text-secondary";
             }
-
             document.getElementById('stat-total-friction').innerText = `Friction: NT$ ${Math.round(totalFrictionCost).toLocaleString()}`;
 
-            let currBeta = 0;
-            let tgtBeta = 0;
+            let currBeta = 0, tgtBeta = 0;
             state.assets.forEach(asset => {
                 let actualW = totalCurrent > 0 ? (currentAssetValues[asset.id] / totalCurrent) : 0;
-                let targetW = (parseFloat(asset.targetWeight) || 0) / 100;
+                let targetW = asset.active !== false ? (parseFloat(asset.targetWeight) || 0) / 100 : 0;
                 let assetBeta = asset.beta !== undefined ? parseFloat(asset.beta) : 1.0;
                 currBeta += actualW * assetBeta;
                 tgtBeta += targetW * assetBeta;
             });
             document.getElementById('stat-curr-beta').innerText = currBeta.toFixed(2);
-            document.getElementById('stat-tgt-beta').innerText = Math.abs(totalWeight - 100) < 0.1 ? tgtBeta.toFixed(2) : "ERR";
+            document.getElementById('stat-tgt-beta').innerText = tgtBeta.toFixed(2);
 
-            if (Math.abs(totalWeight - 100) > 0.1) {
-                rightZoneContainer.innerHTML = `
-                    <div class="p-6 text-center text-danger-red border border-dashed border-danger-red/30 rounded-xl bg-danger-red/5">
-                        <p class="text-sm font-black uppercase tracking-widest mb-2">⚠️ Weight Configuration Error</p>
-                        <p class="text-xs">Total Weight is ${totalWeight.toFixed(1)}%. It must equal 100%.</p>
-                        <p class="text-xs mt-2 opacity-70">Defense Cash: ${cashWeight}% + Assets: ${totalAssetWeight.toFixed(1)}%</p>
-                    </div>`;
-                updateDynamicCharts(currentAssetValues, totalCurrent, cashWeight, totalTarget, false, null, 0);
-                return; 
-            }
-
-            // V4 Actions Generator
             let actions = [];
-            if (state.injection > 0) {
-                actions.push({ type: 'INJECT', ticker: '新資金準備', shares: 0, value: state.injection });
-            }
+            if (state.injection > 0) actions.push({ type: 'INJECT', ticker: '新資金準備', shares: 0, value: state.injection });
 
             state.assets.forEach(asset => {
-                // MCE: 如果標的已被手動排除，則不生成其計畫
+                if (asset.active === false) return; // Skip inactive
                 if (state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(asset.id)) return;
 
                 let t_weight = (parseFloat(asset.targetWeight) || 0) / 100;
@@ -886,239 +976,218 @@
                 if(asset.marketPrice <= 0) return;
                 let deltaShares = deltaVal / asset.marketPrice;
 
-                if (tradeUnit === 1000) {
-                    deltaShares = deltaShares > 0 ? Math.floor(deltaShares / 1000) * 1000 : Math.round(deltaShares / 1000) * 1000;
-                } else {
-                    deltaShares = deltaShares > 0 ? Math.floor(deltaShares) : Math.round(deltaShares);
-                }
+                deltaShares = tradeUnit === 1000 
+                    ? (deltaShares > 0 ? Math.floor(deltaShares / 1000) * 1000 : Math.round(deltaShares / 1000) * 1000)
+                    : (deltaShares > 0 ? Math.floor(deltaShares) : Math.round(deltaShares));
 
-                if(deltaShares < 0) {
-                    if (!state.inflowOnly) {
-                        actions.push({ id: asset.id, type: 'SELL', ticker: asset.name, shares: Math.abs(deltaShares), value: Math.abs(deltaShares * asset.marketPrice) });
-                    }
+                if(deltaShares < 0 && !state.inflowOnly) {
+                    actions.push({ id: asset.id, type: 'SELL', ticker: asset.name, shares: Math.abs(deltaShares), value: Math.abs(deltaShares * asset.marketPrice) });
                 }
                 if(deltaShares > 0) {
                     actions.push({ id: asset.id, type: 'BUY', ticker: asset.name, shares: deltaShares, value: deltaShares * asset.marketPrice });
                 }
             });
 
-            // Calculate expected values for Target/InflowOnly Charts
-            let expectedAssetValues = {};
-            state.assets.forEach(asset => {
-                expectedAssetValues[asset.id] = currentAssetValues[asset.id];
-            });
+            let expectedAssetValues = {...currentAssetValues};
             actions.forEach(act => {
-                if (act.type === 'BUY' && act.id) {
-                    expectedAssetValues[act.id] += act.value;
-                }
+                if (act.type === 'BUY' && act.id) expectedAssetValues[act.id] += act.value;
             });
-            let expectedTotalStocksVal = 0;
-            state.assets.forEach(asset => { expectedTotalStocksVal += expectedAssetValues[asset.id]; });
-            let expectedCash = totalTarget - expectedTotalStocksVal;
-            if (expectedCash < 0) expectedCash = 0;
+            let expectedTotalStocksVal = state.assets.reduce((sum, a) => sum + expectedAssetValues[a.id], 0);
+            let expectedCash = Math.max(0, totalTarget - expectedTotalStocksVal);
 
-            // Render Actions
             let innerStepsHtml = `
                 <div class="space-y-4">
                     <div class="flex justify-between items-center px-1">
                         <div>
                             <span class="text-xs font-black text-text-secondary uppercase tracking-widest">Rebalance Plan</span>
-                            <span class="text-[10px] text-text-secondary block mt-0.5">點擊卡片快速記帳，點擊右側 [X] 排除</span>
                         </div>
                         <span class="px-3 py-1 ${state.injection > 0 ? 'bg-secondary/10 text-secondary border-secondary/20' : 'bg-primary/10 text-primary border-primary/20'} border rounded-full text-[10px] font-black uppercase">Auto Generated</span>
                     </div>
                     <div class="space-y-3">`;
 
             if(actions.length === 0 || (actions.length === 1 && actions[0].type === 'INJECT')) {
-                innerStepsHtml += `<p class="text-center py-8 text-sm text-text-secondary uppercase font-bold border border-dashed border-surface-container-highest rounded-xl bg-surface-container-highest/20">No Actions Required</p>`;
+                innerStepsHtml += `<p class="text-center py-8 text-sm text-text-secondary uppercase font-bold border border-dashed border-surface-container-highest rounded-xl bg-surface-container-highest/20">無觸發平衡或無配置變更</p>`;
             } else {
                 actions.forEach((act, idx) => {
                     let isSell = act.type === 'SELL';
                     let isInject = act.type === 'INJECT';
-                    
                     let badgeColor = isSell ? 'bg-success-emerald/20 text-success-emerald' : (isInject ? 'bg-secondary/20 text-secondary' : 'bg-danger-red/20 text-danger-red');
                     let actionText = isSell ? '掛單賣出' : (isInject ? '預定匯入' : '掛單買進');
                     
-                    // MCE: 如果不是新資金，則綁定點擊快速執行記帳事件，並渲染排除 X 按鈕
-                    let clickAttr = isInject ? '' : `onclick="openQuickExecuteModal('${act.id}', '${act.type}', ${act.shares}, ${state.assets.find(as => as.id === act.id).marketPrice})"`;
-                    let deleteBtnHtml = isInject ? '' : `
-                        <button onclick="ignoreRebalanceAction(event, '${act.id}')" class="text-text-secondary hover:text-danger-red hover:bg-white/5 p-2 rounded-xl transition-all" title="手動排除此項計畫">
-                            <span class="material-symbols-outlined text-base">close</span>
-                        </button>
-                    `;
-
                     innerStepsHtml += `
-                        <div ${clickAttr} class="flex items-center justify-between p-4 bg-surface-container-highest/20 rounded-xl border border-white/5 shadow-sm hover:border-primary/50 hover:bg-surface-container-highest/30 transition-all cursor-pointer group">
+                        <div class="flex items-center justify-between p-4 bg-surface-container-highest/20 rounded-xl border border-white/5 shadow-sm">
                             <div class="flex items-center gap-4 min-w-0">
                                 <span class="w-8 h-8 flex items-center justify-center rounded-full text-xs font-black shrink-0 ${badgeColor}">${idx+1}</span>
                                 <div class="min-w-0">
-                                    <p class="text-sm font-black text-white flex items-center gap-1.5 truncate">
-                                        ${actionText} ${act.ticker}
-                                        ${!isInject ? '<span class="material-symbols-outlined text-xs text-text-secondary opacity-0 group-hover:opacity-100 transition-opacity">edit_note</span>' : ''}
-                                    </p>
+                                    <p class="text-sm font-black text-white flex items-center gap-1.5 truncate">${actionText} ${act.ticker}</p>
                                     <p class="text-xs font-mono text-text-secondary uppercase mt-0.5">${act.shares > 0 ? act.shares.toLocaleString() + ' SHARES' : 'FUNDS'}</p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-3 shrink-0">
                                 <p class="text-sm font-mono font-bold text-white">NT$ ${Math.round(act.value).toLocaleString()}</p>
-                                ${deleteBtnHtml}
                             </div>
                         </div>`;
                 });
             }
-            innerStepsHtml += `</div>`;
-
-            // MCE: 若有手動排除的計畫項目，顯示還原控制列
-            if (state.ignoredRebalanceIds && state.ignoredRebalanceIds.length > 0) {
-                innerStepsHtml += `
-                    <div class="pt-3 border-t border-white/5 flex justify-between items-center text-xs mt-3">
-                        <span class="text-text-secondary font-bold">已排除 ${state.ignoredRebalanceIds.length} 個標的計畫</span>
-                        <button onclick="restoreIgnoredRebalanceActions()" class="text-primary font-black hover:underline uppercase tracking-wide">恢復所有計畫明細</button>
-                    </div>
-                `;
-            }
-
-            innerStepsHtml += `</div>`;
+            innerStepsHtml += `</div></div>`;
             rightZoneContainer.innerHTML = innerStepsHtml;
 
             updateDynamicCharts(currentAssetValues, totalCurrent, cashWeight, totalTarget, true, expectedAssetValues, expectedCash);
         }
 
-        // Refactored Charts Engine (Scheme A)
-        function updateDynamicCharts(currentVals, totalCurrent, tgtCashPct, totalTarget, isValid, expectedAssetValues, expectedCash) {
-            let labels = [];
-            let currData = [];
-            let tgtData = [];
-            let bgColors = ['#2563eb', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e', '#64748b', '#06b6d4', '#f472b6'];
+        function switchViewMode(mode) {
+            currentViewMode = mode;
+            const activeClass = 'flex-1 py-2 text-sm font-black rounded-lg transition-all bg-surface-card text-white shadow-md border border-outline-variant';
+            const inactiveClass = 'flex-1 py-2 text-sm font-black rounded-lg transition-all text-text-secondary hover:text-white border border-transparent';
             
+            document.getElementById('tab-pie').className = mode === 'PIE' ? activeClass : inactiveClass;
+            document.getElementById('tab-gap').className = mode === 'GAP' ? activeClass : inactiveClass;
+            document.getElementById('view-pie').classList.toggle('hidden', mode !== 'PIE');
+            document.getElementById('view-gap').classList.toggle('hidden', mode !== 'GAP');
+            calculate(); 
+        }
+
+        function switchPieType(type) {
+            pieViewType = type;
+            const currBtn = document.getElementById('btn-pie-curr');
+            const tgtBtn = document.getElementById('btn-pie-tgt');
+
+            if(type === 'CURRENT') {
+                currBtn.className = 'px-5 py-2 rounded-full text-sm font-black bg-action-blue text-white shadow border border-action-blue transition-colors';
+                tgtBtn.className = 'px-5 py-2 rounded-full text-sm font-black bg-surface-container text-text-secondary border border-outline-variant hover:text-white transition-colors';
+            } else {
+                currBtn.className = 'px-5 py-2 rounded-full text-sm font-black bg-surface-container text-text-secondary border border-outline-variant hover:text-white transition-colors';
+                tgtBtn.className = 'px-5 py-2 rounded-full text-sm font-black bg-primary text-on-primary shadow border border-primary transition-colors';
+            }
+            calculate(); 
+        }
+
+        function updateDynamicCharts(currentVals, totalCurrent, tgtCashPct, totalTarget, isValid, expectedAssetValues, expectedCash) {
+            let labels = [], currData = [], tgtData = [], pointColors = [];
+            let legendHtml = '', gapHtml = '';
             const legendContainer = document.getElementById('main-legend-container');
             const gapBarsContainer = document.getElementById('gap-bars-container');
-            
-            let legendHtml = '';
-            let gapHtml = '';
 
             state.assets.forEach((a, i) => {
+                if(a.active === false && pieViewType === 'TARGET') return; // Hide excluded in target mode
+                
+                let color = CHART_COLORS[i % CHART_COLORS.length];
                 let c_val = currentVals[a.id] || 0;
-                labels.push(a.name);
-                
                 let c_pct = totalCurrent > 0 ? (c_val / totalCurrent) * 100 : 0;
-                currData.push(c_pct.toFixed(1));
-
-                let t_pct = 0;
-                let t_pct_raw = parseFloat(a.targetWeight) || 0;
-                if (state.inflowOnly && expectedAssetValues && pieViewType === 'TARGET') {
-                    let expVal = expectedAssetValues[a.id] || 0;
-                    t_pct = totalTarget > 0 ? (expVal / totalTarget) * 100 : 0;
-                } else {
-                    t_pct = t_pct_raw;
-                }
-                tgtData.push(t_pct.toFixed(1));
                 
-                let color = bgColors[i % bgColors.length];
+                let t_pct = 0;
+                let t_pct_raw = a.active !== false ? (parseFloat(a.targetWeight) || 0) : 0;
+                
+                if (state.inflowOnly && expectedAssetValues && pieViewType === 'TARGET') {
+                    t_pct = totalTarget > 0 ? ((expectedAssetValues[a.id] || 0) / totalTarget) * 100 : 0;
+                } else { t_pct = t_pct_raw; }
+
+                if (pieViewType === 'CURRENT' && c_pct === 0) return; // Skip zero-value in current mode
+                
+                labels.push(a.name);
+                currData.push(c_pct.toFixed(1));
+                tgtData.push(t_pct.toFixed(1));
+                pointColors.push(color);
+
                 let displayPct = pieViewType === 'CURRENT' ? c_pct.toFixed(1) : t_pct.toFixed(1);
 
-                // Build Legend for Pie Mode
                 legendHtml += `
                     <div class="flex items-center justify-between gap-2 overflow-hidden bg-surface-container-highest/30 px-3 py-2 rounded-lg border border-white/5">
                         <div class="flex items-center gap-2 min-w-0">
-                            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${color}"></span>
-                            <span class="text-xs font-bold text-text-secondary truncate uppercase">${a.name}</span>
+                            <span class="w-2.5 h-2.5 rounded-full shrink-0 ${a.active === false ? 'opacity-50' : ''}" style="background-color: ${color}"></span>
+                            <span class="text-xs font-bold text-text-secondary truncate uppercase ${a.active === false ? 'line-through' : ''}">${a.name}</span>
                         </div>
                         <span class="text-xs font-mono font-bold ${pieViewType === 'CURRENT' ? 'text-action-blue' : 'text-primary'}">${displayPct}%</span>
                     </div>`;
 
-                // Build Gap Bar for Gap Mode
-                let isImbalanced = Math.abs(c_pct - t_pct_raw) > state.imbalanceThreshold;
-                gapHtml += `
-                    <div class="flex flex-col gap-1.5 relative group cursor-pointer" onclick="openLedgerModal('${a.id}')">
-                        <div class="flex justify-between items-end">
-                            <span class="text-xs font-bold text-white group-hover:text-primary transition-colors">${a.name}</span>
-                            <div class="flex items-baseline gap-1">
-                                <span class="text-sm font-mono font-black ${isImbalanced ? 'text-danger-red' : 'text-action-blue'}">${c_pct.toFixed(1)}%</span>
-                                <span class="text-[10px] font-mono text-text-secondary">/ ${t_pct_raw.toFixed(1)}%</span>
+                if (a.active !== false) {
+                    let isImbalanced = Math.abs(c_pct - t_pct_raw) > state.imbalanceThreshold;
+                    gapHtml += `
+                        <div class="flex flex-col gap-1.5 relative group cursor-pointer" onclick="openLedgerModal('${a.id}')">
+                            <div class="flex justify-between items-end">
+                                <span class="text-xs font-bold text-white group-hover:text-primary transition-colors">${a.name}</span>
+                                <div class="flex items-baseline gap-1">
+                                    <span class="text-sm font-mono font-black ${isImbalanced ? 'text-danger-red' : 'text-action-blue'}">${c_pct.toFixed(1)}%</span>
+                                    <span class="text-[10px] font-mono text-text-secondary">/ ${t_pct_raw.toFixed(1)}%</span>
+                                </div>
                             </div>
-                        </div>
-                        <div class="w-full h-3.5 bg-surface-container-highest rounded-full relative overflow-hidden border border-outline-variant/30">
-                            <div class="absolute top-0 left-0 h-full rounded-full transition-all duration-500 ${isImbalanced ? 'bg-danger-red/80' : 'bg-action-blue/80'}" style="width: ${c_pct}%"></div>
-                            <div class="absolute top-0 h-full w-1.5 bg-white z-10 shadow-[0_0_5px_rgba(0,0,0,0.8)]" style="left: calc(${t_pct_raw}% - 0.75px)"></div>
-                        </div>
-                    </div>`;
+                            <div class="w-full h-3.5 bg-surface-container-highest rounded-full relative overflow-hidden border border-outline-variant/30">
+                                <div class="absolute top-0 left-0 h-full rounded-full transition-all duration-500 ${isImbalanced ? 'bg-danger-red/80' : 'bg-action-blue/80'}" style="width: ${c_pct}%"></div>
+                                <div class="absolute top-0 h-full w-1.5 bg-white z-10 shadow-[0_0_5px_rgba(0,0,0,0.8)]" style="left: calc(${t_pct_raw}% - 0.75px)"></div>
+                            </div>
+                        </div>`;
+                }
             });
 
             // Handle Cash
-            labels.push("Settlement Cash");
-            let c_cash_pct = totalCurrent > 0 ? ((state.cash / totalCurrent) * 100) : 0;
-            currData.push(c_cash_pct.toFixed(1));
-            
-            let t_cash_pct = 0;
-            if (state.inflowOnly && expectedAssetValues && pieViewType === 'TARGET') {
-                t_cash_pct = totalTarget > 0 ? (expectedCash / totalTarget) * 100 : 0;
-            } else {
-                t_cash_pct = tgtCashPct;
-            }
-            tgtData.push(t_cash_pct.toFixed(1));
-            
-            let cashColor = bgColors[state.assets.length % bgColors.length];
-            let displayCashPct = pieViewType === 'CURRENT' ? c_cash_pct.toFixed(1) : t_cash_pct.toFixed(1);
+            if (state.cashActive !== false || pieViewType === 'CURRENT') {
+                labels.push("Settlement Cash");
+                let c_cash_pct = totalCurrent > 0 ? ((state.cash / totalCurrent) * 100) : 0;
+                currData.push(c_cash_pct.toFixed(1));
+                
+                let t_cash_pct = 0;
+                if (state.inflowOnly && expectedAssetValues && pieViewType === 'TARGET') {
+                    t_cash_pct = totalTarget > 0 ? (expectedCash / totalTarget) * 100 : 0;
+                } else { t_cash_pct = state.cashActive !== false ? state.cashWeight : 0; }
+                tgtData.push(t_cash_pct.toFixed(1));
+                
+                let cashColor = CHART_COLORS[state.assets.length % CHART_COLORS.length];
+                pointColors.push(cashColor);
+                let displayCashPct = pieViewType === 'CURRENT' ? c_cash_pct.toFixed(1) : t_cash_pct.toFixed(1);
 
-            legendHtml += `
-                <div class="flex items-center justify-between gap-2 overflow-hidden bg-surface-container-highest/30 px-3 py-2 rounded-lg border border-white/5">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${cashColor}"></span>
-                        <span class="text-xs font-bold text-text-secondary truncate uppercase">Cash</span>
-                    </div>
-                    <span class="text-xs font-mono font-bold ${pieViewType === 'CURRENT' ? 'text-action-blue' : 'text-primary'}">${displayCashPct}%</span>
-                </div>`;
-            
-            let isCashImbalanced = Math.abs(c_cash_pct - tgtCashPct) > state.imbalanceThreshold;
-            gapHtml += `
-                <div class="flex flex-col gap-1.5 relative mt-2 pt-4 border-t border-surface-container-highest">
-                    <div class="flex justify-between items-end">
-                        <span class="text-xs font-bold text-text-secondary">Settlement Cash</span>
-                        <div class="flex items-baseline gap-1">
-                            <span class="text-sm font-mono font-black ${isCashImbalanced ? 'text-danger-red' : 'text-action-blue'}">${c_cash_pct.toFixed(1)}%</span>
-                            <span class="text-[10px] font-mono text-text-secondary">/ ${tgtCashPct.toFixed(1)}%</span>
+                legendHtml += `
+                    <div class="flex items-center justify-between gap-2 overflow-hidden bg-surface-container-highest/30 px-3 py-2 rounded-lg border border-white/5">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${cashColor}"></span>
+                            <span class="text-xs font-bold text-text-secondary truncate uppercase">Cash</span>
                         </div>
-                    </div>
-                    <div class="w-full h-3.5 bg-surface-container-lowest rounded-full relative overflow-hidden border border-outline-variant/30">
-                        <div class="absolute top-0 left-0 h-full rounded-full transition-all duration-500 ${isCashImbalanced ? 'bg-danger-red/60' : 'bg-surface-elevated'}" style="width: ${c_cash_pct}%"></div>
-                        <div class="absolute top-0 h-full w-1.5 bg-text-secondary z-10 shadow-[0_0_5px_rgba(0,0,0,0.8)]" style="left: calc(${tgtCashPct}% - 0.75px)"></div>
-                    </div>
-                </div>`;
+                        <span class="text-xs font-mono font-bold ${pieViewType === 'CURRENT' ? 'text-action-blue' : 'text-primary'}">${displayCashPct}%</span>
+                    </div>`;
+                
+                if (state.cashActive !== false) {
+                    let isCashImbalanced = Math.abs(c_cash_pct - tgtCashPct) > state.imbalanceThreshold;
+                    gapHtml += `
+                        <div class="flex flex-col gap-1.5 relative mt-2 pt-4 border-t border-surface-container-highest">
+                            <div class="flex justify-between items-end">
+                                <span class="text-xs font-bold text-text-secondary">Settlement Cash</span>
+                                <div class="flex items-baseline gap-1">
+                                    <span class="text-sm font-mono font-black ${isCashImbalanced ? 'text-danger-red' : 'text-action-blue'}">${c_cash_pct.toFixed(1)}%</span>
+                                    <span class="text-[10px] font-mono text-text-secondary">/ ${tgtCashPct.toFixed(1)}%</span>
+                                </div>
+                            </div>
+                            <div class="w-full h-3.5 bg-surface-container-lowest rounded-full relative overflow-hidden border border-outline-variant/30">
+                                <div class="absolute top-0 left-0 h-full rounded-full transition-all duration-500 ${isCashImbalanced ? 'bg-danger-red/60' : 'bg-surface-elevated'}" style="width: ${c_cash_pct}%"></div>
+                                <div class="absolute top-0 h-full w-1.5 bg-text-secondary z-10 shadow-[0_0_5px_rgba(0,0,0,0.8)]" style="left: calc(${tgtCashPct}% - 0.75px)"></div>
+                            </div>
+                        </div>`;
+                }
+            }
 
             if (legendContainer) legendContainer.innerHTML = legendHtml;
             if (gapBarsContainer) gapBarsContainer.innerHTML = gapHtml;
 
-            // Render Chart if in PIE mode
             if(currentViewMode === 'PIE') {
                 let activeData = pieViewType === 'CURRENT' ? currData : tgtData;
-                
                 const chartConfig = {
                     type: 'doughnut',
                     data: {
                         labels: labels,
                         datasets: [{ 
                             data: isValid ? activeData : [100], 
-                            backgroundColor: isValid ? activeData.map((_, idx) => bgColors[idx % bgColors.length]) : ['#475569'], 
+                            backgroundColor: isValid ? pointColors : ['#475569'], 
                             borderWidth: 0,
                             hoverOffset: 6
                         }]
                     },
                     options: { 
-                        cutout: '72%',
-                        responsive: true, 
-                        maintainAspectRatio: false, 
+                        cutout: '72%', responsive: true, maintainAspectRatio: false, 
                         plugins: { 
                             legend: { display: false },
                             tooltip: {
-                                enabled: isValid,
-                                displayColors: false,
+                                enabled: isValid, displayColors: false,
                                 titleFont: { size: 14, family: "'Hanken Grotesk', sans-serif" },
                                 bodyFont: { size: 16, family: "'JetBrains Mono', monospace", weight: 'bold' },
-                                padding: 12,
-                                callbacks: {
-                                    label: function(context) { return ` ${context.raw}%`; }
-                                }
+                                padding: 12, callbacks: { label: function(context) { return ` ${context.raw}%`; } }
                             }
                         },
                         animation: { animateScale: true, animateRotate: true }
@@ -1130,90 +1199,7 @@
             }
         }
 
-        // Asset Management Functions
-        function addAsset() {
-            let newId = "a_" + Date.now();
-            state.assets.push({ id: newId, name: "新資產", ticker: "", beta: 1.0, targetWeight: 0, marketPrice: 100.0, openPrice: null, highPrice: null, lowPrice: null, referencePrice: null, analysisLabel: "", analysisReason: "", lastUpdated: "--", updateStatus: "cache", txs: [] });
-            saveDataToLocal(); renderAssetCards(); calculate();
-            setTimeout(() => { openLedgerModal(newId); }, 100);
-        }
-
-        function renderDecisionPanel(a) {
-            const decisionPanel = document.getElementById('decision-support-panel');
-            if (!decisionPanel) return;
-            
-            let basePrice = a.referencePrice || a.openPrice;
-            if (basePrice || a.analysisLabel) {
-                let diff = (a.marketPrice && basePrice) ? (a.marketPrice - basePrice) : 0;
-                let diffPct = basePrice ? ((diff / basePrice) * 100).toFixed(2) : 0;
-                let isUp = diff >= 0;
-                // 台股：紅漲綠跌
-                let colorClass = isUp ? 'text-danger-red' : 'text-success-emerald';
-                let sign = isUp && diff > 0 ? '+' : '';
-                let arrow = isUp && diff > 0 ? '▲' : (diff < 0 ? '▼' : '-');
-
-                // 決策標籤顏色：偏向買進(紅), 偏向賣出(綠)
-                let labelColor = 'bg-surface-container-highest text-white border-outline-variant';
-                if (a.analysisLabel) {
-                    if (a.analysisLabel.includes('買')) labelColor = 'bg-danger-red/20 text-danger-red border-danger-red/30';
-                    else if (a.analysisLabel.includes('賣')) labelColor = 'bg-success-emerald/20 text-success-emerald border-success-emerald/30';
-                }
-
-                decisionPanel.innerHTML = `
-                    <div class="bg-surface-container-highest/20 border border-white/5 rounded-2xl p-5 shadow-inner">
-                        <div class="flex items-center gap-2 mb-4">
-                            <span class="material-symbols-outlined text-action-blue text-[20px]">query_stats</span>
-                            <h4 class="text-sm font-black text-white tracking-widest uppercase">當日量價與決策支援</h4>
-                        </div>
-                        <div class="space-y-4">
-                            <div class="flex justify-between items-end border-b border-white/5 pb-3">
-                                <span class="text-xs font-bold text-text-secondary tracking-widest">今日現價 / 漲跌幅</span>
-                                <div class="flex items-baseline gap-2">
-                                    <span class="text-xl font-black text-white font-mono">${a.marketPrice.toFixed(2)}</span>
-                                    <span class="text-sm font-black font-mono ${colorClass}">${sign}${diffPct}% (${arrow}${Math.abs(diff).toFixed(2)})</span>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-4 gap-2 text-center">
-                                <div class="bg-surface-container-lowest/50 rounded-xl py-2 border border-white/5">
-                                    <div class="text-[10px] font-black text-text-secondary mb-1 uppercase">參考價</div>
-                                    <div class="text-xs font-mono font-bold text-white">${a.referencePrice || '--'}</div>
-                                </div>
-                                <div class="bg-surface-container-lowest/50 rounded-xl py-2 border border-white/5">
-                                    <div class="text-[10px] font-black text-text-secondary mb-1 uppercase">開盤</div>
-                                    <div class="text-xs font-mono font-bold text-white">${a.openPrice || '--'}</div>
-                                </div>
-                                <div class="bg-surface-container-lowest/50 rounded-xl py-2 border border-white/5">
-                                    <div class="text-[10px] font-black text-text-secondary mb-1 uppercase">最高</div>
-                                    <div class="text-xs font-mono font-bold text-white">${a.highPrice || '--'}</div>
-                                </div>
-                                <div class="bg-surface-container-lowest/50 rounded-xl py-2 border border-white/5">
-                                    <div class="text-[10px] font-black text-text-secondary mb-1 uppercase">最低</div>
-                                    <div class="text-xs font-mono font-bold text-white">${a.lowPrice || '--'}</div>
-                                </div>
-                            </div>
-                            ${a.analysisLabel ? `
-                            <div class="mt-4 pt-4 border-t border-white/5">
-                                <div class="flex items-center gap-2 mb-2">
-                                    <span class="text-[10px] font-black text-text-secondary uppercase tracking-widest">AI 決策信號</span>
-                                    <span class="px-2.5 py-0.5 rounded text-[11px] font-black border ${labelColor}">${a.analysisLabel}</span>
-                                </div>
-                                <p class="text-xs text-text-secondary font-bold leading-relaxed">${a.analysisReason || '無具體原因'}</p>
-                            </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                `;
-            } else {
-                decisionPanel.innerHTML = `
-                    <div class="bg-surface-container-highest/10 border border-dashed border-white/10 rounded-2xl p-5 text-center flex flex-col items-center justify-center gap-2">
-                        <span class="material-symbols-outlined text-text-secondary/50 text-[24px]">hourglass_empty</span>
-                        <span class="text-xs font-bold text-text-secondary uppercase tracking-widest">等待同步最新量價與決策資料</span>
-                    </div>
-                `;
-            }
-            decisionPanel.classList.remove('hidden');
-        }
-
+        // Ledger Modals
         function openLedgerModal(id) {
             currentActiveAssetId = id;
             let a = state.assets.find(x => x.id === id);
@@ -1222,14 +1208,25 @@
             document.getElementById('ledger-dynamic-title').innerText = `${a.name} 配置管理`;
             document.getElementById('modal-asset-name').value = a.name;
             document.getElementById('modal-asset-ticker').value = a.ticker;
-            document.getElementById('modal-asset-weight').value = a.targetWeight;
+            
+            const wInput = document.getElementById('modal-asset-weight');
+            wInput.value = a.targetWeight;
+            wInput.disabled = (a.active === false);
+            
+            const badge = document.getElementById('modal-active-badge');
+            if(a.active === false) {
+                badge.innerText = "已排除再平衡";
+                badge.className = "text-[10px] text-danger-red bg-danger-red/10 border border-danger-red/20 px-2 py-0.5 rounded";
+            } else {
+                badge.innerText = "參與再平衡";
+                badge.className = "text-[10px] text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded";
+            }
+
             document.getElementById('modal-asset-beta').value = a.beta !== undefined ? a.beta : 1.0;
             document.getElementById('modal-asset-price').value = a.marketPrice;
             document.getElementById('input-price-dynamic').value = a.marketPrice;
             
-            renderDecisionPanel(a);
-            updateTxPreview();
-            renderLedgerTable();
+            updateTxPreview(); renderLedgerTable();
             document.getElementById('modal-dynamic-ledger').classList.remove('hidden');
         }
 
@@ -1241,17 +1238,16 @@
         function saveModalSettingsOnly() {
             if(!currentActiveAssetId) return;
             let a = state.assets.find(x => x.id === currentActiveAssetId);
-            
             a.name = document.getElementById('modal-asset-name').value || "新資產";
-            a.ticker = (document.getElementById('modal-asset-ticker').value || "").toUpperCase().trim().replace(/\.TWO?$/, "");
-            a.targetWeight = parseFloat(document.getElementById('modal-asset-weight').value) || 0;
+            a.ticker = (document.getElementById('modal-asset-ticker').value || "").toUpperCase().trim();
+            if (a.active !== false) {
+                a.targetWeight = parseFloat(document.getElementById('modal-asset-weight').value) || 0;
+            }
             let nBeta = parseFloat(document.getElementById('modal-asset-beta').value);
             a.beta = isNaN(nBeta) ? 1.0 : nBeta;
             a.marketPrice = parseFloat(document.getElementById('modal-asset-price').value) || 0;
             
-            saveDataToLocal(); renderAssetCards(); calculate();
-            showToast("參數儲存成功", "success");
-            closeLedgerModal();
+            normalizeWeights(); showToast("參數儲存成功", "success"); closeLedgerModal();
         }
 
         function removeAsset(id) {
@@ -1260,49 +1256,44 @@
                 assetIdPendingDelete = id;
                 document.getElementById('delete-asset-name-label').innerText = a.name;
                 document.getElementById('modal-confirm-delete').classList.remove('hidden');
-                
                 document.getElementById('btn-confirm-delete-execute').onclick = () => {
                     executeRemoveAsset(assetIdPendingDelete);
-                    closeDeleteConfirmModal();
-                    closeLedgerModal();
+                    closeDeleteConfirmModal(); closeLedgerModal();
                 };
             } else {
-                executeRemoveAsset(id);
-                closeLedgerModal();
+                executeRemoveAsset(id); closeLedgerModal();
             }
         }
 
         function executeRemoveAsset(id) {
             state.assets = state.assets.filter(x => x.id !== id);
-            saveDataToLocal(); renderAssetCards(); calculate();
-            showToast("資產已成功移除", "info");
+            normalizeWeights(); showToast("資產已成功移除", "info");
         }
-
         function closeDeleteConfirmModal() {
             document.getElementById('modal-confirm-delete').classList.add('hidden');
             assetIdPendingDelete = null;
         }
 
-        // Ledger & Preview Utils
+        function addAsset() {
+            let newId = "a_" + Date.now();
+            state.assets.push({ id: newId, name: "新資產", ticker: "", beta: 1.0, active: true, targetWeight: 0, savedTargetWeight: 0, marketPrice: 100.0, txs: [] });
+            normalizeWeights();
+            setTimeout(() => openLedgerModal(newId), 100);
+        }
+
         function updateTxPreview() {
             let type = document.getElementById('input-type-dynamic').value;
             let price = parseFloat(document.getElementById('input-price-dynamic').value) || 0;
             let shares = parseInt(document.getElementById('input-shares-dynamic').value) || 0;
             let ticker = document.getElementById('modal-asset-ticker').value || '';
             let box = document.getElementById('tx-preview-box');
-            let cashPreview = document.getElementById('current-cash-preview');
-            
-            cashPreview.innerText = `(現有: NT$ ${state.cash.toLocaleString()})`;
+            document.getElementById('current-cash-preview').innerText = `(現有: NT$ ${state.cash.toLocaleString()})`;
 
-            if (price <= 0 || shares <= 0) {
-                box.innerHTML = '請輸入單價與股數以精算成本...';
-                return;
-            }
+            if (price <= 0 || shares <= 0) { box.innerHTML = '請輸入單價與股數...'; return; }
 
             let fee = calculateTaiwanStockFee(price, shares, state.discount);
             let tax = calculateTaiwanStockTax(ticker, price, shares, type);
             let total = price * shares;
-            
             let net = type === 'BUY' ? total + fee : total - fee - tax;
             let text = type === 'BUY' ? `總扣減: NT$ ${net.toLocaleString()}` : `預估淨得: NT$ ${net.toLocaleString()}`;
             let color = type === 'BUY' ? 'text-danger-red' : 'text-success-emerald';
@@ -1311,31 +1302,6 @@
                 <div class="flex justify-between w-full"><span>手續費: <span class="text-white">${fee}</span></span> <span>證交稅: <span class="text-white">${tax}</span></span></div>
                 <div class="${color} font-black mt-1">${text}</div>
             `;
-        }
-
-        function renderLedgerTable() {
-            if(!currentActiveAssetId) return;
-            let a = state.assets.find(x => x.id === currentActiveAssetId);
-            let cont = document.getElementById('tx-list-dynamic');
-            
-            cont.innerHTML = a.txs.map(t => {
-                const isBuy = t.type === 'BUY';
-                const badgeColor = isBuy ? 'text-danger-red bg-danger-red/10 border-danger-red/20' : 'text-success-emerald bg-success-emerald/10 border-success-emerald/20';
-                
-                return `
-                <div class="flex items-center justify-between p-4 bg-surface-container-highest/30 rounded-xl border border-white/5 text-xs transition-all">
-                    <div>
-                        <span class="${badgeColor} font-black mr-2 px-1.5 py-0.5 rounded border text-[10px] uppercase">${t.type}</span>
-                        <span class="text-white font-mono font-bold">${t.price.toFixed(2)} × ${t.shares.toLocaleString()}</span>
-                        ${t.linked ? '<span class="text-[10px] ml-1.5 text-primary bg-primary/10 px-1 py-0.5 rounded">連動</span>' : ''}
-                        <p class="text-xs text-text-secondary font-mono mt-1.5">${t.date} | Fee: ${t.fee} ${!isBuy && t.tax ? `| Tax: ${t.tax}` : ''}</p>
-                    </div>
-                    <button onclick="deleteTransaction(${t.id})" class="text-text-secondary hover:text-danger-red transition-colors active:scale-90 p-2">
-                        <span class="material-symbols-outlined text-lg">delete</span>
-                    </button>
-                </div>
-                `;
-            }).join('') || '<p class="text-center py-8 text-xs text-text-secondary uppercase border border-dashed border-surface-container-highest rounded-xl bg-surface-container-highest/20 font-bold">No Transactions</p>';
         }
 
         function addTransactionRecord() {
@@ -1347,7 +1313,7 @@
             let shares = parseInt(document.getElementById('input-shares-dynamic').value) || 0;
             let linked = document.getElementById('input-linked-dynamic').checked;
 
-            if (!date || price <= 0 || shares <= 0) return showToast("請填入完整日期、價格與股數", "error");
+            if (!date || price <= 0 || shares <= 0) return showToast("請填完整", "error");
             
             let fee = calculateTaiwanStockFee(price, shares, state.discount);
             let tax = calculateTaiwanStockTax(asset.ticker, price, shares, type);
@@ -1357,279 +1323,47 @@
                 if (type === 'BUY') simulatedCash -= ((price * shares) + fee);
                 else if (type === 'SELL') simulatedCash += ((price * shares) - fee - tax);
                 
-                if (simulatedCash < 0) {
-                    return showToast(`⚠️ 現金不足！缺口 ${Math.abs(simulatedCash).toLocaleString()} 元`, "error");
-                }
+                if (simulatedCash < 0) return showToast(`⚠️ 現金不足`, "error");
                 state.cash = simulatedCash;
                 document.getElementById('shares-cash').value = state.cash;
             }
 
             asset.txs.push({ id: Date.now(), date: date, price, shares, fee, tax, type, linked });
-            
             document.getElementById('input-shares-dynamic').value = '';
-            updateTxPreview();
-            saveDataToLocal(); renderLedgerTable(); renderAssetCards(); calculate();
-            showToast("新增交易明細成功", "success");
+            updateTxPreview(); normalizeWeights(); renderLedgerTable();
+            showToast("明細新增成功", "success");
+        }
+
+        function renderLedgerTable() {
+            if(!currentActiveAssetId) return;
+            let a = state.assets.find(x => x.id === currentActiveAssetId);
+            let cont = document.getElementById('tx-list-dynamic');
+            cont.innerHTML = a.txs.map(t => {
+                const isBuy = t.type === 'BUY';
+                const badgeColor = isBuy ? 'text-danger-red bg-danger-red/10 border-danger-red/20' : 'text-success-emerald bg-success-emerald/10 border-success-emerald/20';
+                return `
+                <div class="flex justify-between p-4 bg-surface-container-highest/30 rounded-xl border border-white/5 text-xs">
+                    <div>
+                        <span class="${badgeColor} font-black mr-2 px-1.5 py-0.5 rounded border text-[10px]">${t.type}</span>
+                        <span class="text-white font-mono font-bold">${t.price.toFixed(2)} × ${t.shares.toLocaleString()}</span>
+                        <p class="text-xs text-text-secondary font-mono mt-1.5">${t.date}</p>
+                    </div>
+                    <button onclick="deleteTransaction(${t.id})" class="text-text-secondary hover:text-danger-red active:scale-90 p-2"><span class="material-symbols-outlined text-lg">delete</span></button>
+                </div>`;
+            }).join('') || '<p class="text-center py-6 text-xs text-text-secondary border border-dashed rounded-xl bg-surface-container-highest/20 font-bold">No Transactions</p>';
         }
 
         function deleteTransaction(id) {
             let asset = state.assets.find(a => a.id === currentActiveAssetId);
-            let tx = asset.txs.find(t => t.id === id);
-            if(!tx) return;
-
-            if (tx.linked) {
-                let simulatedCash = state.cash;
-                if (tx.type === 'BUY') simulatedCash += ((tx.price * tx.shares) + tx.fee);
-                else if (tx.type === 'SELL') simulatedCash -= ((tx.price * tx.shares) - tx.fee - (tx.tax || 0));
-
-                if (simulatedCash < 0) {
-                    return showToast("⚠️ 阻斷：刪除將導致交割餘額負數！", "error");
-                }
-                state.cash = simulatedCash;
-                document.getElementById('shares-cash').value = state.cash;
-            }
-
             asset.txs = asset.txs.filter(t => t.id !== id);
-            saveDataToLocal(); renderLedgerTable(); renderAssetCards(); calculate();
-            showToast("交易明細已移除", "info");
+            normalizeWeights(); renderLedgerTable(); showToast("明細已移除", "info");
         }
 
         function clearAllTransactions() {
             let asset = state.assets.find(a => a.id === currentActiveAssetId);
-            if(confirm(`確定要強行清除【${asset.name}】的所有流水帳嗎？這不會連動還原現金數據！`)) {
-                asset.txs = [];
-                saveDataToLocal(); renderLedgerTable(); renderAssetCards(); calculate();
+            if(confirm(`確定清除【${asset.name}】所有流水帳？`)) {
+                asset.txs = []; normalizeWeights(); renderLedgerTable();
             }
-        }
-
-        // API Fetching
-        async function fetchWithTimeout(url, timeoutMs = 5000, options = {}) {
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), timeoutMs);
-            try {
-                return await fetch(url, { ...options, signal: controller.signal, cache: 'no-store' });
-            } finally {
-                clearTimeout(timer);
-            }
-        }
-
-        function parseQuoteNumber(value) {
-            if (value === undefined || value === null) return null;
-            const parsed = parseFloat(String(value).replace(/,/g, ''));
-            return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-        }
-
-        async function syncModalTicker() {
-            if(!currentActiveAssetId) return;
-            const tickerInput = document.getElementById('modal-asset-ticker').value;
-            const ticker = (tickerInput || '').trim().toUpperCase().replace(/\.TWO?$/, "");
-            if (!ticker) return showToast("請先輸入代號", "error");
-            if (!state.fugleApiKey) return showToast("請先設定 API 金鑰", "error");
-
-            const btn = document.getElementById('btn-sync-ticker');
-            const originalText = btn.innerText;
-            btn.innerText = "🔄 同步中..."; btn.disabled = true;
-
-            try {
-                const url = `https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${ticker}`;
-                const res = await fetchWithTimeout(url, 5000, { method: 'GET', headers: { 'X-API-KEY': state.fugleApiKey } });
-                if (!res.ok) throw new Error("無效或無權限");
-                const data = await res.json();
-                
-                // MCE: 相容 Fugle 與 PDF 新版 JSON 結構
-                let priceStr = data.latest_price || data.realtime?.latest_trade_price || data.lastPrice || data.closePrice || (data.lastTrade && data.lastTrade.price) || data.referencePrice;
-                let price = parseQuoteNumber(priceStr);
-                
-                let a = state.assets.find(x => x.id === currentActiveAssetId);
-                if (a) {
-                    if (data.name) a.name = data.name;
-                    if (price) a.marketPrice = price;
-
-                    let r = data.realtime;
-                    let lastRow = data.rows && data.rows.length > 0 ? data.rows[data.rows.length - 1] : null;
-
-                    // MCE: 相容 Fugle 富果 API 的 previousClose 或 referencePrice 作為大盤漲跌計算基準
-                    a.referencePrice = parseQuoteNumber(data.previousClose || data.referencePrice || data.refPrice) || a.referencePrice;
-                    a.openPrice = parseQuoteNumber(data.openPrice || r?.open || lastRow?.open) || a.openPrice;
-                    a.highPrice = parseQuoteNumber(data.highPrice || r?.high || lastRow?.high) || a.highPrice;
-                    a.lowPrice = parseQuoteNumber(data.lowPrice || r?.low || lastRow?.low) || a.lowPrice;
-
-                    if (data.analysis?.overall) {
-                        a.analysisLabel = data.analysis.overall.label;
-                        a.analysisReason = data.analysis.overall.reason;
-                    }
-                    
-                    // 動態刷新決策面板，不覆蓋 user 在 modal 的其他未儲存輸入
-                    renderDecisionPanel(a);
-                }
-
-                if (data.name) document.getElementById('modal-asset-name').value = data.name;
-                if (price) {
-                    document.getElementById('modal-asset-price').value = price;
-                    document.getElementById('input-price-dynamic').value = price;
-                }
-                
-                showToast("已同步最新報價與決策", "success");
-                updateTxPreview(); 
-            } catch (e) {
-                showToast("同步失敗", "error");
-            } finally {
-                btn.innerText = originalText; btn.disabled = false;
-            }
-        }
-
-        async function fetchPriceViaGAS(ticker, specificAssetId = null) {
-            if (!ticker || !state.fugleApiKey) return null;
-            const url = `https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${ticker}`;
-            try {
-                const response = await fetchWithTimeout(url, 5000, { method: 'GET', headers: { 'X-API-KEY': state.fugleApiKey } });
-                if (!response.ok) return null;
-                const data = await response.json();
-                
-                // MCE: 相容 Fugle 與 PDF 新版 JSON 結構
-                let priceStr = data.latest_price || data.realtime?.latest_trade_price || data.lastPrice || data.closePrice || (data.lastTrade && data.lastTrade.price) || data.referencePrice;
-                
-                if (specificAssetId) {
-                    let asset = state.assets.find(a => a.id === specificAssetId);
-                    if (asset) {
-                        if (asset.name === "新資產" && data.name) asset.name = data.name;
-                        
-                        let r = data.realtime;
-                        let lastRow = data.rows && data.rows.length > 0 ? data.rows[data.rows.length - 1] : null;
-
-                        // MCE: 相容 Fugle 富果 API 的 previousClose 或 referencePrice
-                        asset.referencePrice = parseQuoteNumber(data.previousClose || data.referencePrice || data.refPrice) || asset.referencePrice;
-                        asset.openPrice = parseQuoteNumber(data.openPrice || r?.open || lastRow?.open) || asset.openPrice;
-                        asset.highPrice = parseQuoteNumber(data.highPrice || r?.high || lastRow?.high) || asset.highPrice;
-                        asset.lowPrice = parseQuoteNumber(data.lowPrice || r?.low || lastRow?.low) || asset.lowPrice;
-
-                        if (data.analysis?.overall) {
-                            asset.analysisLabel = data.analysis.overall.label;
-                            asset.analysisReason = data.analysis.overall.reason;
-                        }
-                    }
-                }
-                
-                return parseQuoteNumber(priceStr);
-            } catch (e) { return null; }
-        }
-
-        async function fetchLatestPrices() {
-            if (!state.fugleApiKey) return showToast("尚未設定 Fugle API Key", "error");
-
-            const dot = document.getElementById('api-status-dot');
-            const txt = document.getElementById('api-status-text');
-            const timeLabel = document.getElementById('global-update-time');
-            
-            if(dot) dot.className = "w-3 h-3 rounded-full bg-secondary animate-pulse";
-            if(txt) txt.innerText = "API 連線中...";
-            
-            const now = new Date();
-            const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0') + ':' + now.getSeconds().toString().padStart(2, '0');
-            state.lastGlobalUpdate = timeStr;
-
-            const validRequests = state.assets
-                .map(a => ({ id: a.id, ticker: (a.ticker || '').trim().toUpperCase().replace(/\.TWO?$/, "") }))
-                .filter(req => req.ticker !== '');
-            
-            const pricePromises = validRequests.map(req => fetchPriceViaGAS(req.ticker, req.id));
-            const prices = await Promise.all(pricePromises);
-
-            const updatedItems = [];
-            prices.forEach((price, index) => {
-                const targetId = validRequests[index].id;
-                const assetIndex = state.assets.findIndex(a => a.id === targetId);
-                
-                if (assetIndex !== -1) {
-                    if (price && price > 0) {
-                        state.assets[assetIndex].marketPrice = price;
-                        state.assets[assetIndex].lastUpdated = timeStr;
-                        state.assets[assetIndex].updateStatus = 'success';
-                        updatedItems.push(targetId);
-                    } else {
-                        state.assets[assetIndex].updateStatus = 'cache';
-                    }
-                }
-            });
-            if(timeLabel) timeLabel.innerText = `SYNC: ${timeStr}`;
-            
-            renderAssetCards();
-            calculate();
-
-            if (dot && txt) {
-                if (updatedItems.length > 0) {
-                    dot.className = "w-3 h-3 rounded-full bg-primary";
-                    txt.innerText = updatedItems.length >= validRequests.length ? "同步成功" : `已更新 ${updatedItems.length}`;
-                } else {
-                    dot.className = "w-3 h-3 rounded-full bg-danger-red";
-                    txt.innerText = "連線失敗";
-                }
-            }
-        }
-
-        // Export/Copy
-        function copyActionPlan() {
-            let text = `ARK V4 REBALANCE PLAN (Mobile) - ${new Date().toLocaleString()}\n`;
-            text += `Scale: ${document.getElementById('stat-total-asset').innerText}\n`;
-            text += `Status: ${document.getElementById('stat-total-pl').innerText}\n`;
-            text += `----------------------------------\n`;
-            
-            let actions = [];
-            let tradeUnit = state.unit;
-            let totalCurrentPortfolioStocksMarketValue = 0;
-            state.assets.forEach(asset => {
-                let val = aggregateAssetLedger(asset.id).shares * asset.marketPrice;
-                totalCurrentPortfolioStocksMarketValue += val;
-            });
-            let totalTarget = totalCurrentPortfolioStocksMarketValue + state.cash + state.injection;
-
-            state.assets.forEach(asset => {
-                // 如果手動排除，複製時也跳過
-                if (state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(asset.id)) return;
-
-                let t_val = totalTarget * ((parseFloat(asset.targetWeight) || 0) / 100);
-                let c_val = aggregateAssetLedger(asset.id).shares * asset.marketPrice;
-                if(asset.marketPrice <= 0) return;
-                let deltaShares = (t_val - c_val) / asset.marketPrice;
-
-                deltaShares = tradeUnit === 1000 
-                    ? (deltaShares > 0 ? Math.floor(deltaShares / 1000) * 1000 : Math.round(deltaShares / 1000) * 1000)
-                    : (deltaShares > 0 ? Math.floor(deltaShares) : Math.round(deltaShares));
-
-                if(deltaShares < 0 && !state.inflowOnly) text += `賣出 ${asset.ticker} ${Math.abs(deltaShares)} 股\n`;
-                if(deltaShares > 0) text += `買進 ${asset.ticker} ${deltaShares} 股\n`;
-            });
-
-            if (text.endsWith(`----------------------------------\n`)) text += "No Actions Required.\n";
-            
-            navigator.clipboard.writeText(text).then(() => showToast("已複製行動明細", "success"));
-        }
-
-        function exportData() {
-            saveDataToLocal();
-            const dataStr = localStorage.getItem('ark_rebalancer_v4_mobile_a') || JSON.stringify(state);
-            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-            const a = document.createElement('a');
-            a.setAttribute('href', dataUri);
-            a.setAttribute('download', `ark_v4_mobile_backup_${new Date().toISOString().slice(0,10)}.json`);
-            a.click();
-        }
-
-        function importData(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const parsed = JSON.parse(e.target.result);
-                    if(parsed.assets) {
-                        localStorage.setItem('ark_rebalancer_v4_mobile_a', JSON.stringify(parsed));
-                        showToast("數據還原完成！", "success");
-                        setTimeout(() => location.reload(), 1000);
-                    } else { showToast("檔案格式錯誤", "error"); }
-                } catch (err) { showToast("解析檔案失敗", "error"); }
-            };
-            reader.readAsText(file);
         }
     </script>
 </body>
