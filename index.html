@@ -317,7 +317,10 @@
                 <div class="space-y-4">
                     <div class="flex justify-between items-center">
                         <span class="text-xs font-black text-primary uppercase tracking-widest">Asset Parameters</span>
-                        <span class="text-[10px] text-text-secondary bg-surface-container-highest px-2 py-0.5 rounded" id="modal-active-badge"></span>
+                        <div class="flex gap-2 items-center">
+                            <span class="text-[10px] text-white font-mono bg-surface-base px-2 py-0.5 rounded border border-white/10" id="modal-wac-display">平均持股成本: NT$ 0.00</span>
+                            <span class="text-[10px] text-text-secondary bg-surface-container-highest px-2 py-0.5 rounded" id="modal-active-badge"></span>
+                        </div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="col-span-2 flex gap-4">
@@ -367,7 +370,10 @@
                             <input checked="" class="w-5 h-5 rounded text-primary focus:ring-primary bg-surface-container-lowest border-outline-variant" id="input-linked-dynamic" type="checkbox"/>
                             <label class="text-xs text-text-secondary font-bold" for="input-linked-dynamic">連動交割帳戶現金 <span id="current-cash-preview" class="text-white ml-1"></span></label>
                         </div>
-                        <button class="w-full bg-action-blue text-white py-3.5 rounded-xl text-sm font-black shadow-lg active:scale-95 transition-all mt-2" onclick="addTransactionRecord()">新增流水明細</button>
+                        <div class="flex gap-2 mt-2">
+                            <button class="hidden flex-1 bg-surface-container-highest text-white py-3.5 rounded-xl text-sm font-black border border-outline-variant active:scale-95 transition-all" id="btn-cancel-edit-tx" onclick="cancelEditTransaction()">取消編輯</button>
+                            <button class="flex-[2] bg-action-blue text-white py-3.5 rounded-xl text-sm font-black shadow-lg active:scale-95 transition-all" id="btn-submit-tx" onclick="addTransactionRecord()">新增流水明細</button>
+                        </div>
                     </div>
 
                     <div class="space-y-3 pt-2">
@@ -427,6 +433,7 @@
         let mainChartInstance = null;
         let currentActiveAssetId = null;
         let assetIdPendingDelete = null;
+        let editingTxId = null; // 編輯流水帳狀態防護
 
         // Slider State
         let isDragging = false;
@@ -1201,6 +1208,7 @@
 
         // Ledger Modals
         function openLedgerModal(id) {
+            cancelEditTransaction(); // 開啟前清除任何殘留的編輯狀態
             currentActiveAssetId = id;
             let a = state.assets.find(x => x.id === id);
             if(!a) return;
@@ -1222,6 +1230,10 @@
                 badge.className = "text-[10px] text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded";
             }
 
+            // 更新 WAC 顯示
+            let l = aggregateAssetLedger(id);
+            document.getElementById('modal-wac-display').innerText = `平均持股成本: NT$ ${l.wac.toFixed(2)}`;
+
             document.getElementById('modal-asset-beta').value = a.beta !== undefined ? a.beta : 1.0;
             document.getElementById('modal-asset-price').value = a.marketPrice;
             document.getElementById('input-price-dynamic').value = a.marketPrice;
@@ -1231,6 +1243,7 @@
         }
 
         function closeLedgerModal() {
+            cancelEditTransaction(); // 關閉前清除任何殘留的編輯狀態
             document.getElementById('modal-dynamic-ledger').classList.add('hidden');
             currentActiveAssetId = null;
         }
@@ -1304,6 +1317,41 @@
             `;
         }
 
+        function loadTransactionForEdit(txId) {
+            if(!currentActiveAssetId) return;
+            let a = state.assets.find(x => x.id === currentActiveAssetId);
+            let tx = a.txs.find(t => t.id === txId);
+            if(!tx) return;
+
+            editingTxId = txId;
+            document.getElementById('input-type-dynamic').value = tx.type;
+            document.getElementById('input-date-dynamic').value = tx.date;
+            document.getElementById('input-price-dynamic').value = tx.price;
+            document.getElementById('input-shares-dynamic').value = tx.shares;
+            document.getElementById('input-linked-dynamic').checked = tx.linked;
+
+            document.getElementById('btn-submit-tx').innerText = "💾 確認更新明細";
+            document.getElementById('btn-submit-tx').className = "flex-[2] bg-secondary text-on-secondary py-3.5 rounded-xl text-sm font-black shadow-lg active:scale-95 transition-all";
+            document.getElementById('btn-cancel-edit-tx').classList.remove('hidden');
+
+            updateTxPreview();
+        }
+
+        function cancelEditTransaction() {
+            editingTxId = null;
+            document.getElementById('input-date-dynamic').value = new Date().toISOString().slice(0, 10);
+            document.getElementById('input-shares-dynamic').value = '';
+            document.getElementById('btn-submit-tx').innerText = "新增流水明細";
+            document.getElementById('btn-submit-tx').className = "flex-[2] bg-action-blue text-white py-3.5 rounded-xl text-sm font-black shadow-lg active:scale-95 transition-all";
+            document.getElementById('btn-cancel-edit-tx').classList.add('hidden');
+            
+            if (currentActiveAssetId) {
+                let a = state.assets.find(x => x.id === currentActiveAssetId);
+                if (a) document.getElementById('input-price-dynamic').value = a.marketPrice;
+            }
+            updateTxPreview();
+        }
+
         function addTransactionRecord() {
             if(!currentActiveAssetId) return;
             let asset = state.assets.find(a => a.id === currentActiveAssetId);
@@ -1317,21 +1365,59 @@
             
             let fee = calculateTaiwanStockFee(price, shares, state.discount);
             let tax = calculateTaiwanStockTax(asset.ticker, price, shares, type);
-            
-            if (linked) {
-                let simulatedCash = state.cash;
-                if (type === 'BUY') simulatedCash -= ((price * shares) + fee);
-                else if (type === 'SELL') simulatedCash += ((price * shares) - fee - tax);
-                
-                if (simulatedCash < 0) return showToast(`⚠️ 現金不足`, "error");
+            let simulatedCash = state.cash;
+
+            if (editingTxId !== null) {
+                // 編輯模式：先退回舊交易的現金影響，再套用新交易計算
+                let oldTx = asset.txs.find(t => t.id === editingTxId);
+                if (!oldTx) return showToast("找不到原紀錄", "error");
+
+                if (oldTx.linked) {
+                    if (oldTx.type === 'BUY') simulatedCash += ((oldTx.price * oldTx.shares) + oldTx.fee);
+                    else if (oldTx.type === 'SELL') simulatedCash -= ((oldTx.price * oldTx.shares) - oldTx.fee - (oldTx.tax || 0));
+                }
+
+                if (linked) {
+                    if (type === 'BUY') simulatedCash -= ((price * shares) + fee);
+                    else if (type === 'SELL') simulatedCash += ((price * shares) - fee - tax);
+                }
+
+                if (simulatedCash < 0) return showToast(`⚠️ 現金不足，無法更新`, "error");
+
                 state.cash = simulatedCash;
                 document.getElementById('shares-cash').value = state.cash;
+
+                oldTx.type = type;
+                oldTx.date = date;
+                oldTx.price = price;
+                oldTx.shares = shares;
+                oldTx.linked = linked;
+                oldTx.fee = fee;
+                oldTx.tax = tax;
+
+                showToast("明細更新成功", "success");
+                cancelEditTransaction();
+            } else {
+                // 原新增模式
+                if (linked) {
+                    if (type === 'BUY') simulatedCash -= ((price * shares) + fee);
+                    else if (type === 'SELL') simulatedCash += ((price * shares) - fee - tax);
+                    
+                    if (simulatedCash < 0) return showToast(`⚠️ 現金不足`, "error");
+                    state.cash = simulatedCash;
+                    document.getElementById('shares-cash').value = state.cash;
+                }
+
+                asset.txs.push({ id: Date.now(), date: date, price, shares, fee, tax, type, linked });
+                document.getElementById('input-shares-dynamic').value = '';
+                showToast("明細新增成功", "success");
             }
 
-            asset.txs.push({ id: Date.now(), date: date, price, shares, fee, tax, type, linked });
-            document.getElementById('input-shares-dynamic').value = '';
+            // 更新 WAC
+            let l = aggregateAssetLedger(currentActiveAssetId);
+            document.getElementById('modal-wac-display').innerText = `平均持股成本: NT$ ${l.wac.toFixed(2)}`;
+
             updateTxPreview(); normalizeWeights(); renderLedgerTable();
-            showToast("明細新增成功", "success");
         }
 
         function renderLedgerTable() {
@@ -1342,28 +1428,262 @@
                 const isBuy = t.type === 'BUY';
                 const badgeColor = isBuy ? 'text-danger-red bg-danger-red/10 border-danger-red/20' : 'text-success-emerald bg-success-emerald/10 border-success-emerald/20';
                 return `
-                <div class="flex justify-between p-4 bg-surface-container-highest/30 rounded-xl border border-white/5 text-xs">
+                <div class="flex justify-between items-center p-4 bg-surface-container-highest/30 rounded-xl border border-white/5 text-xs">
                     <div>
                         <span class="${badgeColor} font-black mr-2 px-1.5 py-0.5 rounded border text-[10px]">${t.type}</span>
                         <span class="text-white font-mono font-bold">${t.price.toFixed(2)} × ${t.shares.toLocaleString()}</span>
                         <p class="text-xs text-text-secondary font-mono mt-1.5">${t.date}</p>
                     </div>
-                    <button onclick="deleteTransaction(${t.id})" class="text-text-secondary hover:text-danger-red active:scale-90 p-2"><span class="material-symbols-outlined text-lg">delete</span></button>
+                    <div class="flex gap-1">
+                        <button onclick="loadTransactionForEdit(${t.id})" class="text-text-secondary hover:text-secondary active:scale-90 p-1.5 transition-colors"><span class="material-symbols-outlined text-lg">edit</span></button>
+                        <button onclick="deleteTransaction(${t.id})" class="text-text-secondary hover:text-danger-red active:scale-90 p-1.5 transition-colors"><span class="material-symbols-outlined text-lg">delete</span></button>
+                    </div>
                 </div>`;
             }).join('') || '<p class="text-center py-6 text-xs text-text-secondary border border-dashed rounded-xl bg-surface-container-highest/20 font-bold">No Transactions</p>';
         }
 
         function deleteTransaction(id) {
+            if (editingTxId === id) cancelEditTransaction();
             let asset = state.assets.find(a => a.id === currentActiveAssetId);
             asset.txs = asset.txs.filter(t => t.id !== id);
+            
+            let l = aggregateAssetLedger(currentActiveAssetId);
+            document.getElementById('modal-wac-display').innerText = `平均持股成本: NT$ ${l.wac.toFixed(2)}`;
+            
             normalizeWeights(); renderLedgerTable(); showToast("明細已移除", "info");
         }
 
         function clearAllTransactions() {
             let asset = state.assets.find(a => a.id === currentActiveAssetId);
             if(confirm(`確定清除【${asset.name}】所有流水帳？`)) {
-                asset.txs = []; normalizeWeights(); renderLedgerTable();
+                if(editingTxId) cancelEditTransaction();
+                asset.txs = []; 
+                let l = aggregateAssetLedger(currentActiveAssetId);
+                document.getElementById('modal-wac-display').innerText = `平均持股成本: NT$ ${l.wac.toFixed(2)}`;
+                normalizeWeights(); renderLedgerTable();
             }
+        }
+
+        // API Fetching 引擎
+        async function fetchWithTimeout(url, timeoutMs = 5000, options = {}) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                return await fetch(url, { ...options, signal: controller.signal, cache: 'no-store' });
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
+        function parseQuoteNumber(value) {
+            if (value === undefined || value === null) return null;
+            const parsed = parseFloat(String(value).replace(/,/g, ''));
+            return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+        }
+
+        async function syncModalTicker() {
+            if(!currentActiveAssetId) return;
+            const tickerInput = document.getElementById('modal-asset-ticker').value;
+            const ticker = (tickerInput || '').trim().toUpperCase().replace(/\.TWO?$/, "");
+            if (!ticker) return showToast("請先輸入代號", "error");
+            if (!state.fugleApiKey) return showToast("請先設定 API 金鑰", "error");
+
+            const btn = document.getElementById('btn-sync-ticker');
+            const originalText = btn.innerText;
+            btn.innerText = "🔄 同步中..."; btn.disabled = true;
+
+            try {
+                const url = `https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${ticker}`;
+                const res = await fetchWithTimeout(url, 5000, { method: 'GET', headers: { 'X-API-KEY': state.fugleApiKey } });
+                if (!res.ok) throw new Error("無效或無權限");
+                const data = await res.json();
+                
+                let priceStr = data.latest_price || data.realtime?.latest_trade_price || data.lastPrice || data.closePrice || (data.lastTrade && data.lastTrade.price) || data.referencePrice;
+                let price = parseQuoteNumber(priceStr);
+                
+                let a = state.assets.find(x => x.id === currentActiveAssetId);
+                if (a) {
+                    if (data.name) a.name = data.name;
+                    if (price) a.marketPrice = price;
+
+                    let r = data.realtime;
+                    let lastRow = data.rows && data.rows.length > 0 ? data.rows[data.rows.length - 1] : null;
+
+                    a.referencePrice = parseQuoteNumber(data.previousClose || data.referencePrice || data.refPrice) || a.referencePrice;
+                    a.openPrice = parseQuoteNumber(data.openPrice || r?.open || lastRow?.open) || a.openPrice;
+                    a.highPrice = parseQuoteNumber(data.highPrice || r?.high || lastRow?.high) || a.highPrice;
+                    a.lowPrice = parseQuoteNumber(data.lowPrice || r?.low || lastRow?.low) || a.lowPrice;
+
+                    if (data.analysis?.overall) {
+                        a.analysisLabel = data.analysis.overall.label;
+                        a.analysisReason = data.analysis.overall.reason;
+                    }
+                }
+
+                if (data.name) document.getElementById('modal-asset-name').value = data.name;
+                if (price) {
+                    document.getElementById('modal-asset-price').value = price;
+                    document.getElementById('input-price-dynamic').value = price;
+                }
+                
+                showToast("已同步最新報價與決策", "success");
+                updateTxPreview(); 
+            } catch (e) {
+                showToast("同步失敗", "error");
+            } finally {
+                btn.innerText = originalText; btn.disabled = false;
+            }
+        }
+
+        async function fetchPriceViaGAS(ticker, specificAssetId = null) {
+            if (!ticker || !state.fugleApiKey) return null;
+            const url = `https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${ticker}`;
+            try {
+                const response = await fetchWithTimeout(url, 5000, { method: 'GET', headers: { 'X-API-KEY': state.fugleApiKey } });
+                if (!response.ok) return null;
+                const data = await response.json();
+                
+                let priceStr = data.latest_price || data.realtime?.latest_trade_price || data.lastPrice || data.closePrice || (data.lastTrade && data.lastTrade.price) || data.referencePrice;
+                
+                if (specificAssetId) {
+                    let asset = state.assets.find(a => a.id === specificAssetId);
+                    if (asset) {
+                        if (asset.name === "新資產" && data.name) asset.name = data.name;
+                        
+                        let r = data.realtime;
+                        let lastRow = data.rows && data.rows.length > 0 ? data.rows[data.rows.length - 1] : null;
+
+                        asset.referencePrice = parseQuoteNumber(data.previousClose || data.referencePrice || data.refPrice) || asset.referencePrice;
+                        asset.openPrice = parseQuoteNumber(data.openPrice || r?.open || lastRow?.open) || asset.openPrice;
+                        asset.highPrice = parseQuoteNumber(data.highPrice || r?.high || lastRow?.high) || asset.highPrice;
+                        asset.lowPrice = parseQuoteNumber(data.lowPrice || r?.low || lastRow?.low) || asset.lowPrice;
+
+                        if (data.analysis?.overall) {
+                            asset.analysisLabel = data.analysis.overall.label;
+                            asset.analysisReason = data.analysis.overall.reason;
+                        }
+                    }
+                }
+                
+                return parseQuoteNumber(priceStr);
+            } catch (e) { return null; }
+        }
+
+        async function fetchLatestPrices() {
+            if (!state.fugleApiKey) return showToast("尚未設定 Fugle API Key", "error");
+
+            const dot = document.getElementById('api-status-dot');
+            const txt = document.getElementById('api-status-text');
+            const timeLabel = document.getElementById('global-update-time');
+            
+            if(dot) dot.className = "w-3 h-3 rounded-full bg-secondary animate-pulse";
+            if(txt) txt.innerText = "API 連線中...";
+            
+            const now = new Date();
+            const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0') + ':' + now.getSeconds().toString().padStart(2, '0');
+            state.lastGlobalUpdate = timeStr;
+
+            const validRequests = state.assets
+                .map(a => ({ id: a.id, ticker: (a.ticker || '').trim().toUpperCase().replace(/\.TWO?$/, "") }))
+                .filter(req => req.ticker !== '');
+            
+            const pricePromises = validRequests.map(req => fetchPriceViaGAS(req.ticker, req.id));
+            const prices = await Promise.all(pricePromises);
+
+            const updatedItems = [];
+            prices.forEach((price, index) => {
+                const targetId = validRequests[index].id;
+                const assetIndex = state.assets.findIndex(a => a.id === targetId);
+                
+                if (assetIndex !== -1) {
+                    if (price && price > 0) {
+                        state.assets[assetIndex].marketPrice = price;
+                        state.assets[assetIndex].lastUpdated = timeStr;
+                        state.assets[assetIndex].updateStatus = 'success';
+                        updatedItems.push(targetId);
+                    } else {
+                        state.assets[assetIndex].updateStatus = 'cache';
+                    }
+                }
+            });
+            if(timeLabel) timeLabel.innerText = `SYNC: ${timeStr}`;
+            
+            renderAssetCards();
+            calculate();
+
+            if (dot && txt) {
+                if (updatedItems.length > 0) {
+                    dot.className = "w-3 h-3 rounded-full bg-primary";
+                    txt.innerText = updatedItems.length >= validRequests.length ? "同步成功" : `已更新 ${updatedItems.length}`;
+                } else {
+                    dot.className = "w-3 h-3 rounded-full bg-danger-red";
+                    txt.innerText = "連線失敗";
+                }
+            }
+        }
+
+        // Export/Copy 備份引擎
+        function copyActionPlan() {
+            let text = `ARK V4 REBALANCE PLAN (Mobile) - ${new Date().toLocaleString()}\n`;
+            text += `Scale: ${document.getElementById('stat-total-asset').innerText}\n`;
+            text += `Status: ${document.getElementById('stat-total-pl').innerText}\n`;
+            text += `----------------------------------\n`;
+            
+            let actions = [];
+            let tradeUnit = state.unit;
+            let totalCurrentPortfolioStocksMarketValue = 0;
+            state.assets.forEach(asset => {
+                let val = aggregateAssetLedger(asset.id).shares * asset.marketPrice;
+                totalCurrentPortfolioStocksMarketValue += val;
+            });
+            let totalTarget = totalCurrentPortfolioStocksMarketValue + state.cash + state.injection;
+
+            state.assets.forEach(asset => {
+                if (state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(asset.id)) return;
+
+                let t_val = totalTarget * ((parseFloat(asset.targetWeight) || 0) / 100);
+                let c_val = aggregateAssetLedger(asset.id).shares * asset.marketPrice;
+                if(asset.marketPrice <= 0) return;
+                let deltaShares = (t_val - c_val) / asset.marketPrice;
+
+                deltaShares = tradeUnit === 1000 
+                    ? (deltaShares > 0 ? Math.floor(deltaShares / 1000) * 1000 : Math.round(deltaShares / 1000) * 1000)
+                    : (deltaShares > 0 ? Math.floor(deltaShares) : Math.round(deltaShares));
+
+                if(deltaShares < 0 && !state.inflowOnly) text += `賣出 ${asset.ticker} ${Math.abs(deltaShares)} 股\n`;
+                if(deltaShares > 0) text += `買進 ${asset.ticker} ${deltaShares} 股\n`;
+            });
+
+            if (text.endsWith(`----------------------------------\n`)) text += "No Actions Required.\n";
+            
+            navigator.clipboard.writeText(text).then(() => showToast("已複製行動明細", "success"));
+        }
+
+        function exportData() {
+            saveDataToLocal();
+            const dataStr = localStorage.getItem('ark_rebalancer_v4_mobile_a') || JSON.stringify(state);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            const a = document.createElement('a');
+            a.setAttribute('href', dataUri);
+            a.setAttribute('download', `ark_v4_mobile_backup_${new Date().toISOString().slice(0,10)}.json`);
+            a.click();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if(parsed.assets) {
+                        localStorage.setItem('ark_rebalancer_v4_mobile_a', JSON.stringify(parsed));
+                        showToast("數據還原完成！", "success");
+                        setTimeout(() => location.reload(), 1000);
+                    } else { showToast("檔案格式錯誤", "error"); }
+                } catch (err) { showToast("解析檔案失敗", "error"); }
+            };
+            reader.readAsText(file);
         }
     </script>
 </body>
