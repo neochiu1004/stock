@@ -523,6 +523,9 @@
                 state.unit = parsed.unit || 1;
                 state.ignoredRebalanceIds = parsed.ignoredRebalanceIds || [];
 
+                // 【極簡修復】：將 localStorage 的金鑰正確賦值回全域 state 中
+                if (parsed.fugleApiKey) state.fugleApiKey = parsed.fugleApiKey;
+
                 document.getElementById('api-key-input').value = state.fugleApiKey;
                 document.getElementById('shares-cash').value = state.cash;
                 document.getElementById('new-injection').value = state.injection;
