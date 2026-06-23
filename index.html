@@ -335,7 +335,7 @@
                         </div>
                         <div>
                             <label class="text-xs font-bold text-text-secondary mb-1.5 block">目標比重 %</label>
-                            <input class="w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-sm font-mono font-black text-primary focus:ring-1 focus:ring-primary outline-none disabled:opacity-50 disabled:bg-surface-base" id="modal-asset-weight" inputmode="decimal" step="0.1" type="number"/>
+                            <input class="w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-sm font-mono font-black text-primary focus:ring-1 focus:ring-primary outline-none disabled:opacity-50 disabled:bg-surface-base" id="modal-asset-weight" inputmode="decimal" step="5" type="number"/>
                         </div>
                         <div>
                             <label class="text-xs font-bold text-text-secondary mb-1.5 block">BETA 加權</label>
@@ -408,6 +408,15 @@
 
     <script>
         const CHART_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e', '#64748b', '#06b6d4', '#f472b6'];
+        
+        // 【核心注入】：全域 5% 步進引擎與 DOM 即時更新掛鉤
+        const round5 = (v) => Math.round(v / 5) * 5;
+        function updateCardTargetWeightDOM(item, weight) {
+            if (item.type !== 'cash') {
+                let el = document.getElementById(`card-tgt-weight-${item.id}`);
+                if (el) el.innerText = weight.toFixed(1);
+            }
+        }
 
         let state = {
             fugleApiKey: "", 
@@ -433,7 +442,7 @@
         let mainChartInstance = null;
         let currentActiveAssetId = null;
         let assetIdPendingDelete = null;
-        let editingTxId = null; // 編輯流水帳狀態防護
+        let editingTxId = null; 
 
         // Slider State
         let isDragging = false;
@@ -479,7 +488,6 @@
             } catch (err) { showToast("請手動輸入金鑰", "info"); }
         }
 
-        // Data Management
         function saveDataToLocal() {
             state.fugleApiKey = document.getElementById('api-key-input').value.trim();
             state.cash = parseFloat(document.getElementById('shares-cash').value) || 0;
@@ -510,7 +518,6 @@
                 state.cash = parsed.cash || 0;
                 state.cashActive = parsed.cashActive !== false;
                 
-                // Legacy migration: calculate cashWeight if it didn't exist
                 if (parsed.cashWeight === undefined) {
                     let totalAssetW = state.assets.reduce((sum, a) => sum + (parseFloat(a.targetWeight) || 0), 0);
                     state.cashWeight = Math.max(0, 100 - totalAssetW);
@@ -523,7 +530,6 @@
                 state.unit = parsed.unit || 1;
                 state.ignoredRebalanceIds = parsed.ignoredRebalanceIds || [];
 
-                // 【極簡修復】：將 localStorage 的金鑰正確賦值回全域 state 中
                 if (parsed.fugleApiKey) state.fugleApiKey = parsed.fugleApiKey;
 
                 document.getElementById('api-key-input').value = state.fugleApiKey;
@@ -536,7 +542,6 @@
             } catch(e) { console.error("Data restore error", e); }
         }
 
-        // Active/Normalization Logic
         function getActiveItems() {
             let items = [];
             state.assets.forEach((a, i) => {
@@ -559,27 +564,33 @@
             }
         }
 
+        // 【核心修改】：強制 5% 圓整與 100% 補償防護
         function normalizeWeights() {
             let items = getActiveItems();
             if (items.length === 0) {
-                // Failsafe: if nothing active, just render
                 saveDataToLocal(); renderAssetCards(); renderSliderUI(); calculate();
                 return;
             }
             
             let total = items.reduce((sum, item) => sum + item.weight, 0);
-            let newTotal = 0;
 
-            items.forEach((item, index) => {
-                if (index === items.length - 1) {
-                    // Last item absorbs floating point errors
-                    updateItemWeight(item, 100 - newTotal);
-                } else {
-                    let w = total === 0 ? (100 / items.length) : (item.weight / total) * 100;
-                    updateItemWeight(item, w);
-                    newTotal += w;
-                }
+            // Step 1: 以比例換算，並強制 5% 圓整
+            items.forEach((item) => {
+                let w = total === 0 ? (100 / items.length) : (item.weight / total) * 100;
+                updateItemWeight(item, round5(w));
             });
+
+            // Step 2: 補償誤差，確保總和精準等於 100%
+            let currentTotal = items.reduce((sum, item) => sum + item.weight, 0);
+            if (currentTotal !== 100) {
+                let diff = 100 - currentTotal;
+                // 找最大權重者來補償，避免單項被扣減至負數
+                let targetItem = items.reduce((max, item) => max.weight > item.weight ? max : item);
+                let adjustedWeight = targetItem.weight + diff;
+                if (adjustedWeight >= 0) {
+                    updateItemWeight(targetItem, adjustedWeight);
+                }
+            }
             
             saveDataToLocal();
             renderAssetCards();
@@ -592,8 +603,8 @@
             if (items.length === 0) return;
             let avg = 100 / items.length;
             items.forEach(item => updateItemWeight(item, avg));
-            normalizeWeights();
-            showToast("比例已重設均分", "success");
+            normalizeWeights(); // 會自動處理無法整除的 5% 問題
+            showToast("比例已重設等比 (依 5% 圓整)", "success");
         }
 
         function toggleAssetActive(id) {
@@ -605,7 +616,7 @@
                 a.targetWeight = 0;
             } else {
                 a.active = true;
-                a.targetWeight = a.savedTargetWeight || 10; // default kickstart
+                a.targetWeight = a.savedTargetWeight || 10; 
             }
             normalizeWeights();
         }
@@ -622,7 +633,6 @@
             normalizeWeights();
         }
 
-        // Slider Interaction Logic (極致流暢與物理定位修復)
         function renderSliderUI() {
             const container = document.getElementById('allocation-slider-container');
             if (!container) return;
@@ -642,20 +652,17 @@
                     </div>
                 </div>
                 
-                <!-- 新增 Relative Wrapper 確保 Handle 不會飛走 -->
                 <div class="relative w-full h-10">
                     <div class="absolute inset-0 rounded-full flex overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)] border border-white/10 bg-surface-container-highest" id="slider-track-bg">
             `;
 
-            // Segments (加上獨立 ID 供高效 DOM 操作)
             items.forEach((item, i) => {
-                html += `<div id="segment-${i}" class="h-full flex items-center justify-center relative group" style="width: ${item.weight}%; background-color: ${item.color}e6;">
+                html += `<div id="segment-${i}" class="h-full flex items-center justify-center relative group transition-colors" style="width: ${item.weight}%; background-color: ${item.color}e6;">
                             <span id="segment-label-${i}" class="text-[11px] font-black text-white/90 drop-shadow-md font-mono z-10 ${item.weight < 8 ? 'hidden' : ''}">${item.weight.toFixed(1)}%</span>
                          </div>`;
             });
             html += `</div>`;
 
-            // Handles (套用 absolute inset-0 完美疊加在軌道上)
             if (items.length > 1) {
                 html += `<div class="absolute inset-0 pointer-events-none" id="slider-handles">`;
                 let acc = 0;
@@ -672,9 +679,8 @@
                 html += `</div>`;
             }
             
-            html += `</div>`; // 結束 Relative Wrapper
+            html += `</div>`;
 
-            // Legend labels (加上獨立 ID 供即時更新數值)
             html += `<div class="mt-6 flex flex-wrap justify-center gap-2 px-2">`;
             items.forEach((item, i) => {
                 html += `<div class="flex items-center gap-1.5 bg-surface-base px-3 py-1.5 rounded-lg border border-white/5 shadow-sm">
@@ -701,10 +707,10 @@
             document.addEventListener('pointercancel', endDrag);
         }
 
+        // 【核心修改】：加入 5% 網格防呆與 DOM 聯動注射
         function onDrag(e) {
             if (!isDragging) return;
             
-            // 計算當前滑鼠位置對應的百分比
             let x = e.clientX - trackRect.left;
             let pct = (x / trackRect.width) * 100;
 
@@ -714,17 +720,18 @@
             let maxPct = 100;
             for(let i=dragItems.length-1; i>dragIndex+1; i--) maxPct -= dragItems[i].weight;
 
-            // 限制節點不可跨越（最小保留 1% 避免圖層破版）
-            pct = Math.max(minPct + 1, Math.min(maxPct - 1, pct));
+            // 5% Snap (磁吸)
+            pct = round5(pct);
+            // 限制節點不可跨越（最小保留 5% 避免消失與重疊）
+            pct = Math.max(minPct + 5, Math.min(maxPct - 5, pct));
 
             let newLeftWeight = pct - minPct;
             let newRightWeight = maxPct - pct;
 
-            // 更新暫存數據
             dragItems[dragIndex].weight = newLeftWeight;
             dragItems[dragIndex+1].weight = newRightWeight;
 
-            // DOM 物理直接操作：極致滑順
+            // 物理直接操作：更新 Slider DOM
             const leftSeg = document.getElementById(`segment-${dragIndex}`);
             const rightSeg = document.getElementById(`segment-${dragIndex + 1}`);
             const handle = document.getElementById(`handle-${dragIndex}`);
@@ -748,6 +755,10 @@
             
             if (leftLegend) leftLegend.innerText = `${newLeftWeight.toFixed(1)}%`;
             if (rightLegend) rightLegend.innerText = `${newRightWeight.toFixed(1)}%`;
+
+            // 即時雙向聯動：更新下方股票卡片數字 DOM (無需重繪整張卡片)
+            updateCardTargetWeightDOM(dragItems[dragIndex], newLeftWeight);
+            updateCardTargetWeightDOM(dragItems[dragIndex+1], newRightWeight);
         }
 
         function endDrag(e) {
@@ -757,7 +768,6 @@
             document.removeEventListener('pointerup', endDrag);
             document.removeEventListener('pointercancel', endDrag);
             
-            // 拖曳結束後，才將最終結果寫入 State 並更新
             updateItemWeight(dragItems[dragIndex], dragItems[dragIndex].weight);
             updateItemWeight(dragItems[dragIndex+1], dragItems[dragIndex+1].weight);
             
@@ -797,12 +807,11 @@
             return { shares: totalShares, wac, totalCost: totalCombinedCost };
         }
 
-        // Render Asset Cards (完美修復：排除時不加刪除線，不加模糊遮罩，新增頂部狀態標籤，邊框改虛線)
+        // 【核心修改】：擴充 P/L 顯示格式 (加上台幣金額) 與目標權重 ID Binding
         function renderAssetCards() {
             const container = document.getElementById('dynamic-assets-container');
             let totalVal = state.cash + state.assets.reduce((sum, a) => sum + (aggregateAssetLedger(a.id).shares * a.marketPrice), 0);
             
-            // Sync cash toggle UI
             document.getElementById('toggle-cash-active').checked = state.cashActive !== false;
             document.getElementById('cash-status-label').innerText = state.cashActive !== false ? "參與再平衡" : "已排除，不參與再平衡";
             if(state.cashActive === false) document.getElementById('cash-status-label').className = "text-xs text-danger-red font-bold mt-0.5";
@@ -826,12 +835,6 @@
                 let sign = isUp && diff > 0 ? '+' : '';
                 let arrow = isUp && diff > 0 ? '▲' : (diff < 0 ? '▼' : '-');
 
-                let changeHtml = basePrice ? `
-                    <div class="text-xs font-black ${colorClass} mt-1.5 font-mono bg-surface-container-lowest/40 py-1 px-3 rounded-full inline-block">
-                        今日: ${sign}${diffPct}% (${arrow}${Math.abs(diff).toFixed(2)})
-                    </div>
-                ` : '';
-
                 let badgeHtml = '';
                 if (a.analysisLabel) {
                     let badgeColor = 'bg-surface-container-highest text-white border-outline-variant';
@@ -840,7 +843,6 @@
                     badgeHtml = `<span class="border px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 tracking-wide ${badgeColor}">${a.analysisLabel}</span>`;
                 }
 
-                // [方案 A 新增頂部排除狀態標籤]
                 let activeStatusHtml = !isActive 
                     ? `<span class="border border-danger-red/30 bg-danger-red/10 text-danger-red px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 tracking-wide">未參與平衡</span>` 
                     : '';
@@ -852,7 +854,6 @@
                     </label>
                 `;
 
-                // [方案 A 新增排除時虛線外框設計]
                 let cardBorderClass = "";
                 if (!isActive) {
                     cardBorderClass = "border-dashed border-outline-variant/50 opacity-90";
@@ -869,7 +870,6 @@
                             <span class="bg-surface-base border border-outline-variant px-3 py-1.5 rounded-lg text-xs font-black text-text-secondary tracking-widest shadow-inner">${a.ticker || '無代號'}</span>
                             ${badgeHtml}
                             ${activeStatusHtml}
-                            <!-- 移除 line-through 刪除線 -->
                             <h2 class="text-xl font-black text-white tracking-wide truncate ${!isActive ? 'text-text-secondary' : ''}">${a.name}</h2>
                         </div>
                         <div class="absolute right-0 top-1/2 -translate-y-1/2">${toggleHtml}</div>
@@ -898,16 +898,18 @@
                             </div>
                         </div>
 
-                        <!-- 移除絕對定位的模糊遮罩，使所有數據100%清晰可見 -->
                         <div class="grid grid-cols-2 gap-4 relative">
                             <div class="bg-surface-base/80 p-4 rounded-2xl border border-outline-variant/40 shadow-inner flex flex-col justify-between">
                                 <p class="text-xs text-text-secondary font-black mb-1.5 tracking-widest">配置權重</p>
-                                <p class="font-black text-2xl ${isImbalanced ? 'text-danger-red' : 'text-primary'}">${actW.toFixed(1)}% <span class="text-text-secondary text-sm font-bold">/ ${a.targetWeight.toFixed(1)}%</span></p>
+                                <!-- 綁定 ID 以供 Drag 即時注入 -->
+                                <p class="font-black text-2xl ${isImbalanced ? 'text-danger-red' : 'text-primary'}">${actW.toFixed(1)}% <span class="text-text-secondary text-sm font-bold">/ <span id="card-tgt-weight-${a.id}">${a.targetWeight.toFixed(1)}</span>%</span></p>
                             </div>
                             <div class="bg-surface-base/80 p-4 rounded-2xl border border-outline-variant/40 shadow-inner flex flex-col justify-between">
                                 <p class="text-xs text-text-secondary font-black mb-1.5 tracking-widest">未實現損益</p>
                                 <div>
-                                    <p class="font-black text-2xl ${pl >= 0 ? 'text-danger-red' : 'text-success-emerald'}">${pl >= 0 ? '+' : ''}${plPct.toFixed(1)}%</p>
+                                    <!-- 損益雙顯：百分比與絕對金額 -->
+                                    <p class="font-black text-xl ${pl >= 0 ? 'text-danger-red' : 'text-success-emerald'} leading-none">${pl >= 0 ? '+' : ''}${plPct.toFixed(1)}%</p>
+                                    <p class="text-[11px] font-bold ${pl >= 0 ? 'text-danger-red/80' : 'text-success-emerald/80'} mt-1.5 tracking-wide">${pl >= 0 ? '+' : '-'}NT$ ${Math.abs(Math.round(pl)).toLocaleString()}</p>
                                 </div>
                             </div>
                         </div>
@@ -975,7 +977,7 @@
             if (state.injection > 0) actions.push({ type: 'INJECT', ticker: '新資金準備', shares: 0, value: state.injection });
 
             state.assets.forEach(asset => {
-                if (asset.active === false) return; // Skip inactive
+                if (asset.active === false) return; 
                 if (state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(asset.id)) return;
 
                 let t_weight = (parseFloat(asset.targetWeight) || 0) / 100;
@@ -1079,7 +1081,7 @@
             const gapBarsContainer = document.getElementById('gap-bars-container');
 
             state.assets.forEach((a, i) => {
-                if(a.active === false && pieViewType === 'TARGET') return; // Hide excluded in target mode
+                if(a.active === false && pieViewType === 'TARGET') return; 
                 
                 let color = CHART_COLORS[i % CHART_COLORS.length];
                 let c_val = currentVals[a.id] || 0;
@@ -1092,7 +1094,7 @@
                     t_pct = totalTarget > 0 ? ((expectedAssetValues[a.id] || 0) / totalTarget) * 100 : 0;
                 } else { t_pct = t_pct_raw; }
 
-                if (pieViewType === 'CURRENT' && c_pct === 0) return; // Skip zero-value in current mode
+                if (pieViewType === 'CURRENT' && c_pct === 0) return; 
                 
                 labels.push(a.name);
                 currData.push(c_pct.toFixed(1));
@@ -1129,7 +1131,6 @@
                 }
             });
 
-            // Handle Cash
             if (state.cashActive !== false || pieViewType === 'CURRENT') {
                 labels.push("Settlement Cash");
                 let c_cash_pct = totalCurrent > 0 ? ((state.cash / totalCurrent) * 100) : 0;
@@ -1209,9 +1210,8 @@
             }
         }
 
-        // Ledger Modals
         function openLedgerModal(id) {
-            cancelEditTransaction(); // 開啟前清除任何殘留的編輯狀態
+            cancelEditTransaction(); 
             currentActiveAssetId = id;
             let a = state.assets.find(x => x.id === id);
             if(!a) return;
@@ -1233,7 +1233,6 @@
                 badge.className = "text-[10px] text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded";
             }
 
-            // 更新 WAC 顯示
             let l = aggregateAssetLedger(id);
             document.getElementById('modal-wac-display').innerText = `平均持股成本: NT$ ${l.wac.toFixed(2)}`;
 
@@ -1246,7 +1245,7 @@
         }
 
         function closeLedgerModal() {
-            cancelEditTransaction(); // 關閉前清除任何殘留的編輯狀態
+            cancelEditTransaction(); 
             document.getElementById('modal-dynamic-ledger').classList.add('hidden');
             currentActiveAssetId = null;
         }
@@ -1257,7 +1256,8 @@
             a.name = document.getElementById('modal-asset-name').value || "新資產";
             a.ticker = (document.getElementById('modal-asset-ticker').value || "").toUpperCase().trim();
             if (a.active !== false) {
-                a.targetWeight = parseFloat(document.getElementById('modal-asset-weight').value) || 0;
+                // 手動輸入也強制服從 5% 圓整
+                a.targetWeight = round5(parseFloat(document.getElementById('modal-asset-weight').value) || 0);
             }
             let nBeta = parseFloat(document.getElementById('modal-asset-beta').value);
             a.beta = isNaN(nBeta) ? 1.0 : nBeta;
@@ -1371,7 +1371,6 @@
             let simulatedCash = state.cash;
 
             if (editingTxId !== null) {
-                // 編輯模式：先退回舊交易的現金影響，再套用新交易計算
                 let oldTx = asset.txs.find(t => t.id === editingTxId);
                 if (!oldTx) return showToast("找不到原紀錄", "error");
 
@@ -1401,7 +1400,6 @@
                 showToast("明細更新成功", "success");
                 cancelEditTransaction();
             } else {
-                // 原新增模式
                 if (linked) {
                     if (type === 'BUY') simulatedCash -= ((price * shares) + fee);
                     else if (type === 'SELL') simulatedCash += ((price * shares) - fee - tax);
@@ -1416,7 +1414,6 @@
                 showToast("明細新增成功", "success");
             }
 
-            // 更新 WAC
             let l = aggregateAssetLedger(currentActiveAssetId);
             document.getElementById('modal-wac-display').innerText = `平均持股成本: NT$ ${l.wac.toFixed(2)}`;
 
@@ -1625,7 +1622,6 @@
             }
         }
 
-        // Export/Copy 備份引擎
         function copyActionPlan() {
             let text = `ARK V4 REBALANCE PLAN (Mobile) - ${new Date().toLocaleString()}\n`;
             text += `Scale: ${document.getElementById('stat-total-asset').innerText}\n`;
