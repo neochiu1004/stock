@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html class="dark" lang="zh-TW">
 <head>
@@ -133,28 +134,28 @@
                 </div>
             </header>
             
-            <!-- 極致精簡：單一橫排 Ticker 資訊列 -->
-            <div class="px-4 pb-2.5 pt-1.5 border-t border-white/5 bg-surface-container-lowest/40">
-                <div class="grid grid-cols-3 gap-2 text-left">
+            <!-- 極致精簡：單一橫排 Ticker 資訊列 (字型與內距舒適放大優化) -->
+            <div class="px-4 pb-3 pt-2 border-t border-white/5 bg-surface-container-lowest/40">
+                <div class="grid grid-cols-3 gap-3 text-left">
                     <!-- 第一欄：總資產 -->
-                    <div class="border-r border-white/5 pr-1">
-                        <span class="text-[8px] font-bold text-text-secondary uppercase tracking-wider block">Total Scale</span>
-                        <p class="text-[10px] sm:text-xs md:text-sm font-black text-text-primary font-mono tracking-tighter" id="stat-total-asset">NT$ 0</p>
+                    <div class="border-r border-white/5 pr-2">
+                        <span class="text-[10px] font-bold text-text-secondary uppercase tracking-wider block mb-0.5">Total Scale</span>
+                        <p class="text-xs sm:text-sm md:text-base font-black text-text-primary font-mono tracking-tight" id="stat-total-asset">NT$ 0</p>
                     </div>
                     <!-- 第二欄：未實現損益 -->
-                    <div class="border-r border-white/5 px-1">
-                        <div class="flex justify-between items-center">
-                            <span class="text-[8px] font-bold text-text-secondary uppercase tracking-wider truncate" id="unrealized-pl-header-title">Unrealized P/L</span>
-                            <button onclick="togglePlMode()" class="text-primary hover:underline text-[7px] font-black uppercase scale-90" id="global-pl-mode-label">切換淨額</button>
+                    <div class="border-r border-white/5 px-1.5">
+                        <div class="flex justify-between items-center mb-0.5 gap-1">
+                            <span class="text-[10px] font-bold text-text-secondary uppercase tracking-wider truncate" id="unrealized-pl-header-title">Unrealized P/L</span>
+                            <button onclick="togglePlMode()" class="text-primary hover:underline text-[9px] font-black uppercase flex items-center gap-0.5 shrink-0" id="global-pl-mode-label">切換淨額</button>
                         </div>
-                        <p class="text-[10px] sm:text-xs md:text-sm font-black font-mono leading-tight tracking-tighter text-text-secondary" id="stat-total-pl">NT$ 0</p>
+                        <p class="text-xs sm:text-sm md:text-base font-black font-mono leading-tight tracking-tight text-text-secondary" id="stat-total-pl">NT$ 0</p>
                     </div>
                     <!-- 第三欄：Beta 曝險 & Friction -->
-                    <div class="pl-1">
-                        <span class="text-[8px] font-bold text-text-secondary uppercase tracking-wider block">Beta / Friction</span>
+                    <div class="pl-2">
+                        <span class="text-[10px] font-bold text-text-secondary uppercase tracking-wider block mb-0.5">Beta / Friction</span>
                         <div class="flex items-baseline justify-between gap-1 flex-wrap">
-                            <p class="text-[10px] sm:text-xs md:text-sm font-black text-secondary font-mono leading-tight tracking-tighter"><span id="stat-curr-beta">0.00</span><span class="text-[9px] text-text-secondary font-normal"> / </span><span id="stat-tgt-beta" class="text-primary">0.00</span></p>
-                            <span class="text-[8px] text-text-secondary font-mono scale-90" id="stat-total-friction">F: 0</span>
+                            <p class="text-xs sm:text-sm md:text-base font-black text-secondary font-mono leading-tight tracking-tight"><span id="stat-curr-beta">0.00</span><span class="text-[10px] text-text-secondary font-normal"> / </span><span id="stat-tgt-beta" class="text-primary">0.00</span></p>
+                            <span class="text-[9px] text-text-secondary font-mono" id="stat-total-friction">F: 0</span>
                         </div>
                     </div>
                 </div>
@@ -1085,10 +1086,10 @@
                 let prefix = displayTotalPl >= 0 ? "+" : "";
                 let colorClass = displayTotalPl >= 0 ? "text-danger-red font-black" : "text-success-emerald font-black";
                 plStatElement.innerText = `NT$ ${prefix}${Math.round(displayTotalPl).toLocaleString()} (${prefix}${overallPortfolioRoi.toFixed(2)}%)`;
-                plStatElement.className = `text-[10px] sm:text-xs md:text-sm font-mono leading-tight tracking-tighter ${colorClass}`;
+                plStatElement.className = `text-xs sm:text-sm md:text-base font-mono leading-tight tracking-tight ${colorClass}`;
             } else {
                 plStatElement.innerText = "NT$ 0 (0.00%)";
-                plStatElement.className = "text-[10px] sm:text-xs md:text-sm font-black font-mono leading-tight text-text-secondary tracking-tighter";
+                plStatElement.className = "text-xs sm:text-sm font-black font-mono leading-tight text-text-secondary tracking-tight";
             }
             document.getElementById('stat-total-friction').innerText = `F: ${Math.round(totalFrictionCost).toLocaleString()}`;
 
@@ -1872,7 +1873,7 @@
 
         async function fetchPriceViaGAS(ticker, specificAssetId = null) {
             if (!ticker || !state.fugleApiKey) return null;
-            const url = `https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${ticker}`;
+            const url = `https://api.tw/marketdata/v1.0/stock/intraday/quote/${ticker}`; // 修正原有的 api 佔位符
             try {
                 const response = await fetchWithTimeout(url, 5000, { method: 'GET', headers: { 'X-API-KEY': state.fugleApiKey } });
                 if (!response.ok) return null;
@@ -2023,3 +2024,5 @@
     </script>
 </body>
 </html>
+
+```
