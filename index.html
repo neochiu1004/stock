@@ -140,10 +140,13 @@
                     <input class="flex-1 px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-white font-mono text-sm focus:ring-1 focus:ring-primary focus:outline-none" id="api-key-input" onchange="saveDataToLocal()" placeholder="Enter Fugle API Key" type="password"/>
                     <button class="bg-primary/20 text-primary border border-primary/30 px-4 py-3 rounded-lg text-sm font-bold active:scale-95 transition-all" onclick="pasteApiKey()" type="button">貼上</button>
                 </div>
-                <div class="flex gap-2">
-                    <button class="flex-1 bg-surface-container-highest text-white py-3 rounded-lg text-sm font-bold active:scale-95 transition-all" onclick="exportData()" type="button">匯出 JSON</button>
-                    <button class="flex-1 bg-surface-container-highest text-white py-3 rounded-lg text-sm font-bold active:scale-95 transition-all" onclick="document.getElementById('import-file').click()" type="button">匯入數據</button>
+                <!-- 網格排版：整合 CSV 導入按鈕 -->
+                <div class="grid grid-cols-2 gap-2">
+                    <button class="bg-surface-container-highest text-white py-3 rounded-lg text-xs font-bold active:scale-95 transition-all" onclick="exportData()" type="button">匯出 JSON</button>
+                    <button class="bg-surface-container-highest text-white py-3 rounded-lg text-xs font-bold active:scale-95 transition-all" onclick="document.getElementById('import-file').click()" type="button">匯入 JSON</button>
+                    
                     <input accept=".json" class="hidden" id="import-file" onchange="importData(event)" type="file"/>
+                    <input accept=".csv,.xlsx,.xls" class="hidden" id="import-csv-file" onchange="importCsvData(event)" type="file"/>
                 </div>
             </div>
         </div>
@@ -161,7 +164,14 @@
                     </div>
                     <div class="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
                         <div>
-                            <span class="text-xs font-bold text-text-secondary uppercase block mb-1">Unrealized P/L</span>
+                            <!-- 全域損益模式一鍵切換按鈕整合於此 -->
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs font-bold text-text-secondary uppercase block" id="unrealized-pl-header-title">Unrealized P/L (帳面)</span>
+                                <button onclick="togglePlMode()" type="button" class="px-2 py-0.5 bg-surface-container-highest hover:bg-surface-elevated text-[9px] font-black rounded border border-white/5 transition-all text-text-secondary hover:text-white flex items-center gap-0.5 active:scale-95">
+                                    <span class="material-symbols-outlined text-[10px] text-primary">swap_horiz</span>
+                                    <span id="global-pl-mode-label">切換淨損益</span>
+                                </button>
+                            </div>
                             <p class="text-xl font-black font-mono leading-tight" id="stat-total-pl">NT$ 0 (0.00%)</p>
                             <p class="text-xs text-text-secondary mt-1.5 font-mono uppercase" id="stat-total-friction">Friction: NT$ 0</p>
                         </div>
@@ -229,9 +239,15 @@
                         <span class="w-1.5 h-5 bg-primary rounded-full"></span>
                         Asset Buckets
                     </h2>
-                    <button class="bg-primary/10 hover:bg-primary/20 text-primary text-xs font-black px-4 py-2 rounded-full border border-primary/30 transition-all uppercase active:scale-95" onclick="addAsset()">
-                        Add Stock
-                    </button>
+                    <div class="flex gap-2">
+                        <button class="bg-surface-container-highest hover:bg-surface-elevated text-white text-xs font-black px-4 py-2 rounded-full border border-outline-variant transition-all active:scale-95 flex items-center gap-1.5" onclick="document.getElementById('import-csv-file').click()">
+                            <span class="material-symbols-outlined text-[16px]">upload_file</span>
+                            匯入券商 CSV
+                        </button>
+                        <button class="bg-primary/10 hover:bg-primary/20 text-primary text-xs font-black px-4 py-2 rounded-full border border-primary/30 transition-all uppercase active:scale-95" onclick="addAsset()">
+                            Add Stock
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="grid grid-cols-1 gap-4" id="dynamic-assets-container"></div>
@@ -409,7 +425,6 @@
     <script>
         const CHART_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e', '#64748b', '#06b6d4', '#f472b6'];
         
-        // 【核心注入】：全域 5% 步進引擎與 DOM 即時更新掛鉤
         const round5 = (v) => Math.round(v / 5) * 5;
         function updateCardTargetWeightDOM(item, weight) {
             if (item.type !== 'cash') {
@@ -429,6 +444,7 @@
             injection: 0,
             discount: 2.8,
             unit: 1,
+            plMode: "GROSS", // 全域損益模式切換：'GROSS'(帳面損益) 或 'NET'(預扣賣出稅費後的淨損益)
             ignoredRebalanceIds: [],
             assets: [
                 { id: "a1", name: "元大台灣50", ticker: "0050", beta: 1.0, active: true, targetWeight: 40, savedTargetWeight: 40, marketPrice: 195.50, openPrice: 193.00, highPrice: 197.00, lowPrice: 192.50, referencePrice: 191.00, analysisLabel: "偏向買進", analysisReason: "量大收紅，三日均價大於六日均價", lastUpdated: "13:30:00", updateStatus: "success", txs: [{ id: 101, date: '2026-05-12', price: 185.00, shares: 1000, fee: 20, tax: 0, type: 'BUY', linked: false }] },
@@ -456,7 +472,18 @@
             document.getElementById('input-date-dynamic').value = todayStr;
             
             loadSavedData();
-            normalizeWeights(); // Auto normalizes and calls calculate
+            
+            // 初始化同步損益按鈕文字與標頭
+            const plLabel = document.getElementById('global-pl-mode-label');
+            if (plLabel) {
+                plLabel.innerText = state.plMode === 'NET' ? '切換帳面' : '切換淨額';
+            }
+            const titleEl = document.getElementById('unrealized-pl-header-title');
+            if (titleEl) {
+                titleEl.innerText = state.plMode === 'NET' ? "Unrealized P/L (淨損益)" : "Unrealized P/L (帳面)";
+            }
+
+            normalizeWeights(); 
         };
 
         // UI & Core Utils
@@ -475,6 +502,26 @@
                 toast.classList.add('translate-y-10', 'opacity-0');
                 setTimeout(() => toast.remove(), 500);
             }, 3000);
+        }
+
+        // 一鍵切換全域損益計算標準（帳面損益 vs 扣除稅費之淨損益）
+        function togglePlMode() {
+            state.plMode = state.plMode === 'NET' ? 'GROSS' : 'NET';
+            saveDataToLocal();
+
+            const plLabel = document.getElementById('global-pl-mode-label');
+            if (plLabel) {
+                plLabel.innerText = state.plMode === 'NET' ? '切換帳面' : '切換淨額';
+            }
+            const titleEl = document.getElementById('unrealized-pl-header-title');
+            if (titleEl) {
+                titleEl.innerText = state.plMode === 'NET' ? "Unrealized P/L (淨額)" : "Unrealized P/L (帳面)";
+            }
+
+            renderAssetCards();
+            calculate();
+
+            showToast(`已一鍵切換損益標準為：${state.plMode === 'NET' ? '【淨損益】(已預扣賣出證交稅與手續費)' : '【帳面損益】'}`, "success");
         }
 
         function toggleApiInput() { document.getElementById('api-key-container').classList.toggle('hidden'); }
@@ -528,6 +575,7 @@
                 state.injection = parsed.injection || 0;
                 state.discount = parsed.discount || 2.8;
                 state.unit = parsed.unit || 1;
+                state.plMode = parsed.plMode || 'GROSS'; // 還原損益計算模式
                 state.ignoredRebalanceIds = parsed.ignoredRebalanceIds || [];
 
                 if (parsed.fugleApiKey) state.fugleApiKey = parsed.fugleApiKey;
@@ -564,7 +612,6 @@
             }
         }
 
-        // 【核心修改】：強制 5% 圓整與 100% 補償防護
         function normalizeWeights() {
             let items = getActiveItems();
             if (items.length === 0) {
@@ -574,17 +621,14 @@
             
             let total = items.reduce((sum, item) => sum + item.weight, 0);
 
-            // Step 1: 以比例換算，並強制 5% 圓整
             items.forEach((item) => {
                 let w = total === 0 ? (100 / items.length) : (item.weight / total) * 100;
                 updateItemWeight(item, round5(w));
             });
 
-            // Step 2: 補償誤差，確保總和精準等於 100%
             let currentTotal = items.reduce((sum, item) => sum + item.weight, 0);
             if (currentTotal !== 100) {
                 let diff = 100 - currentTotal;
-                // 找最大權重者來補償，避免單項被扣減至負數
                 let targetItem = items.reduce((max, item) => max.weight > item.weight ? max : item);
                 let adjustedWeight = targetItem.weight + diff;
                 if (adjustedWeight >= 0) {
@@ -603,7 +647,7 @@
             if (items.length === 0) return;
             let avg = 100 / items.length;
             items.forEach(item => updateItemWeight(item, avg));
-            normalizeWeights(); // 會自動處理無法整除的 5% 問題
+            normalizeWeights(); 
             showToast("比例已重設等比 (依 5% 圓整)", "success");
         }
 
@@ -707,7 +751,6 @@
             document.addEventListener('pointercancel', endDrag);
         }
 
-        // 【核心修改】：加入 5% 網格防呆與 DOM 聯動注射
         function onDrag(e) {
             if (!isDragging) return;
             
@@ -720,9 +763,7 @@
             let maxPct = 100;
             for(let i=dragItems.length-1; i>dragIndex+1; i--) maxPct -= dragItems[i].weight;
 
-            // 5% Snap (磁吸)
             pct = round5(pct);
-            // 限制節點不可跨越（最小保留 5% 避免消失與重疊）
             pct = Math.max(minPct + 5, Math.min(maxPct - 5, pct));
 
             let newLeftWeight = pct - minPct;
@@ -731,7 +772,6 @@
             dragItems[dragIndex].weight = newLeftWeight;
             dragItems[dragIndex+1].weight = newRightWeight;
 
-            // 物理直接操作：更新 Slider DOM
             const leftSeg = document.getElementById(`segment-${dragIndex}`);
             const rightSeg = document.getElementById(`segment-${dragIndex + 1}`);
             const handle = document.getElementById(`handle-${dragIndex}`);
@@ -756,7 +796,6 @@
             if (leftLegend) leftLegend.innerText = `${newLeftWeight.toFixed(1)}%`;
             if (rightLegend) rightLegend.innerText = `${newRightWeight.toFixed(1)}%`;
 
-            // 即時雙向聯動：更新下方股票卡片數字 DOM (無需重繪整張卡片)
             updateCardTargetWeightDOM(dragItems[dragIndex], newLeftWeight);
             updateCardTargetWeightDOM(dragItems[dragIndex+1], newRightWeight);
         }
@@ -807,7 +846,6 @@
             return { shares: totalShares, wac, totalCost: totalCombinedCost };
         }
 
-        // 【核心修改】：擴充 P/L 顯示格式 (加上台幣金額) 與目標權重 ID Binding
         function renderAssetCards() {
             const container = document.getElementById('dynamic-assets-container');
             let totalVal = state.cash + state.assets.reduce((sum, a) => sum + (aggregateAssetLedger(a.id).shares * a.marketPrice), 0);
@@ -863,11 +901,41 @@
                     cardBorderClass = "border-surface-container-highest shadow-2xl";
                 }
 
+                // 核心優化：若代號為空，特別呈現極客警告視覺，提醒需要手動輸入代號才可以同步價格
+                let hasNoTicker = !a.ticker || a.ticker.trim() === "";
+                let tickerBadgeHtml = "";
+                let warningBannerHtml = "";
+
+                if (hasNoTicker) {
+                    tickerBadgeHtml = `<span class="bg-secondary/10 border border-secondary/30 px-3 py-1.5 rounded-lg text-xs font-black text-secondary tracking-widest shadow-inner animate-pulse">⚠️ 缺少代號</span>`;
+                    warningBannerHtml = `
+                    <div class="mt-4 p-3.5 bg-secondary/15 border border-secondary/20 rounded-2xl flex items-center gap-2.5 text-secondary">
+                        <span class="material-symbols-outlined text-lg shrink-0 animate-pulse">warning</span>
+                        <span class="text-xs font-bold leading-relaxed">請點擊卡片，手動設定「股價代號」以同步即時價格與決策資訊。</span>
+                    </div>`;
+                } else {
+                    tickerBadgeHtml = `<span class="bg-surface-base border border-outline-variant px-3 py-1.5 rounded-lg text-xs font-black text-text-secondary tracking-widest shadow-inner">${a.ticker}</span>`;
+                }
+
+                // 核心優化：基於 PL 模式計算「帳面損益」與「預扣稅費後淨損益」
+                let sellFee = calculateTaiwanStockFee(a.marketPrice, l.shares, state.discount);
+                let sellTax = calculateTaiwanStockTax(a.ticker, a.marketPrice, l.shares, 'SELL');
+                let estSellCost = sellFee + sellTax;
+
+                let displayPl = pl;
+                let displayPlPct = plPct;
+                if (state.plMode === 'NET') {
+                    displayPl = pl - estSellCost;
+                    displayPlPct = l.totalCost > 0 ? (displayPl / l.totalCost) * 100 : 0;
+                }
+
+                let cardPlLabel = state.plMode === 'NET' ? "未實現損益 (淨額)" : "未實現損益 (帳面)";
+
                 return `
                 <article class="bg-surface-card rounded-[24px] p-6 border ${cardBorderClass} transition-all">
                     <div class="flex justify-between items-center mb-5 gap-2 relative">
                         <div class="flex items-center gap-2 flex-wrap min-w-0 pr-12 cursor-pointer w-full" onclick="openLedgerModal('${a.id}')">
-                            <span class="bg-surface-base border border-outline-variant px-3 py-1.5 rounded-lg text-xs font-black text-text-secondary tracking-widest shadow-inner">${a.ticker || '無代號'}</span>
+                            ${tickerBadgeHtml}
                             ${badgeHtml}
                             ${activeStatusHtml}
                             <h2 class="text-xl font-black text-white tracking-wide truncate ${!isActive ? 'text-text-secondary' : ''}">${a.name}</h2>
@@ -901,18 +969,17 @@
                         <div class="grid grid-cols-2 gap-4 relative">
                             <div class="bg-surface-base/80 p-4 rounded-2xl border border-outline-variant/40 shadow-inner flex flex-col justify-between">
                                 <p class="text-xs text-text-secondary font-black mb-1.5 tracking-widest">配置權重</p>
-                                <!-- 綁定 ID 以供 Drag 即時注入 -->
                                 <p class="font-black text-2xl ${isImbalanced ? 'text-danger-red' : 'text-primary'}">${actW.toFixed(1)}% <span class="text-text-secondary text-sm font-bold">/ <span id="card-tgt-weight-${a.id}">${a.targetWeight.toFixed(1)}</span>%</span></p>
                             </div>
                             <div class="bg-surface-base/80 p-4 rounded-2xl border border-outline-variant/40 shadow-inner flex flex-col justify-between">
-                                <p class="text-xs text-text-secondary font-black mb-1.5 tracking-widest">未實現損益</p>
+                                <p class="text-xs text-text-secondary font-black mb-1.5 tracking-widest">${cardPlLabel}</p>
                                 <div>
-                                    <!-- 損益雙顯：百分比與絕對金額 -->
-                                    <p class="font-black text-xl ${pl >= 0 ? 'text-danger-red' : 'text-success-emerald'} leading-none">${pl >= 0 ? '+' : ''}${plPct.toFixed(1)}%</p>
-                                    <p class="text-[11px] font-bold ${pl >= 0 ? 'text-danger-red/80' : 'text-success-emerald/80'} mt-1.5 tracking-wide">${pl >= 0 ? '+' : '-'}NT$ ${Math.abs(Math.round(pl)).toLocaleString()}</p>
+                                    <p class="font-black text-xl ${displayPl >= 0 ? 'text-danger-red' : 'text-success-emerald'} leading-none">${displayPl >= 0 ? '+' : ''}${displayPlPct.toFixed(1)}%</p>
+                                    <p class="text-[11px] font-bold ${displayPl >= 0 ? 'text-danger-red/80' : 'text-success-emerald/80'} mt-1.5 tracking-wide">${displayPl >= 0 ? '+' : '-'}NT$ ${Math.abs(Math.round(displayPl)).toLocaleString()}</p>
                                 </div>
                             </div>
                         </div>
+                        ${warningBannerHtml}
                     </div>
                 </article>`;
             }).join('');
@@ -929,6 +996,7 @@
             let totalCurrentPortfolioStocksMarketValue = 0;
             let totalPortfolioInitialCost = 0;
             let totalFrictionCost = 0;
+            let totalEstSellCost = 0; // 全域預估賣出稅費
             let currentAssetValues = {};
             
             state.assets.forEach(asset => {
@@ -938,6 +1006,13 @@
                 totalCurrentPortfolioStocksMarketValue += val;
                 totalPortfolioInitialCost += ledger.totalCost;
                 
+                // 加總預估賣出成本（手續費+交易稅）
+                if (ledger.shares > 0) {
+                    let sellFee = calculateTaiwanStockFee(asset.marketPrice, ledger.shares, state.discount);
+                    let sellTax = calculateTaiwanStockTax(asset.ticker, asset.marketPrice, ledger.shares, 'SELL');
+                    totalEstSellCost += (sellFee + sellTax);
+                }
+
                 if (asset.txs) {
                     asset.txs.forEach(t => totalFrictionCost += (t.fee || 0) + (t.tax || 0));
                 }
@@ -946,15 +1021,27 @@
             let totalCurrent = totalCurrentPortfolioStocksMarketValue + state.cash;
             let totalTarget = totalCurrent + state.injection;
             let unreleasedTotalPlAmount = totalCurrentPortfolioStocksMarketValue - totalPortfolioInitialCost;
-            let overallPortfolioRoi = totalPortfolioInitialCost > 0 ? (unreleasedTotalPlAmount / totalPortfolioInitialCost) * 100 : 0;
+
+            // 依據全域 PLMode 決定總覽損益顯示數值
+            let displayTotalPl = unreleasedTotalPlAmount;
+            if (state.plMode === 'NET') {
+                displayTotalPl = unreleasedTotalPlAmount - totalEstSellCost;
+            }
+            let overallPortfolioRoi = totalPortfolioInitialCost > 0 ? (displayTotalPl / totalPortfolioInitialCost) * 100 : 0;
             
             document.getElementById('stat-total-asset').innerText = `NT$ ${Math.round(totalTarget).toLocaleString()}`;
             
+            // 更新總覽標題與金額
+            let titleEl = document.getElementById('unrealized-pl-header-title');
+            if (titleEl) {
+                titleEl.innerText = state.plMode === 'NET' ? "Unrealized P/L (淨額)" : "Unrealized P/L (帳面)";
+            }
+
             let plStatElement = document.getElementById('stat-total-pl');
             if (totalPortfolioInitialCost > 0) {
-                let prefix = unreleasedTotalPlAmount >= 0 ? "+" : "";
-                let colorClass = unreleasedTotalPlAmount >= 0 ? "text-danger-red" : "text-success-emerald";
-                plStatElement.innerText = `NT$ ${prefix}${Math.round(unreleasedTotalPlAmount).toLocaleString()} (${prefix}${overallPortfolioRoi.toFixed(2)}%)`;
+                let prefix = displayTotalPl >= 0 ? "+" : "";
+                let colorClass = displayTotalPl >= 0 ? "text-danger-red" : "text-success-emerald";
+                plStatElement.innerText = `NT$ ${prefix}${Math.round(displayTotalPl).toLocaleString()} (${prefix}${overallPortfolioRoi.toFixed(2)}%)`;
                 plStatElement.className = `text-xl font-black font-mono leading-tight ${colorClass}`;
             } else {
                 plStatElement.innerText = "NT$ 0 (0.00%)";
@@ -1256,7 +1343,6 @@
             a.name = document.getElementById('modal-asset-name').value || "新資產";
             a.ticker = (document.getElementById('modal-asset-ticker').value || "").toUpperCase().trim();
             if (a.active !== false) {
-                // 手動輸入也強制服從 5% 圓整
                 a.targetWeight = round5(parseFloat(document.getElementById('modal-asset-weight').value) || 0);
             }
             let nBeta = parseFloat(document.getElementById('modal-asset-beta').value);
@@ -1464,6 +1550,150 @@
             }
         }
 
+        // CSV 安全解析核心 (支持雙規格)
+        function parseCsvLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current.trim());
+            return result;
+        }
+
+        function importCsvData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const text = e.target.result;
+                    processCsvText(text);
+                } catch (err) {
+                    showToast("解析 CSV 失敗，請確認檔案格式", "error");
+                    console.error(err);
+                }
+            };
+            // 預設採用 Big5 (台灣券商匯出格式)
+            reader.readAsText(file, "big5");
+        }
+
+        function processCsvText(text) {
+            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+            if (lines.length < 2) {
+                showToast("CSV 內容不足", "error");
+                return;
+            }
+
+            // 動態映射欄位索引，提高彙總版容錯率
+            const headerRow = parseCsvLine(lines[0]);
+            const colNameIdx = headerRow.indexOf("股票名稱");
+            const colSharesIdx = headerRow.indexOf("股數");
+            
+            // 雙規格智能相容：支援 "成交價" (明細版) 或 "成交均價" (彙總版)
+            let colPriceIdx = headerRow.indexOf("成交價");
+            if (colPriceIdx === -1) {
+                colPriceIdx = headerRow.indexOf("成交均價");
+            }
+            
+            const colMarketPriceIdx = headerRow.indexOf("市價");
+            const colDateIdx = headerRow.indexOf("成交日期");
+
+            if (colNameIdx === -1 || colSharesIdx === -1 || colPriceIdx === -1) {
+                showToast("找不到預期的關鍵欄位（股票名稱, 股數, 成交價 / 成交均價）", "error");
+                return;
+            }
+
+            const parsedGroups = {};
+
+            for (let i = 1; i < lines.length; i++) {
+                const cols = parseCsvLine(lines[i]);
+                if (cols.length < headerRow.length) continue;
+                
+                const stockName = cols[colNameIdx];
+                if (!stockName || stockName.startsWith("總預估") || stockName.startsWith("總融資") || stockName === "總計") {
+                    continue; // 濾除尾端彙總統計行
+                }
+
+                const rawShares = cols[colSharesIdx].replace(/,/g, '').replace(/"/g, '');
+                const shares = parseInt(rawShares);
+                const rawPrice = cols[colPriceIdx].replace(/,/g, '').replace(/"/g, '');
+                const price = parseFloat(rawPrice);
+                
+                if (isNaN(shares) || isNaN(price) || shares <= 0 || price <= 0) continue;
+
+                const rawMarketPrice = colMarketPriceIdx !== -1 ? cols[colMarketPriceIdx].replace(/,/g, '').replace(/"/g, '') : null;
+                const marketPrice = rawMarketPrice ? parseFloat(rawMarketPrice) : price;
+
+                // 若彙總版缺少成交日期，一律預設為當天
+                let dateStr = (colDateIdx !== -1 && cols[colDateIdx]) ? cols[colDateIdx] : new Date().toISOString().slice(0, 10);
+                dateStr = dateStr.replace(/\//g, "-"); // 格式統一為 YYYY-MM-DD
+
+                if (!parsedGroups[stockName]) {
+                    parsedGroups[stockName] = {
+                        name: stockName,
+                        marketPrice: marketPrice,
+                        txs: []
+                    };
+                }
+
+                // 計算每筆交易手續費（買進無證交稅）
+                const fee = calculateTaiwanStockFee(price, shares, state.discount);
+                const tax = 0;
+                
+                parsedGroups[stockName].txs.push({
+                    id: Date.now() + Math.random(),
+                    date: dateStr,
+                    price: price,
+                    shares: shares,
+                    fee: fee,
+                    tax: tax,
+                    type: 'BUY',
+                    linked: false // 預設不連動現有現金餘額，保護使用者本地設置
+                });
+            }
+
+            // 直接批次更新
+            for (const name in parsedGroups) {
+                const groupData = parsedGroups[name];
+                let existingAsset = state.assets.find(a => a.name.trim() === name.trim());
+                if (existingAsset) {
+                    // 已存在同名股票：直接覆蓋交易紀錄，並同步現價
+                    existingAsset.txs = groupData.txs;
+                    existingAsset.marketPrice = groupData.marketPrice;
+                    existingAsset.active = true;
+                } else {
+                    // 新股票直接靜默新增（代號留空不詢問，等待稍後手動填寫）
+                    const newAsset = {
+                        id: "a_" + Date.now() + Math.floor(Math.random()*1000),
+                        name: groupData.name,
+                        ticker: "", // 保持留空
+                        beta: 1.0,
+                        active: true,
+                        targetWeight: 0, // 預設權重為 0，方便之後滑動調整
+                        savedTargetWeight: 0,
+                        marketPrice: groupData.marketPrice,
+                        txs: groupData.txs
+                    };
+                    state.assets.push(newAsset);
+                }
+            }
+
+            normalizeWeights();
+            showToast("未實現明細/彙總 CSV 匯入完成！未設定代號之股票已為您標註。", "success");
+            document.getElementById('import-csv-file').value = ''; // 重置 input 確保能重複觸發
+        }
+
         // API Fetching 引擎
         async function fetchWithTimeout(url, timeoutMs = 5000, options = {}) {
             const controller = new AbortController();
@@ -1583,6 +1813,7 @@
             const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0') + ':' + now.getSeconds().toString().padStart(2, '0');
             state.lastGlobalUpdate = timeStr;
 
+            // 核心優化：過濾掉沒有填寫代號的股票，避免向 API 送出無效請求
             const validRequests = state.assets
                 .map(a => ({ id: a.id, ticker: (a.ticker || '').trim().toUpperCase().replace(/\.TWO?$/, "") }))
                 .filter(req => req.ticker !== '');
@@ -1649,8 +1880,8 @@
                     ? (deltaShares > 0 ? Math.floor(deltaShares / 1000) * 1000 : Math.round(deltaShares / 1000) * 1000)
                     : (deltaShares > 0 ? Math.floor(deltaShares) : Math.round(deltaShares));
 
-                if(deltaShares < 0 && !state.inflowOnly) text += `賣出 ${asset.ticker} ${Math.abs(deltaShares)} 股\n`;
-                if(deltaShares > 0) text += `買進 ${asset.ticker} ${deltaShares} 股\n`;
+                if(deltaShares < 0 && !state.inflowOnly) text += `賣出 ${asset.ticker || asset.name} ${Math.abs(deltaShares)} 股\n`;
+                if(deltaShares > 0) text += `買進 ${asset.ticker || asset.name} ${deltaShares} 股\n`;
             });
 
             if (text.endsWith(`----------------------------------\n`)) text += "No Actions Required.\n";
