@@ -138,7 +138,7 @@
                 </div>
             </header>
             
-            <!-- 極致精簡：單一橫排 Ticker 資訊列 (字型與內距舒適放大優化) -->
+            <!-- 極致精簡：單一橫排 Ticker 資訊列 -->
             <div class="px-4 pb-3 pt-2 border-t border-white/5 bg-surface-container-lowest/40">
                 <div class="grid grid-cols-3 gap-3 text-left">
                     <!-- 第一欄：總資產 -->
@@ -208,7 +208,7 @@
             </div>
         </section>
 
-        <!-- 📅 T+2 交割款預告與日曆面板 (高解析度新創面板) -->
+        <!-- 📅 T+2 交割款預告與日曆面板 -->
         <section class="bg-surface-container border border-surface-container-highest rounded-2xl p-5 shadow-xl space-y-4" id="t2-settlement-tracker">
             <!-- Will be populated dynamically by renderT2SettlementPanel() -->
         </section>
@@ -268,7 +268,7 @@
         </section>
     </main>
 
-    <!-- Unified Settings Modal (全域設定視窗) -->
+    <!-- Unified Settings Modal -->
     <div class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center" id="modal-system-settings">
         <div class="bg-surface-container-high border-t sm:border border-surface-container-highest rounded-t-3xl sm:rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden modal-bottom-sheet">
             <div class="px-6 py-5 border-b border-surface-container-highest flex justify-between items-center bg-surface-container-highest/20">
@@ -281,7 +281,6 @@
             </div>
             
             <div class="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
-                <!-- API 金鑰連線 -->
                 <div class="space-y-3">
                     <label class="text-xs font-black text-primary uppercase tracking-widest block">API 金鑰通道</label>
                     <div class="flex flex-col gap-3">
@@ -296,7 +295,6 @@
                     </div>
                 </div>
 
-                <!-- 系統主要參數 -->
                 <div class="space-y-4 pt-4 border-t border-white/5">
                     <label class="text-xs font-black text-secondary uppercase tracking-widest block">全域平衡參數</label>
                     <div class="space-y-4">
@@ -331,7 +329,6 @@
                     </div>
                 </div>
 
-                <!-- 備份與管理 -->
                 <div class="space-y-3 pt-4 border-t border-white/5">
                     <label class="text-xs font-black text-text-secondary uppercase tracking-widest block">系統備份資料管理</label>
                     <div class="grid grid-cols-2 gap-2">
@@ -371,7 +368,6 @@
                     <div class="flex justify-between items-center">
                         <span class="text-xs font-black text-primary uppercase tracking-widest">Asset Parameters</span>
                         <div class="flex gap-2 items-center">
-                            <!-- 平均持股成本：放大為 text-sm font-bold，並優化圓角與內距 -->
                             <span class="text-sm text-white font-mono bg-surface-base px-3 py-1.5 rounded-xl border border-white/10 font-bold" id="modal-wac-display">平均持股成本: NT$ 0.00</span>
                             <span class="text-[10px] text-text-secondary bg-surface-container-highest px-2 py-0.5 rounded" id="modal-active-badge"></span>
                         </div>
@@ -457,7 +453,7 @@
         </div>
     </div>
 
-    <!-- Unified Action Sheet (手機端高密度歷史流水操作菜單) -->
+    <!-- Unified Action Sheet -->
     <div class="fixed inset-0 z-[70] hidden bg-black/80 backdrop-blur-sm flex items-end justify-center" id="modal-tx-actionsheet" onclick="closeTxActionSheet(event)">
         <div class="bg-surface-container-high border-t border-surface-container-highest rounded-t-3xl w-full max-w-md shadow-2xl overflow-hidden modal-bottom-sheet" onclick="event.stopPropagation()">
             <div class="px-6 py-4 border-b border-surface-container-highest bg-surface-container-highest/20 flex flex-col gap-1">
@@ -498,6 +494,27 @@
         </div>
     </div>
 
+    <!-- ✨ 新增：T+2 結算選項 Action Sheet -->
+    <div class="fixed inset-0 z-[75] hidden bg-black/80 backdrop-blur-sm flex items-end justify-center" id="modal-t2-actionsheet" onclick="closeT2ActionSheet(event)">
+        <div class="bg-surface-container-high border-t border-surface-container-highest rounded-t-3xl w-full max-w-md shadow-2xl overflow-hidden modal-bottom-sheet" onclick="event.stopPropagation()">
+            <div class="px-6 py-4 border-b border-surface-container-highest bg-surface-container-highest/20 flex flex-col gap-1">
+                <span class="text-[10px] font-black text-primary uppercase tracking-widest">交割款結算選項</span>
+                <p class="text-sm font-mono font-bold text-white">發現今日有交割款：<span id="t2-actionsheet-today-amt" class="text-secondary ml-1"></span></p>
+            </div>
+            <div class="p-5 space-y-3">
+                <button onclick="executeT2Deduction(true)" class="w-full bg-danger-red hover:bg-danger-red/90 text-white py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg">
+                    <span class="material-symbols-outlined text-lg">done_all</span> 扣除今日 + 未來交割
+                </button>
+                <button onclick="executeT2Deduction(false)" class="w-full bg-action-blue hover:bg-action-blue/90 text-white py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg">
+                    <span class="material-symbols-outlined text-lg">next_plan</span> 僅扣除未來交割 (排除今日)
+                </button>
+                <button onclick="closeT2ActionSheet(event)" class="w-full bg-surface-container-highest hover:bg-surface-elevated text-white py-3 rounded-2xl text-xs font-bold active:scale-95 transition-all">
+                    取消
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div id="ui-toast-container"></div>
 
@@ -524,7 +541,7 @@
             injection: 0,
             discount: 2.8,
             unit: 1,
-            plMode: "GROSS", // 全域損益模式：'GROSS' (帳面) 或 'NET' (淨損益)
+            plMode: "GROSS", 
             ignoredRebalanceIds: [],
             assets: [
                 { id: "a1", name: "元大台灣50", ticker: "0050", beta: 1.0, active: true, targetWeight: 40, savedTargetWeight: 40, marketPrice: 195.50, openPrice: 193.00, highPrice: 197.00, lowPrice: 192.50, referencePrice: 191.00, analysisLabel: "偏向買進", analysisReason: "量大收紅，三日均價大於六日均價", lastUpdated: "13:30:00", updateStatus: "success", txs: [{ id: 101, date: '2026-06-23', price: 185.00, shares: 1000, fee: 20, tax: 0, type: 'BUY', linked: false }] },
@@ -550,13 +567,15 @@
         // ActionSheet State
         let activeTxIdForActionSheet = null;
 
+        // T+2 Deduction State
+        let t2DeductionState = { today: 0, future: 0 };
+
         window.onload = function() {
             const todayStr = new Date().toISOString().slice(0, 10);
             document.getElementById('input-date-dynamic').value = todayStr;
             
             loadSavedData();
             
-            // 初始化同步損益按鈕文字與標頭
             const plLabel = document.getElementById('global-pl-mode-label');
             if (plLabel) {
                 plLabel.innerText = state.plMode === 'NET' ? '切換帳面' : '切換淨額';
@@ -609,36 +628,22 @@
             document.body.removeChild(textArea);
         }
 
-        // 開關系統設定視窗
-        function openSettingsModal() {
-            document.getElementById('modal-system-settings').classList.remove('hidden');
-        }
-        function closeSettingsModal() {
-            document.getElementById('modal-system-settings').classList.add('hidden');
-        }
+        function openSettingsModal() { document.getElementById('modal-system-settings').classList.remove('hidden'); }
+        function closeSettingsModal() { document.getElementById('modal-system-settings').classList.add('hidden'); }
 
-        // 一鍵切換全域損益計算標準（帳面損益 vs 扣除稅費之淨損益）
         function togglePlMode() {
             state.plMode = state.plMode === 'NET' ? 'GROSS' : 'NET';
             saveDataToLocal();
 
             const plLabel = document.getElementById('global-pl-mode-label');
-            if (plLabel) {
-                plLabel.innerText = state.plMode === 'NET' ? '切換帳面' : '切換淨額';
-            }
+            if (plLabel) plLabel.innerText = state.plMode === 'NET' ? '切換帳面' : '切換淨額';
             const titleEl = document.getElementById('unrealized-pl-header-title');
-            if (titleEl) {
-                titleEl.innerText = state.plMode === 'NET' ? "未實現損益 (淨額)" : "未實現損益 (帳面)";
-            }
+            if (titleEl) titleEl.innerText = state.plMode === 'NET' ? "未實現損益 (淨額)" : "未實現損益 (帳面)";
 
-            renderAssetCards();
-            calculate();
-
+            renderAssetCards(); calculate();
             showToast(`已切換損益標準為：${state.plMode === 'NET' ? '【淨損益】(已扣賣出稅費)' : '【帳面損益】'}`, "success");
         }
 
-        function toggleApiInput() { openSettingsModal(); }
-        
         async function pasteApiKey(targetId = 'api-key-input') {
             try {
                 const text = await navigator.clipboard.readText();
@@ -658,7 +663,6 @@
             state.unit = parseInt(document.getElementById('trade-unit').value) || 1;
             state.imbalanceThreshold = parseFloat(document.getElementById('imbalance-threshold').value) || 5;
             state.inflowOnly = document.getElementById('inflow-only').checked;
-            
             localStorage.setItem('ark_rebalancer_v4_mobile_a', JSON.stringify(state));
         }
 
@@ -690,7 +694,7 @@
                 state.injection = parsed.injection || 0;
                 state.discount = parsed.discount || 2.8;
                 state.unit = parsed.unit || 1;
-                state.plMode = parsed.plMode || 'GROSS'; // 還原損益計算模式
+                state.plMode = parsed.plMode || 'GROSS'; 
                 state.ignoredRebalanceIds = parsed.ignoredRebalanceIds || [];
 
                 if (parsed.fugleApiKey) state.fugleApiKey = parsed.fugleApiKey;
@@ -794,42 +798,82 @@
             normalizeWeights();
         }
 
-        // T+2 結算試算：根據輸入的餘額加上/減去未來交割款
+        // T+2 結算試算 (新增防錯 Action Sheet 與狀態全域管理)
         function applyT2SettlementsToCash() {
-            let currentInputCash = parseFloat(document.getElementById('shares-cash').value) || 0;
-            let totalUpcomingNet = 0;
             let todayStr = new Date().toISOString().slice(0, 10);
+            t2DeductionState.today = 0;
+            t2DeductionState.future = 0;
 
             state.assets.forEach(asset => {
                 if (asset.txs) {
                     asset.txs.forEach(t => {
                         let sDate = getTPlus2Date(t.date);
-                        // 只要交割日大於等於今天，都視為尚未從銀行扣除的款項，需預先結算
                         if (sDate >= todayStr) {
                             let netAmount = t.type === 'BUY' 
                                 ? -( (t.price * t.shares) + t.fee ) 
                                 : ( (t.price * t.shares) - t.fee - (t.tax || 0) );
-                            totalUpcomingNet += netAmount;
+                            
+                            if (sDate === todayStr) {
+                                t2DeductionState.today += netAmount;
+                            } else {
+                                t2DeductionState.future += netAmount;
+                            }
                         }
                     });
                 }
             });
 
-            if (totalUpcomingNet === 0) {
+            if (t2DeductionState.today === 0 && t2DeductionState.future === 0) {
                 showToast("目前無未來的 T+2 交割款項需要結算", "info");
                 return;
             }
 
-            let finalCash = currentInputCash + totalUpcomingNet;
+            // 若今日有交割款，彈出 Action Sheet 讓使用者選擇
+            if (t2DeductionState.today !== 0) {
+                let sign = t2DeductionState.today > 0 ? "+" : "";
+                document.getElementById('t2-actionsheet-today-amt').innerText = `${sign}${Math.round(t2DeductionState.today).toLocaleString()} 元`;
+                document.getElementById('modal-t2-actionsheet').classList.remove('hidden');
+            } else {
+                // 今日無交割款，直接預扣未來款項
+                executeT2Deduction(false);
+            }
+        }
+
+        function closeT2ActionSheet(event) {
+            if (event) event.stopPropagation();
+            document.getElementById('modal-t2-actionsheet').classList.add('hidden');
+        }
+
+        function executeT2Deduction(includeToday) {
+            let currentInputCash = parseFloat(document.getElementById('shares-cash').value) || 0;
+            let totalToApply = t2DeductionState.future;
+            
+            if (includeToday) {
+                totalToApply += t2DeductionState.today;
+            }
+
+            if (totalToApply === 0) {
+                showToast("依據選項，目前無款項需結算", "info");
+                closeT2ActionSheet();
+                return;
+            }
+
+            let finalCash = currentInputCash + totalToApply;
+            if (finalCash < 0) {
+                showToast("⚠️ 注意：預扣後餘額為負數", "error");
+            }
+            
             document.getElementById('shares-cash').value = finalCash;
             state.cash = finalCash;
             
             saveDataToLocal();
-            calculate(); // 重新計算配置規劃
+            calculate();
 
-            let actionText = totalUpcomingNet > 0 ? "預先加總" : "預先扣除";
-            let sign = totalUpcomingNet > 0 ? "+" : "";
-            showToast(`已${actionText}未來交割款：${sign}${Math.round(totalUpcomingNet).toLocaleString()} 元`, "success");
+            let actionText = totalToApply > 0 ? "預先加總" : "預先扣除";
+            let sign = totalToApply > 0 ? "+" : "";
+            showToast(`已${actionText}交割款：${sign}${Math.round(totalToApply).toLocaleString()} 元`, "success");
+            
+            closeT2ActionSheet();
         }
 
         function renderSliderUI() {
@@ -968,18 +1012,17 @@
             normalizeWeights(); 
         }
 
-        // Calculation & Ledger Utils (【核心重構】：手續費與稅費計算精密化)
         function calculateTaiwanStockFee(price, shares, discount) {
             let rawFee = price * shares * 0.001425;
             let discountedFee = rawFee * (discount / 10);
-            return Math.max(1, Math.floor(discountedFee)); // 【手續費無條件捨去小數點】
+            return Math.max(1, Math.floor(discountedFee));
         }
 
         function calculateTaiwanStockTax(ticker, price, shares, type) {
             if (type === 'BUY') return 0;
             let isETF = /^00/.test(ticker || '');
             let taxRate = isETF ? 0.001 : 0.003;
-            return Math.round(price * shares * taxRate); // 【交易稅維持四捨五入】
+            return Math.round(price * shares * taxRate);
         }
 
         function aggregateAssetLedger(assetId) {
@@ -1056,7 +1099,6 @@
                     cardBorderClass = "border-surface-container-highest shadow-2xl";
                 }
 
-                // 若代號為空，特別呈現警告視覺
                 let hasNoTicker = !a.ticker || a.ticker.trim() === "";
                 let tickerBadgeHtml = "";
                 let warningBannerHtml = "";
@@ -1072,7 +1114,6 @@
                     tickerBadgeHtml = `<span class="bg-surface-base border border-outline-variant px-3 py-1.5 rounded-lg text-xs font-black text-text-secondary tracking-widest shadow-inner">${a.ticker}</span>`;
                 }
 
-                // 基於 PL 模式計算「帳面損益」與「預扣稅費後淨損益」
                 let sellFee = calculateTaiwanStockFee(a.marketPrice, l.shares, state.discount);
                 let sellTax = calculateTaiwanStockTax(a.ticker, a.marketPrice, l.shares, 'SELL');
                 let estSellCost = sellFee + sellTax;
@@ -1144,7 +1185,6 @@
             }).join('');
         }
 
-        // T+2 台灣交割日期與款項計算核心邏輯 (例假日跳過順延)
         function getTPlus2Date(dateStr) {
             let d = new Date(dateStr);
             if (isNaN(d.getTime())) return dateStr;
@@ -1152,7 +1192,7 @@
             while (businessDaysAdded < 2) {
                 d.setDate(d.getDate() + 1);
                 let day = d.getDay();
-                if (day !== 0 && day !== 6) { // 0 = 星期日, 6 = 星期六
+                if (day !== 0 && day !== 6) { 
                     businessDaysAdded++;
                 }
             }
@@ -1171,13 +1211,11 @@
             if (!container) return;
 
             let settlements = {};
-            let hasTxs = false;
+            let todayStr = new Date().toISOString().slice(0, 10);
 
-            // 掃描所有資產的所有流水帳並彙總
             state.assets.forEach(asset => {
                 if (asset.txs) {
                     asset.txs.forEach(t => {
-                        hasTxs = true;
                         let sDate = getTPlus2Date(t.date);
                         let netAmount = t.type === 'BUY' 
                             ? -( (t.price * t.shares) + t.fee ) 
@@ -1199,7 +1237,12 @@
                 }
             });
 
-            if (!hasTxs) {
+            // 取得排序後的日期，並嚴格過濾掉歷史日期
+            let sortedDates = Object.keys(settlements)
+                                    .filter(sDate => sDate >= todayStr) // 🛡️ 核心修復：僅允許今天以後的交割紀錄
+                                    .sort((a, b) => new Date(a) - new Date(b));
+
+            if (sortedDates.length === 0) {
                 container.innerHTML = `
                     <div class="flex justify-between items-center">
                         <h3 class="text-sm font-black text-white flex items-center gap-2">
@@ -1207,15 +1250,11 @@
                         </h3>
                     </div>
                     <p class="text-center py-6 text-xs text-text-secondary border border-dashed border-surface-container-highest rounded-xl bg-surface-container-highest/15 font-bold">
-                        尚無交易紀錄，新增流水明細後將自動推算 T+2 交割款項。
+                        目前無今日或未來的交割款項紀錄。
                     </p>
                 `;
                 return;
             }
-
-            // 按交割日期排序
-            let sortedDates = Object.keys(settlements).sort((a, b) => new Date(a) - new Date(b));
-            let todayStr = new Date().toISOString().slice(0, 10);
 
             let html = `
                 <div class="flex justify-between items-center">
@@ -1233,10 +1272,8 @@
 
             sortedDates.forEach(sDate => {
                 let data = settlements[sDate];
-                let isPast = sDate < todayStr;
                 let isToday = sDate === todayStr;
                 
-                // 計算明天是否為交割日
                 let tomorrow = new Date();
                 tomorrow.setDate(tomorrow.getDate() + 1);
                 let tomorrowStr = tomorrow.toISOString().slice(0, 10);
@@ -1251,7 +1288,6 @@
                     prefix = "-";
                     statusBadge = `<span class="bg-danger-red/10 border border-danger-red/20 text-danger-red px-2 py-0.5 rounded text-[10px] font-black tracking-wide">🔴 應扣款 (BUY)</span>`;
                     
-                    // 若今日或明日有交割扣款，強烈警示
                     if (isToday || isTomorrow) {
                         let dayLabel = isToday ? "今日" : "明日";
                         warningAlerts.push(`
@@ -1272,7 +1308,7 @@
 
                 let borderClass = isToday 
                     ? "border-primary/40 bg-primary/5 shadow-[0_0_15px_rgba(75,226,119,0.1)]" 
-                    : (isPast ? "border-outline-variant/30 opacity-60 bg-surface-container-lowest/20" : "border-white/5 bg-surface-container-highest/10");
+                    : "border-white/5 bg-surface-container-highest/10";
 
                 let todayIndicator = isToday ? `<span class="text-[9px] bg-primary text-on-primary font-black px-1.5 py-0.5 rounded">今日交割</span>` : "";
 
@@ -1287,7 +1323,6 @@
                             <span class="text-base font-black font-mono ${amountClass}">${prefix}NT$ ${Math.abs(Math.round(data.netCash)).toLocaleString()}</span>
                         </div>
                         
-                        <!-- 詳細交易子列表 -->
                         <div class="pt-2 border-t border-white/5 space-y-1">
                             ${data.items.map(item => {
                                 let actionColor = item.type === 'BUY' ? 'text-danger-red' : 'text-success-emerald';
@@ -1309,7 +1344,6 @@
 
             html += `</div>`;
 
-            // 若有警告警示，置頂渲染於日曆上方
             if (warningAlerts.length > 0) {
                 html = `<div class="space-y-2 mb-4">${warningAlerts.join('')}</div>` + html;
             }
@@ -1328,7 +1362,7 @@
             let totalCurrentPortfolioStocksMarketValue = 0;
             let totalPortfolioInitialCost = 0;
             let totalFrictionCost = 0;
-            let totalEstSellCost = 0; // 全域預估賣出稅費
+            let totalEstSellCost = 0; 
             let currentAssetValues = {};
             
             state.assets.forEach(asset => {
@@ -1338,7 +1372,6 @@
                 totalCurrentPortfolioStocksMarketValue += val;
                 totalPortfolioInitialCost += ledger.totalCost;
                 
-                // 加總預估賣出成本（手續費+交易稅）
                 if (ledger.shares > 0) {
                     let sellFee = calculateTaiwanStockFee(asset.marketPrice, ledger.shares, state.discount);
                     let sellTax = calculateTaiwanStockTax(asset.ticker, asset.marketPrice, ledger.shares, 'SELL');
@@ -1354,7 +1387,6 @@
             let totalTarget = totalCurrent + state.injection;
             let unreleasedTotalPlAmount = totalCurrentPortfolioStocksMarketValue - totalPortfolioInitialCost;
 
-            // 依據全域 PLMode 決定總覽損益顯示數值
             let displayTotalPl = unreleasedTotalPlAmount;
             if (state.plMode === 'NET') {
                 displayTotalPl = unreleasedTotalPlAmount - totalEstSellCost;
@@ -1363,13 +1395,11 @@
             
             document.getElementById('stat-total-asset').innerText = `NT$ ${Math.round(totalTarget).toLocaleString()}`;
             
-            // 更新總覽標題與金額
             let titleEl = document.getElementById('unrealized-pl-header-title');
             if (titleEl) {
                 titleEl.innerText = state.plMode === 'NET' ? "未實現 (淨)" : "未實現 (帳面)";
             }
 
-            // 優化：徹底移除 JS 中動態複寫 className 時附帶的 truncate 限制，注入極致響應式微縮字型與緊湊字距
             let plStatElement = document.getElementById('stat-total-pl');
             if (totalPortfolioInitialCost > 0) {
                 let prefix = displayTotalPl >= 0 ? "+" : "";
@@ -1465,8 +1495,6 @@
             rightZoneContainer.innerHTML = innerStepsHtml;
 
             updateDynamicCharts(currentAssetValues, totalCurrent, cashWeight, totalTarget, true, expectedAssetValues, expectedCash);
-            
-            // 每次計算核心刷新時，自動重算並重新渲染 T+2 交割款預告與警報
             renderT2SettlementPanel();
         }
 
@@ -1633,13 +1661,11 @@
             }
         }
 
-        // 即時交易與預估手續費、稅金預覽引擎 (手續費無條件捨去 / 稅金四捨五入)
         function updateTxPreview() {
             let type = document.getElementById('input-type-dynamic').value;
             let price = parseFloat(document.getElementById('input-price-dynamic').value) || 0;
             let shares = parseInt(document.getElementById('input-shares-dynamic').value) || 0;
             
-            // 由於設定收合至模態視窗，優先在 DOM 中抓取對應資訊
             let tickerEl = document.getElementById('modal-asset-ticker');
             let ticker = tickerEl ? tickerEl.value : '';
             let box = document.getElementById('tx-preview-box');
@@ -1706,7 +1732,7 @@
         function closeLedgerModal() {
             cancelEditTransaction(); 
             document.getElementById('modal-dynamic-ledger').classList.add('hidden');
-            currentActiveAssetId = null; // 修正變數拼寫錯誤
+            currentActiveAssetId = null; 
         }
 
         function saveModalSettingsOnly() {
@@ -1749,7 +1775,6 @@
             assetIdPendingDelete = null;
         }
 
-        // 新增資產結構
         function addAsset() {
             let newId = "a_" + Date.now();
             state.assets.push({ id: newId, name: "新資產", ticker: "", beta: 1.0, active: true, targetWeight: 0, savedTargetWeight: 0, marketPrice: 100.0, txs: [] });
@@ -1757,7 +1782,6 @@
             setTimeout(() => openLedgerModal(newId), 100);
         }
 
-        // 歷史流水紀錄底部操作面板拉起 (【核心新增】：全新高敏捷防誤觸 Action Sheet)
         function openTxActionSheet(txId, assetName, type, date, price, shares) {
             activeTxIdForActionSheet = txId;
             const descEl = document.getElementById('tx-actionsheet-desc');
@@ -1773,29 +1797,22 @@
             activeTxIdForActionSheet = null;
         }
 
-        function closeAIReportModal() {
-            document.getElementById('modal-ai-report').classList.add('hidden');
-        }
+        function closeAIReportModal() { document.getElementById('modal-ai-report').classList.add('hidden'); }
 
         function applyAIWeights(text) {
-            if (!text || text.trim() === '') {
-                return showToast("請貼上 AI 的回覆內容", "error");
-            }
+            if (!text || text.trim() === '') return showToast("請貼上 AI 的回覆內容", "error");
             try {
-                // 寬容解析：嘗試抓取 ```json ... ``` 區塊，或直接暴力配對包含 "cash" 的 JSON 物件結構
                 const match = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/\{[\s\S]*"cash"[\s\S]*\}/i);
                 if (!match) throw new Error("找不到有效的 JSON 格式");
                 
                 let jsonStr = match[1] ? match[1] : match[0];
                 let weights = JSON.parse(jsonStr);
                 
-                // 套用現金權重
                 if (weights.cash !== undefined) {
                     state.cashActive = true;
                     state.cashWeight = parseFloat(weights.cash);
                 }
                 
-                // 套用各資產權重
                 state.assets.forEach(a => {
                     if (weights[a.id] !== undefined) {
                         a.active = true;
@@ -1803,7 +1820,6 @@
                     }
                 });
                 
-                // 強制觸發 5% 圓整與安全正規化防線
                 normalizeWeights();
                 showToast("✨ 已成功套用 AI 建議配置", "success");
                 closeAIReportModal();
@@ -1818,7 +1834,6 @@
             const contentBox = document.getElementById('ai-report-content');
             modal.classList.remove('hidden');
 
-            // 動態提取當前投資組合數據，並附帶系統內部的資產 ID
             let totalVal = document.getElementById('stat-total-asset').innerText;
             let totalPl = document.getElementById('stat-total-pl').innerText;
             let assetsText = state.assets.filter(a => a.active !== false).map(a => `${a.name}(id: "${a.id}", 現重: ${a.targetWeight}%)`).join('、');
@@ -1866,15 +1881,12 @@
                 let delays = [1000, 2000, 4000, 8000, 16000];
                 let result = null;
                 
-                // Exponential Backoff 重試機制
                 for (let i = 0; i < 5; i++) {
                     try {
                         const response = await fetch(url, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                contents: [{ parts: [{ text: prompt }] }]
-                            })
+                            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
                         });
                         if (!response.ok) throw new Error(`HTTP ${response.status}`);
                         result = await response.json();
@@ -1886,8 +1898,6 @@
                 }
 
                 const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "分析生成失敗，請稍後重試。";
-                
-                // 基礎 Markdown 樣式轉換 (將粗體套用專案高亮色彩，並修復前版的正則拼寫錯誤)
                 const formattedText = text.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<span class="text-secondary font-black">$1</span>');
                 const rawDataEncoded = encodeURIComponent(text);
                 
@@ -1915,7 +1925,6 @@
             }
         }
 
-        // 載入指定流水交易進行編輯
         function loadTransactionForEdit(txId) {
             if(!currentActiveAssetId) return;
             let a = state.assets.find(x => x.id === currentActiveAssetId);
@@ -1933,12 +1942,10 @@
             document.getElementById('btn-submit-tx').className = "flex-[2] bg-secondary text-on-secondary py-3.5 rounded-xl text-sm font-black shadow-lg active:scale-95 transition-all";
             document.getElementById('btn-cancel-edit-tx').classList.remove('hidden');
 
-            // 滾動至新增區域，提升編輯時的體驗感知
             document.getElementById('ledger-dynamic-title').scrollIntoView({ behavior: 'smooth' });
             updateTxPreview();
         }
 
-        // 取消編輯或重設流水欄位
         function cancelEditTransaction() {
             editingTxId = null;
             document.getElementById('input-date-dynamic').value = new Date().toISOString().slice(0, 10);
@@ -1954,7 +1961,6 @@
             updateTxPreview();
         }
 
-        // 提交交易流水（新增與編輯共用）
         function addTransactionRecord() {
             if(!currentActiveAssetId) return;
             let asset = state.assets.find(a => a.id === currentActiveAssetId);
@@ -2020,7 +2026,6 @@
             updateTxPreview(); normalizeWeights(); renderLedgerTable();
         }
 
-        // 渲染交易流水明細表格列表 (【核心重構】：全面優化行動端防誤觸卡片 + 成本直顯機制)
         function renderLedgerTable() {
             if(!currentActiveAssetId) return;
             let a = state.assets.find(x => x.id === currentActiveAssetId);
@@ -2030,7 +2035,6 @@
                 const isBuy = t.type === 'BUY';
                 const badgeColor = isBuy ? 'text-danger-red bg-danger-red/10 border-danger-red/20' : 'text-success-emerald bg-success-emerald/10 border-success-emerald/20';
                 
-                // 動態組裝手續費與證交稅的直顯資訊
                 let feeText = `手續費: NT$ ${t.fee || 0}`;
                 let taxText = t.type === 'SELL' ? ` ｜ 證交稅: NT$ ${t.tax || 0}` : '';
                 
@@ -2054,7 +2058,6 @@
             }).join('') || '<p class="text-center py-6 text-xs text-text-secondary border border-dashed rounded-xl bg-surface-container-highest/20 font-bold">No Transactions</p>';
         }
 
-        // 刪除單筆交易明細
         function deleteTransaction(id) {
             if (editingTxId === id) cancelEditTransaction();
             let asset = state.assets.find(a => a.id === currentActiveAssetId);
@@ -2066,7 +2069,6 @@
             normalizeWeights(); renderLedgerTable(); showToast("明細已移除", "info");
         }
 
-        // 清除該資產所有歷史流水紀錄
         function clearAllTransactions() {
             let asset = state.assets.find(a => a.id === currentActiveAssetId);
             if(confirm(`確定清除【${asset.name}】所有流水帳？`)) {
@@ -2078,7 +2080,6 @@
             }
         }
 
-        // CSV 安全解析核心 (支持雙規格)
         function parseCsvLine(line) {
             const result = [];
             let current = '';
@@ -2112,7 +2113,6 @@
                     console.error(err);
                 }
             };
-            // 預設採用 Big5 (台灣券商匯出格式)
             reader.readAsText(file, "big5");
         }
 
@@ -2123,12 +2123,10 @@
                 return;
             }
 
-            // 動態映射欄位索引，提高彙總版容錯率
             const headerRow = parseCsvLine(lines[0]);
             const colNameIdx = headerRow.indexOf("股票名稱");
             const colSharesIdx = headerRow.indexOf("股數");
             
-            // 雙規格智能相容：支援 "成交價" (明細版) 或 "成交均價" (彙總版)
             let colPriceIdx = headerRow.indexOf("成交價");
             if (colPriceIdx === -1) {
                 colPriceIdx = headerRow.indexOf("成交均價");
@@ -2150,7 +2148,7 @@
                 
                 const stockName = cols[colNameIdx];
                 if (!stockName || stockName.startsWith("總預估") || stockName.startsWith("總融資") || stockName === "總計") {
-                    continue; // 濾除尾端彙總統計行
+                    continue; 
                 }
 
                 const rawShares = cols[colSharesIdx].replace(/,/g, '').replace(/"/g, '');
@@ -2163,73 +2161,50 @@
                 const rawMarketPrice = colMarketPriceIdx !== -1 ? cols[colMarketPriceIdx].replace(/,/g, '').replace(/"/g, '') : null;
                 const marketPrice = rawMarketPrice ? parseFloat(rawMarketPrice) : price;
 
-                // 若彙總版缺少成交日期，一律預設為當天
                 let dateStr = (colDateIdx !== -1 && cols[colDateIdx]) ? cols[colDateIdx] : new Date().toISOString().slice(0, 10);
-                dateStr = dateStr.replace(/\//g, "-"); // 格式統一為 YYYY-MM-DD
+                dateStr = dateStr.replace(/\//g, "-"); 
 
                 if (!parsedGroups[stockName]) {
-                    parsedGroups[stockName] = {
-                        name: stockName,
-                        marketPrice: marketPrice,
-                        txs: []
-                    };
+                    parsedGroups[stockName] = { name: stockName, marketPrice: marketPrice, txs: [] };
                 }
 
-                // 計算每筆交易手續費（買進無證交稅，手續費在此也會服從無條件捨去）
                 const fee = calculateTaiwanStockFee(price, shares, state.discount);
                 const tax = 0;
                 
                 parsedGroups[stockName].txs.push({
-                    id: Date.now() + Math.random(),
-                    date: dateStr,
-                    price: price,
-                    shares: shares,
-                    fee: fee,
-                    tax: tax,
-                    type: 'BUY',
-                    linked: false // 預設不連動現有現金餘額，保護使用者本地設置
+                    id: Date.now() + Math.random(), date: dateStr, price: price, shares: shares,
+                    fee: fee, tax: tax, type: 'BUY', linked: false 
                 });
             }
 
-            // 直接批次更新
             for (const name in parsedGroups) {
                 const groupData = parsedGroups[name];
                 let existingAsset = state.assets.find(a => a.name.trim() === name.trim());
                 if (existingAsset) {
-                    // 已存在同名股票：直接覆蓋交易紀錄，並同步現價
                     existingAsset.txs = groupData.txs;
                     existingAsset.marketPrice = groupData.marketPrice;
                     existingAsset.active = true;
                 } else {
-                    // 新股票直接靜默新增（代號留空不詢問，等待稍後手動填寫）
                     const newAsset = {
                         id: "a_" + Date.now() + Math.floor(Math.random()*1000),
-                        name: groupData.name,
-                        ticker: "", // 保持留空
-                        beta: 1.0,
-                        active: true,
-                        targetWeight: 0, // 預設權重為 0，方便之後滑動調整
-                        savedTargetWeight: 0,
-                        marketPrice: groupData.marketPrice,
-                        txs: groupData.txs
+                        name: groupData.name, ticker: "", beta: 1.0, active: true,
+                        targetWeight: 0, savedTargetWeight: 0, marketPrice: groupData.marketPrice, txs: groupData.txs
                     };
-                    state.assets = parsed.assets;
+                    state.assets.push(newAsset);
                 }
             }
 
             normalizeWeights();
             showToast("未實現明細/彙總 CSV 匯入完成！未設定代號之股票已為您標註。", "success");
-            document.getElementById('import-csv-file').value = ''; // 重置 input 確保能重複觸發
+            document.getElementById('import-csv-file').value = ''; 
         }
 
-        // API Fetching 引擎
         async function fetchWithTimeout(url, timeoutMs = 5000, options = {}) {
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), timeoutMs);
             try {
                 return await fetch(url, { ...options, signal: controller.signal, cache: 'no-store' });
             } finally {
-                with_timeout_cleaned = true;
                 clearTimeout(timer);
             }
         }
@@ -2342,7 +2317,6 @@
             const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0') + ':' + now.getSeconds().toString().padStart(2, '0');
             state.lastGlobalUpdate = timeStr;
 
-            // 核心過濾：未設定代號不送出 API
             const validRequests = state.assets
                 .map(a => ({ id: a.id, ticker: (a.ticker || '').trim().toUpperCase().replace(/\.TWO?$/, "") }))
                 .filter(req => req.ticker !== '');
@@ -2388,7 +2362,6 @@
             text += `Status: ${document.getElementById('stat-total-pl').innerText}\n`;
             text += `----------------------------------\n`;
             
-            let actions = [];
             let tradeUnit = state.unit;
             let totalCurrentPortfolioStocksMarketValue = 0;
             state.assets.forEach(asset => {
