@@ -509,10 +509,10 @@
             </div>
             <div class="p-5 space-y-3">
                 <button onclick="executeT2Deduction(true)" class="w-full bg-danger-red hover:bg-danger-red/90 text-white py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg">
-                    <span class="material-symbols-outlined text-lg">done_all</span> 扣除今日 + 未來交割
+                    <span class="material-symbols-outlined text-lg">done_all</span> 扣除今日 + 未來交割 (並標記已結算)
                 </button>
                 <button onclick="executeT2Deduction(false)" class="w-full bg-action-blue hover:bg-action-blue/90 text-white py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg">
-                    <span class="material-symbols-outlined text-lg">next_plan</span> 僅扣除未來交割 (排除今日)
+                    <span class="material-symbols-outlined text-lg">next_plan</span> 僅扣除未來交割 (排除今日，並標記已結算)
                 </button>
                 <button onclick="closeT2ActionSheet(event)" class="w-full bg-surface-container-highest hover:bg-surface-elevated text-white py-3 rounded-2xl text-xs font-bold active:scale-95 transition-all">
                     取消
@@ -572,6 +572,7 @@
             unit: 1,
             plMode: "GROSS", 
             ignoredRebalanceIds: [],
+            settledT2Dates: [], // ✨ 新增：已手動或自動勾選結算排除之日期記憶槽
             assets: [
                 { id: "a1", name: "元大台灣50", ticker: "0050", beta: 1.0, active: true, targetWeight: 40, savedTargetWeight: 40, marketPrice: 195.50, openPrice: 193.00, highPrice: 197.00, lowPrice: 192.50, referencePrice: 191.00, analysisLabel: "偏向買進", analysisReason: "量大收紅，三日均價大於六日均價", lastUpdated: "13:30:00", updateStatus: "success", txs: [{ id: 101, date: '2026-06-23', price: 185.00, shares: 1000, fee: 20, tax: 0, type: 'BUY', linked: false }] },
                 { id: "a2", name: "元大台灣50正2", ticker: "00631L", beta: 2.0, active: true, targetWeight: 40, savedTargetWeight: 40, marketPrice: 225.0, openPrice: 220.00, highPrice: 227.00, lowPrice: 219.00, referencePrice: 218.00, analysisLabel: "偏向買進", analysisReason: "量縮價不跌，三日均價由下往上", lastUpdated: "--", updateStatus: "cache", txs: [{ id: 102, date: '2026-06-24', price: 215.00, shares: 500, fee: 20, tax: 0, type: 'BUY', linked: false }] },
@@ -725,6 +726,7 @@
                 state.unit = parsed.unit || 1;
                 state.plMode = parsed.plMode || 'GROSS'; 
                 state.ignoredRebalanceIds = parsed.ignoredRebalanceIds || [];
+                state.settledT2Dates = parsed.settledT2Dates || []; // 恢復排除紀錄
 
                 if (parsed.fugleApiKey) state.fugleApiKey = parsed.fugleApiKey;
                 if (parsed.geminiApiKey) state.geminiApiKey = parsed.geminiApiKey;
@@ -827,7 +829,7 @@
             normalizeWeights();
         }
 
-        // T+2 結算試算
+        // T+2 結算試算 (排除已結算之日期)
         function applyT2SettlementsToCash() {
             let todayStr = new Date().toISOString().slice(0, 10);
             t2DeductionState.today = 0;
@@ -838,6 +840,11 @@
                     asset.txs.forEach(t => {
                         let sDate = getTPlus2Date(t.date);
                         if (sDate >= todayStr) {
+                            // ✨ 核心規則：如果此交割日已經打勾結算，直接略過，不重複計算
+                            if (state.settledT2Dates && state.settledT2Dates.includes(sDate)) {
+                                return;
+                            }
+
                             let netAmount = t.type === 'BUY' 
                                 ? -( (t.price * t.shares) + t.fee ) 
                                 : ( (t.price * t.shares) - t.fee - (t.tax || 0) );
@@ -853,7 +860,7 @@
             });
 
             if (t2DeductionState.today === 0 && t2DeductionState.future === 0) {
-                showToast("目前無未來的 T+2 交割款項需要結算", "info");
+                showToast("目前無今日或未來的交割款項（或皆已標記排除結算）", "info");
                 return;
             }
 
@@ -871,19 +878,40 @@
             document.getElementById('modal-t2-actionsheet').classList.add('hidden');
         }
 
+        // 執行預扣扣除，並將相應的日期自動打勾歸檔
         function executeT2Deduction(includeToday) {
             let currentInputCash = parseFloat(document.getElementById('shares-cash').value) || 0;
             let totalToApply = t2DeductionState.future;
+            let todayStr = new Date().toISOString().slice(0, 10);
             
             if (includeToday) {
                 totalToApply += t2DeductionState.today;
             }
 
-            if (totalToApply === 0) {
-                showToast("依據選項，目前無款項需結算", "info");
-                closeT2ActionSheet();
-                return;
-            }
+            // 初始化排除陣列
+            if (!state.settledT2Dates) state.settledT2Dates = [];
+
+            // ✨ 當計算後，將計算進去的未來/今日交割日自動打勾記錄
+            state.assets.forEach(asset => {
+                if (asset.txs) {
+                    asset.txs.forEach(t => {
+                        let sDate = getTPlus2Date(t.date);
+                        if (sDate >= todayStr) {
+                            if (sDate === todayStr) {
+                                if (includeToday) {
+                                    if (!state.settledT2Dates.includes(sDate)) {
+                                        state.settledT2Dates.push(sDate);
+                                    }
+                                }
+                            } else {
+                                if (!state.settledT2Dates.includes(sDate)) {
+                                    state.settledT2Dates.push(sDate);
+                                }
+                            }
+                        }
+                    });
+                }
+            });
 
             let finalCash = currentInputCash + totalToApply;
             if (finalCash < 0) {
@@ -898,9 +926,24 @@
 
             let actionText = totalToApply > 0 ? "預先加總" : "預先扣除";
             let sign = totalToApply > 0 ? "+" : "";
-            showToast(`已${actionText}交割款：${sign}${Math.round(totalToApply).toLocaleString()} 元`, "success");
+            showToast(`已${actionText}交割款：${sign}${Math.round(totalToApply).toLocaleString()} 元，並已將該日期存檔標記！`, "success");
             
             closeT2ActionSheet();
+        }
+
+        // ✨ 手動切換已結算日期勾選狀態，方便以後重新計算
+        function toggleT2DateSettled(sDate) {
+            if (!state.settledT2Dates) state.settledT2Dates = [];
+            const idx = state.settledT2Dates.indexOf(sDate);
+            if (idx > -1) {
+                state.settledT2Dates.splice(idx, 1);
+                showToast(`已恢復 ${formatT2Date(sDate)} 的未結算狀態`, "info");
+            } else {
+                state.settledT2Dates.push(sDate);
+                showToast(`已將 ${formatT2Date(sDate)} 排除不計入交割`, "success");
+            }
+            saveDataToLocal();
+            calculate();
         }
 
         function renderSliderUI() {
@@ -1045,18 +1088,11 @@
             return Math.max(1, Math.floor(discountedFee));
         }
 
-        // ✨ 升級：股票、普通 ETF 與債券型 ETF 免稅 (0%) 的全自動精密判定邏輯
         function calculateTaiwanStockTax(ticker, price, shares, type) {
             if (type === 'BUY') return 0;
             let cleanTicker = (ticker || '').trim().toUpperCase();
-            
-            // 1. 債券型 ETF (開頭為 00 且以 B 結尾，如 00679B, 00772B) 自動判定免徵 0%
             if (/^00.*B$/.test(cleanTicker)) return 0;
-            
-            // 2. 股票型 / 槓桿型 ETF (開頭為 00，如 0050, 00631L) 優惠稅率 0.1%
             if (/^00/.test(cleanTicker)) return Math.round(price * shares * 0.001);
-            
-            // 3. 一般上市櫃個股標準稅率 0.3%
             return Math.round(price * shares * 0.003);
         }
 
@@ -1209,7 +1245,6 @@
                             <div class="bg-surface-base/80 p-4 rounded-2xl border border-outline-variant/40 shadow-inner flex flex-col justify-between min-h-[115px]">
                                 <div class="flex justify-between items-center w-full">
                                     <p class="text-xs text-text-secondary font-black tracking-widest">${cardPlLabel}</p>
-                                    <!-- ✨ 新增：單檔會計精密實數對照點擊ℹ️ -->
                                     <button onclick="event.stopPropagation(); openFormulaSheet('${a.id}')" class="text-text-secondary hover:text-primary transition-colors flex items-center justify-center p-0.5" title="點擊檢視單檔會計計量公式說明">
                                         <span class="material-symbols-outlined text-[14px]">info</span>
                                     </button>
@@ -1247,6 +1282,7 @@
             return `${d.getMonth() + 1}/${d.getDate()} (${weekDays[d.getDay()]})`;
         }
 
+        // ✨ 僅顯示今天（含）以後的交割日，並提供手動 checkbox 排除
         function renderT2SettlementPanel() {
             const container = document.getElementById('t2-settlement-tracker');
             if (!container) return;
@@ -1258,6 +1294,7 @@
                 if (asset.txs) {
                     asset.txs.forEach(t => {
                         let sDate = getTPlus2Date(t.date);
+                        // 🟢 僅統計今天（含）之後的交割日
                         if (sDate >= todayStr) {
                             let netAmount = t.type === 'BUY' 
                                 ? -( (t.price * t.shares) + t.fee ) 
@@ -1280,7 +1317,7 @@
                 }
             });
 
-            // 🛡️ 僅過濾未來 (今天以後) 的項目
+            // 僅排序過濾未來/今日之項目
             let sortedDates = Object.keys(settlements)
                                     .filter(sDate => sDate >= todayStr)
                                     .sort((a, b) => new Date(a) - new Date(b));
@@ -1317,6 +1354,9 @@
                 let data = settlements[sDate];
                 let isToday = sDate === todayStr;
                 
+                // ✨ 檢查此交割日是否已手動或自動勾選「結算排除」
+                let isSettled = state.settledT2Dates && state.settledT2Dates.includes(sDate);
+
                 let tomorrow = new Date();
                 tomorrow.setDate(tomorrow.getDate() + 1);
                 let tomorrowStr = tomorrow.toISOString().slice(0, 10);
@@ -1326,7 +1366,10 @@
                 let amountClass = "";
                 let prefix = "";
 
-                if (data.netCash < 0) {
+                if (isSettled) {
+                    amountClass = "text-text-secondary/40 line-through";
+                    statusBadge = `<span class="bg-surface-elevated text-text-secondary px-2 py-0.5 rounded text-[10px] font-black tracking-wide">🔘 已結算排除</span>`;
+                } else if (data.netCash < 0) {
                     amountClass = "text-danger-red";
                     prefix = "-";
                     statusBadge = `<span class="bg-danger-red/10 border border-danger-red/20 text-danger-red px-2 py-0.5 rounded text-[10px] font-black tracking-wide">🔴 應扣款 (BUY)</span>`;
@@ -1352,8 +1395,22 @@
                 let borderClass = isToday 
                     ? "border-primary/40 bg-primary/5 shadow-[0_0_15px_rgba(75,226,119,0.1)]" 
                     : "border-white/5 bg-surface-container-highest/10";
+                
+                // 若已排除，則降低亮度
+                if (isSettled) {
+                    borderClass = "border-outline-variant/10 bg-surface-container-lowest/30 opacity-60";
+                }
 
                 let todayIndicator = isToday ? `<span class="text-[9px] bg-primary text-on-primary font-black px-1.5 py-0.5 rounded">今日交割</span>` : "";
+
+                // ✨ 提供 Checkbox 交互：打勾與隨時手動取消勾選
+                let checkboxHtml = `
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                        <input type="checkbox" class="w-4 h-4 rounded text-primary focus:ring-primary bg-surface-container-lowest border-outline-variant" 
+                               onchange="toggleT2DateSettled('${sDate}')" ${isSettled ? 'checked' : ''}>
+                        <span class="text-[10px] text-text-secondary font-bold">排除此日</span>
+                    </label>
+                `;
 
                 html += `
                     <div class="border rounded-2xl p-4 space-y-2.5 transition-all ${borderClass}">
@@ -1363,10 +1420,13 @@
                                 ${todayIndicator}
                                 ${statusBadge}
                             </div>
-                            <span class="text-base font-black font-mono ${amountClass}">${prefix}NT$ ${Math.abs(Math.round(data.netCash)).toLocaleString()}</span>
+                            <div class="flex items-center gap-3">
+                                ${checkboxHtml}
+                                <span class="text-base font-black font-mono ${amountClass}">${isSettled ? '' : prefix}NT$ ${Math.abs(Math.round(data.netCash)).toLocaleString()}</span>
+                            </div>
                         </div>
                         
-                        <div class="pt-2 border-t border-white/5 space-y-1">
+                        <div class="pt-2 border-t border-white/5 space-y-1 ${isSettled ? 'opacity-45' : ''}">
                             ${data.items.map(item => {
                                 let actionColor = item.type === 'BUY' ? 'text-danger-red' : 'text-success-emerald';
                                 return `
@@ -1568,6 +1628,7 @@
             calculate(); 
         }
 
+        // ✨ 增強版圖表繪製：在 Legend 與 Progress Bar 完美帶入 NT$ 金額實數
         function updateDynamicCharts(currentVals, totalCurrent, tgtCashPct, totalTarget, isValid, expectedAssetValues, expectedCash) {
             let labels = [], currData = [], tgtData = [], pointColors = [];
             let legendHtml = '', gapHtml = '';
@@ -1596,25 +1657,34 @@
                 pointColors.push(color);
 
                 let displayPct = pieViewType === 'CURRENT' ? c_pct.toFixed(1) : t_pct.toFixed(1);
-
+                
+                // ✨ 圓餅 Legend 優化：增加顯示金額實數
+                let displayVal = pieViewType === 'CURRENT' ? c_val : (totalTarget * t_pct / 100);
                 legendHtml += `
-                    <div class="flex items-center justify-between gap-2 overflow-hidden bg-surface-container-highest/30 px-3 py-2 rounded-lg border border-white/5">
+                    <div class="flex flex-col gap-1 bg-surface-container-highest/30 px-3 py-2 rounded-lg border border-white/5">
                         <div class="flex items-center gap-2 min-w-0">
                             <span class="w-2.5 h-2.5 rounded-full shrink-0 ${a.active === false ? 'opacity-50' : ''}" style="background-color: ${color}"></span>
                             <span class="text-xs font-bold text-text-secondary truncate uppercase ${a.active === false ? 'line-through' : ''}">${a.name}</span>
                         </div>
-                        <span class="text-xs font-mono font-bold ${pieViewType === 'CURRENT' ? 'text-action-blue' : 'text-primary'}">${displayPct}%</span>
+                        <div class="flex justify-between items-center mt-0.5 font-mono text-[10px]">
+                            <span class="text-text-secondary">NT$ ${Math.round(displayVal).toLocaleString()}</span>
+                            <span class="font-black ${pieViewType === 'CURRENT' ? 'text-action-blue' : 'text-primary'}">${displayPct}%</span>
+                        </div>
                     </div>`;
 
+                // ✨ GAP 進度條優化：完整顯示金額與比重對照
                 if (a.active !== false) {
                     let isImbalanced = Math.abs(c_pct - t_pct_raw) > state.imbalanceThreshold;
+                    let targetVal = totalTarget * (t_pct_raw / 100);
                     gapHtml += `
                         <div class="flex flex-col gap-1.5 relative group cursor-pointer" onclick="openLedgerModal('${a.id}')">
-                            <div class="flex justify-between items-end">
+                            <div class="flex justify-between items-end flex-wrap gap-1">
                                 <span class="text-xs font-bold text-white group-hover:text-primary transition-colors">${a.name}</span>
-                                <div class="flex items-baseline gap-1">
-                                    <span class="text-sm font-mono font-black ${isImbalanced ? 'text-danger-red' : 'text-action-blue'}">${c_pct.toFixed(1)}%</span>
-                                    <span class="text-[10px] font-mono text-text-secondary">/ ${t_pct_raw.toFixed(1)}%</span>
+                                <div class="flex items-baseline gap-1 font-mono text-[11px] text-right">
+                                    <span class="text-text-secondary">NT$ ${Math.round(c_val).toLocaleString()}</span>
+                                    <span class="font-black ${isImbalanced ? 'text-danger-red' : 'text-action-blue'}">(${c_pct.toFixed(1)}%)</span>
+                                    <span class="text-text-secondary">/ NT$ ${Math.round(targetVal).toLocaleString()}</span>
+                                    <span class="text-text-secondary">(${t_pct_raw.toFixed(1)}%)</span>
                                 </div>
                             </div>
                             <div class="w-full h-3.5 bg-surface-container-highest rounded-full relative overflow-hidden border border-outline-variant/30">
@@ -1640,24 +1710,33 @@
                 pointColors.push(cashColor);
                 let displayCashPct = pieViewType === 'CURRENT' ? c_cash_pct.toFixed(1) : t_cash_pct.toFixed(1);
 
+                // 現金圖例
+                let displayCashVal = pieViewType === 'CURRENT' ? state.cash : (totalTarget * t_cash_pct / 100);
                 legendHtml += `
-                    <div class="flex items-center justify-between gap-2 overflow-hidden bg-surface-container-highest/30 px-3 py-2 rounded-lg border border-white/5">
+                    <div class="flex flex-col gap-1 bg-surface-container-highest/30 px-3 py-2 rounded-lg border border-white/5">
                         <div class="flex items-center gap-2 min-w-0">
                             <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${cashColor}"></span>
                             <span class="text-xs font-bold text-text-secondary truncate uppercase">Cash</span>
                         </div>
-                        <span class="text-xs font-mono font-bold ${pieViewType === 'CURRENT' ? 'text-action-blue' : 'text-primary'}">${displayCashPct}%</span>
+                        <div class="flex justify-between items-center mt-0.5 font-mono text-[10px]">
+                            <span class="text-text-secondary">NT$ ${Math.round(displayCashVal).toLocaleString()}</span>
+                            <span class="font-black ${pieViewType === 'CURRENT' ? 'text-action-blue' : 'text-primary'}">${displayCashPct}%</span>
+                        </div>
                     </div>`;
                 
+                // 現金 GAP
                 if (state.cashActive !== false) {
                     let isCashImbalanced = Math.abs(c_cash_pct - tgtCashPct) > state.imbalanceThreshold;
+                    let targetCashVal = totalTarget * (tgtCashPct / 100);
                     gapHtml += `
                         <div class="flex flex-col gap-1.5 relative mt-2 pt-4 border-t border-surface-container-highest">
-                            <div class="flex justify-between items-end">
+                            <div class="flex justify-between items-end flex-wrap gap-1">
                                 <span class="text-xs font-bold text-text-secondary">Settlement Cash</span>
-                                <div class="flex items-baseline gap-1">
-                                    <span class="text-sm font-mono font-black ${isCashImbalanced ? 'text-danger-red' : 'text-action-blue'}">${c_cash_pct.toFixed(1)}%</span>
-                                    <span class="text-[10px] font-mono text-text-secondary">/ ${tgtCashPct.toFixed(1)}%</span>
+                                <div class="flex items-baseline gap-1 font-mono text-[11px] text-right">
+                                    <span class="text-text-secondary">NT$ ${Math.round(state.cash).toLocaleString()}</span>
+                                    <span class="font-black ${isCashImbalanced ? 'text-danger-red' : 'text-action-blue'}">(${c_cash_pct.toFixed(1)}%)</span>
+                                    <span class="text-text-secondary">/ NT$ ${Math.round(targetCashVal).toLocaleString()}</span>
+                                    <span class="text-text-secondary">(${tgtCashPct.toFixed(1)}%)</span>
                                 </div>
                             </div>
                             <div class="w-full h-3.5 bg-surface-container-lowest rounded-full relative overflow-hidden border border-outline-variant/30">
@@ -1691,8 +1770,25 @@
                             tooltip: {
                                 enabled: isValid, displayColors: false,
                                 titleFont: { size: 14, family: "'Hanken Grotesk', sans-serif" },
-                                bodyFont: { size: 16, family: "'JetBrains Mono', monospace", weight: 'bold' },
-                                padding: 12, callbacks: { label: function(context) { return ` ${context.raw}%`; } }
+                                bodyFont: { size: 14, family: "'JetBrains Mono', monospace", weight: 'bold' },
+                                padding: 12, 
+                                callbacks: { 
+                                    // ✨ Tooltip 滑鼠懸停同時顯示金額與比例
+                                    label: function(context) { 
+                                        let pct = context.raw;
+                                        let label = context.label || '';
+                                        let amt = 0;
+                                        if (label === "Settlement Cash") {
+                                            amt = pieViewType === 'CURRENT' ? state.cash : (totalTarget * parseFloat(pct) / 100);
+                                        } else {
+                                            let asset = state.assets.find(x => x.name === label);
+                                            if (asset) {
+                                                amt = pieViewType === 'CURRENT' ? (currentVals[asset.id] || 0) : (totalTarget * parseFloat(pct) / 100);
+                                            }
+                                        }
+                                        return ` ${label}: NT$ ${Math.round(amt).toLocaleString()} (${pct}%)`; 
+                                    } 
+                                }
                             }
                         },
                         animation: { animateScale: true, animateRotate: true }
@@ -2434,7 +2530,6 @@
             fallbackCopyTextToClipboard(text);
         }
 
-        // ✨ 新增：點擊 ℹ️ 時，動態載入圖片 10 大精密會計公式與當前投資實數
         function openFormulaSheet(assetId) {
             const modal = document.getElementById('modal-formula-actionsheet');
             const titleEl = document.getElementById('formula-sheet-title');
