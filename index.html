@@ -149,7 +149,13 @@
                     <!-- 第二欄：未實現損益 -->
                     <div class="border-r border-white/5 px-1.5">
                         <div class="flex justify-between items-center mb-0.5 gap-1">
-                            <span class="text-[10px] font-bold text-text-secondary uppercase tracking-wider truncate" id="unrealized-pl-header-title">Unrealized P/L</span>
+                            <div class="flex items-center gap-0.5 min-w-0">
+                                <span class="text-[10px] font-bold text-text-secondary uppercase tracking-wider truncate" id="unrealized-pl-header-title">Unrealized P/L</span>
+                                <!-- ✨ 新增：總覽會計對照說明點擊按鍵 -->
+                                <button onclick="openFormulaSheet(null)" class="text-text-secondary hover:text-primary transition-colors flex items-center justify-center p-0.5" title="點擊檢視總體會計計量公式說明">
+                                    <span class="material-symbols-outlined text-[13px]">info</span>
+                                </button>
+                            </div>
                             <button onclick="togglePlMode()" class="text-primary hover:underline text-[9px] font-black uppercase flex items-center gap-0.5 shrink-0" id="global-pl-mode-label">切換淨額</button>
                         </div>
                         <p class="text-lg sm:text-xl md:text-2xl font-black font-mono leading-tight tracking-tight text-text-secondary" id="stat-total-pl">NT$ 0</p>
@@ -494,7 +500,7 @@
         </div>
     </div>
 
-    <!-- ✨ 新增：T+2 結算選項 Action Sheet -->
+    <!-- ✨ T+2 結算選項 Action Sheet -->
     <div class="fixed inset-0 z-[75] hidden bg-black/80 backdrop-blur-sm flex items-end justify-center" id="modal-t2-actionsheet" onclick="closeT2ActionSheet(event)">
         <div class="bg-surface-container-high border-t border-surface-container-highest rounded-t-3xl w-full max-w-md shadow-2xl overflow-hidden modal-bottom-sheet" onclick="event.stopPropagation()">
             <div class="px-6 py-4 border-b border-surface-container-highest bg-surface-container-highest/20 flex flex-col gap-1">
@@ -510,6 +516,29 @@
                 </button>
                 <button onclick="closeT2ActionSheet(event)" class="w-full bg-surface-container-highest hover:bg-surface-elevated text-white py-3 rounded-2xl text-xs font-bold active:scale-95 transition-all">
                     取消
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✨ 新增：會計公式與實數對照 Action Sheet -->
+    <div class="fixed inset-0 z-[90] hidden bg-black/80 backdrop-blur-sm flex items-end justify-center" id="modal-formula-actionsheet" onclick="closeFormulaActionSheet(event)">
+        <div class="bg-surface-container-high border-t border-surface-container-highest rounded-t-3xl w-full max-w-lg shadow-2xl overflow-hidden modal-bottom-sheet" onclick="event.stopPropagation()">
+            <div class="px-6 py-4 border-b border-surface-container-highest bg-surface-container-highest/20 flex justify-between items-center">
+                <div>
+                    <span class="text-[10px] font-black text-secondary uppercase tracking-widest">精密會計對照說明</span>
+                    <p class="text-sm font-mono font-bold text-white" id="formula-sheet-title">載入中...</p>
+                </div>
+                <button class="text-text-secondary hover:bg-white/10 rounded-full p-2 transition-colors active:scale-95 flex items-center justify-center" onclick="closeFormulaActionSheet(event)">
+                    <span class="material-symbols-outlined text-[20px]">close</span>
+                </button>
+            </div>
+            <div class="p-6 space-y-4 max-h-[65vh] overflow-y-auto" id="formula-sheet-body">
+                <!-- 帶入計算數據 -->
+            </div>
+            <div class="p-5 border-t border-surface-container-highest bg-surface-container-highest/10">
+                <button onclick="closeFormulaActionSheet(event)" class="w-full bg-surface-container-highest hover:bg-surface-elevated text-white py-3 rounded-2xl text-xs font-bold active:scale-95 transition-all">
+                    關閉說明
                 </button>
             </div>
         </div>
@@ -798,7 +827,7 @@
             normalizeWeights();
         }
 
-        // T+2 結算試算 (新增防錯 Action Sheet 與狀態全域管理)
+        // T+2 結算試算
         function applyT2SettlementsToCash() {
             let todayStr = new Date().toISOString().slice(0, 10);
             t2DeductionState.today = 0;
@@ -828,13 +857,11 @@
                 return;
             }
 
-            // 若今日有交割款，彈出 Action Sheet 讓使用者選擇
             if (t2DeductionState.today !== 0) {
                 let sign = t2DeductionState.today > 0 ? "+" : "";
                 document.getElementById('t2-actionsheet-today-amt').innerText = `${sign}${Math.round(t2DeductionState.today).toLocaleString()} 元`;
                 document.getElementById('modal-t2-actionsheet').classList.remove('hidden');
             } else {
-                // 今日無交割款，直接預扣未來款項
                 executeT2Deduction(false);
             }
         }
@@ -1018,11 +1045,19 @@
             return Math.max(1, Math.floor(discountedFee));
         }
 
+        // ✨ 升級：股票、普通 ETF 與債券型 ETF 免稅 (0%) 的全自動精密判定邏輯
         function calculateTaiwanStockTax(ticker, price, shares, type) {
             if (type === 'BUY') return 0;
-            let isETF = /^00/.test(ticker || '');
-            let taxRate = isETF ? 0.001 : 0.003;
-            return Math.round(price * shares * taxRate);
+            let cleanTicker = (ticker || '').trim().toUpperCase();
+            
+            // 1. 債券型 ETF (開頭為 00 且以 B 結尾，如 00679B, 00772B) 自動判定免徵 0%
+            if (/^00.*B$/.test(cleanTicker)) return 0;
+            
+            // 2. 股票型 / 槓桿型 ETF (開頭為 00，如 0050, 00631L) 優惠稅率 0.1%
+            if (/^00/.test(cleanTicker)) return Math.round(price * shares * 0.001);
+            
+            // 3. 一般上市櫃個股標準稅率 0.3%
+            return Math.round(price * shares * 0.003);
         }
 
         function aggregateAssetLedger(assetId) {
@@ -1172,8 +1207,14 @@
                                 <p class="font-black text-3xl ${isImbalanced ? 'text-danger-red' : 'text-primary'}">${actW.toFixed(1)}% <span class="text-text-secondary text-sm font-bold">/ <span id="card-tgt-weight-${a.id}">${a.targetWeight.toFixed(1)}</span>%</span></p>
                             </div>
                             <div class="bg-surface-base/80 p-4 rounded-2xl border border-outline-variant/40 shadow-inner flex flex-col justify-between min-h-[115px]">
-                                <p class="text-xs text-text-secondary font-black mb-1.5 tracking-widest">${cardPlLabel}</p>
-                                <div>
+                                <div class="flex justify-between items-center w-full">
+                                    <p class="text-xs text-text-secondary font-black tracking-widest">${cardPlLabel}</p>
+                                    <!-- ✨ 新增：單檔會計精密實數對照點擊ℹ️ -->
+                                    <button onclick="event.stopPropagation(); openFormulaSheet('${a.id}')" class="text-text-secondary hover:text-primary transition-colors flex items-center justify-center p-0.5" title="點擊檢視單檔會計計量公式說明">
+                                        <span class="material-symbols-outlined text-[14px]">info</span>
+                                    </button>
+                                </div>
+                                <div class="mt-1">
                                     <p class="font-black text-3xl ${displayPl >= 0 ? 'text-danger-red' : 'text-success-emerald'} leading-none">${displayPl >= 0 ? '+' : ''}${displayPlPct.toFixed(1)}%</p>
                                     <p class="text-sm font-black ${displayPl >= 0 ? 'text-danger-red/80' : 'text-success-emerald/80'} mt-2.5 tracking-wide">${displayPl >= 0 ? '+' : '-'}NT$ ${Math.abs(Math.round(displayPl)).toLocaleString()}</p>
                                 </div>
@@ -1217,29 +1258,31 @@
                 if (asset.txs) {
                     asset.txs.forEach(t => {
                         let sDate = getTPlus2Date(t.date);
-                        let netAmount = t.type === 'BUY' 
-                            ? -( (t.price * t.shares) + t.fee ) 
-                            : ( (t.price * t.shares) - t.fee - (t.tax || 0) );
+                        if (sDate >= todayStr) {
+                            let netAmount = t.type === 'BUY' 
+                                ? -( (t.price * t.shares) + t.fee ) 
+                                : ( (t.price * t.shares) - t.fee - (t.tax || 0) );
 
-                        if (!settlements[sDate]) {
-                            settlements[sDate] = { date: sDate, netCash: 0, items: [] };
+                            if (!settlements[sDate]) {
+                                settlements[sDate] = { date: sDate, netCash: 0, items: [] };
+                            }
+                            settlements[sDate].netCash += netAmount;
+                            settlements[sDate].items.push({
+                                name: asset.name,
+                                ticker: asset.ticker || '無代號',
+                                type: t.type,
+                                shares: t.shares,
+                                price: t.price,
+                                amount: Math.abs(netAmount)
+                            });
                         }
-                        settlements[sDate].netCash += netAmount;
-                        settlements[sDate].items.push({
-                            name: asset.name,
-                            ticker: asset.ticker || '無代號',
-                            type: t.type,
-                            shares: t.shares,
-                            price: t.price,
-                            amount: Math.abs(netAmount)
-                        });
                     });
                 }
             });
 
-            // 取得排序後的日期，並嚴格過濾掉歷史日期
+            // 🛡️ 僅過濾未來 (今天以後) 的項目
             let sortedDates = Object.keys(settlements)
-                                    .filter(sDate => sDate >= todayStr) // 🛡️ 核心修復：僅允許今天以後的交割紀錄
+                                    .filter(sDate => sDate >= todayStr)
                                     .sort((a, b) => new Date(a) - new Date(b));
 
             if (sortedDates.length === 0) {
@@ -2389,6 +2432,182 @@
             if (text.endsWith(`----------------------------------\n`)) text += "No Actions Required.\n";
             
             fallbackCopyTextToClipboard(text);
+        }
+
+        // ✨ 新增：點擊 ℹ️ 時，動態載入圖片 10 大精密會計公式與當前投資實數
+        function openFormulaSheet(assetId) {
+            const modal = document.getElementById('modal-formula-actionsheet');
+            const titleEl = document.getElementById('formula-sheet-title');
+            const bodyEl = document.getElementById('formula-sheet-body');
+            if (!modal || !titleEl || !bodyEl) return;
+
+            let html = "";
+            if (assetId === null || assetId === undefined) {
+                // 1. 全球總覽會計模型
+                titleEl.innerText = "【全組合總體會計精密核算對照】";
+                
+                let totalCurrentPortfolioStocksMarketValue = 0;
+                let totalPortfolioInitialCost = 0;
+                let totalEstSellCost = 0;
+                
+                state.assets.forEach(asset => {
+                    let ledger = aggregateAssetLedger(asset.id);
+                    let val = ledger.shares * asset.marketPrice;
+                    totalCurrentPortfolioStocksMarketValue += val;
+                    totalPortfolioInitialCost += ledger.totalCost;
+                    
+                    if (ledger.shares > 0) {
+                        let sellFee = calculateTaiwanStockFee(asset.marketPrice, ledger.shares, state.discount);
+                        let sellTax = calculateTaiwanStockTax(asset.ticker, asset.marketPrice, ledger.shares, 'SELL');
+                        totalEstSellCost += (sellFee + sellTax);
+                    }
+                });
+                
+                let totalCurrentNetVal = totalCurrentPortfolioStocksMarketValue - totalEstSellCost + state.cash;
+                let totalCost = totalPortfolioInitialCost + state.cash; 
+                let totalEstPl = totalCurrentNetVal - totalCost;
+                let totalRoi = totalCost > 0 ? (totalEstPl / totalCost) * 100 : 0;
+
+                html = `
+                    <div class="space-y-4 font-mono text-xs text-on-surface">
+                        <!-- 總成本 -->
+                        <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
+                            <div class="flex justify-between items-center text-sm font-black text-white">
+                                <span>7. 總成本 (Total Cost)</span>
+                                <span class="text-secondary">NT$ ${Math.round(totalCost).toLocaleString()}</span>
+                            </div>
+                            <p class="text-text-secondary text-[10px]">定義：所有付出成本相加 (股票購買總成本 + 交割戶現金)</p>
+                            <p class="text-primary font-bold">當前：NT$ ${Math.round(totalPortfolioInitialCost).toLocaleString()} (證券成本) + NT$ ${Math.round(state.cash).toLocaleString()} (現金)</p>
+                        </div>
+                        
+                        <!-- 總現值 -->
+                        <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
+                            <div class="flex justify-between items-center text-sm font-black text-white">
+                                <span>8. 總現值 (Total Net Value)</span>
+                                <span class="text-secondary">NT$ ${Math.round(totalCurrentNetVal).toLocaleString()}</span>
+                            </div>
+                            <p class="text-text-secondary text-[10px]">定義：所有現值相加 (股票市值扣除估算賣出費用 + 交割戶現金)</p>
+                            <p class="text-primary font-bold">當前：NT$ ${Math.round(totalCurrentPortfolioStocksMarketValue).toLocaleString()} (市值) - NT$ ${Math.round(totalEstSellCost).toLocaleString()} (估算賣出稅費) + NT$ ${Math.round(state.cash).toLocaleString()} (現金)</p>
+                        </div>
+
+                        <!-- 總預估損益 -->
+                        <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
+                            <div class="flex justify-between items-center text-sm font-black text-white">
+                                <span>9. 總預估損益</span>
+                                <span class="${totalEstPl >= 0 ? 'text-danger-red' : 'text-success-emerald'}">NT$ ${Math.round(totalEstPl).toLocaleString()}</span>
+                            </div>
+                            <p class="text-text-secondary text-[10px]">定義：總現值 - 總成本 (真實反映若立刻全部變現的淨損益)</p>
+                            <p class="text-primary font-bold">算式：NT$ ${Math.round(totalCurrentNetVal).toLocaleString()} (總現值) - NT$ ${Math.round(totalCost).toLocaleString()} (總成本)</p>
+                        </div>
+
+                        <!-- 總報酬率 -->
+                        <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
+                            <div class="flex justify-between items-center text-sm font-black text-white">
+                                <span>10. 總報酬率</span>
+                                <span class="${totalEstPl >= 0 ? 'text-danger-red' : 'text-success-emerald'}">${totalRoi.toFixed(2)} %</span>
+                            </div>
+                            <p class="text-text-secondary text-[10px]">定義：總預估損益 ÷ 總成本 × 100%</p>
+                            <p class="text-primary font-bold">算式：(NT$ ${Math.round(totalEstPl).toLocaleString()} ÷ NT$ ${Math.round(totalCost).toLocaleString()}) × 100%</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // 2. 單檔資產會計模型
+                let a = state.assets.find(x => x.id === assetId);
+                if (!a) return;
+                titleEl.innerText = `【${a.name} (${a.ticker || '無代號'}) 會計實數對照】`;
+
+                let l = aggregateAssetLedger(a.id);
+                let totalShares = l.shares;
+                let marketPrice = a.marketPrice;
+                let marketValue = totalShares * marketPrice;
+                
+                let sellFee = calculateTaiwanStockFee(marketPrice, totalShares, state.discount);
+                let sellTax = calculateTaiwanStockTax(a.ticker, marketPrice, totalShares, 'SELL');
+                let estSellCost = sellFee + sellTax;
+                
+                let netValue = marketValue - estSellCost; 
+                let totalCost = l.totalCost; 
+                let estPl = netValue - totalCost; 
+                let roi = totalCost > 0 ? (estPl / totalCost) * 100 : 0;
+
+                let isETF = /^00/.test(a.ticker || '');
+                let isBondETF = /^00.*B$/i.test(a.ticker || '');
+                let taxDesc = isBondETF ? "債券型 ETF (免稅 0%)" : (isETF ? "股票型 ETF (優惠 0.1%)" : "一般股票 (標準 0.3%)");
+
+                html = `
+                    <div class="space-y-4 font-mono text-xs text-on-surface">
+                        <!-- 成交金額 -->
+                        <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
+                            <div class="flex justify-between items-center text-sm font-black text-white">
+                                <span>1. 成交金額</span>
+                                <span class="text-secondary">NT$ ${Math.round(marketValue).toLocaleString()}</span>
+                            </div>
+                            <p class="text-text-secondary text-[10px]">定義：成交價 × 股數</p>
+                            <p class="text-primary font-bold">當前帶入：${marketPrice.toFixed(2)} 元 × ${totalShares.toLocaleString()} 股</p>
+                        </div>
+
+                        <!-- 付出成本 -->
+                        <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
+                            <div class="flex justify-between items-center text-sm font-black text-white">
+                                <span>2. 付出成本</span>
+                                <span class="text-secondary">NT$ ${Math.round(totalCost).toLocaleString()}</span>
+                            </div>
+                            <p class="text-text-secondary text-[10px]">定義：成交金額 + 買進手續費</p>
+                            <p class="text-primary font-bold">當前持股買入成本加總：NT$ ${Math.round(totalCost).toLocaleString()}</p>
+                        </div>
+
+                        <!-- 市值 -->
+                        <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
+                            <div class="flex justify-between items-center text-sm font-black text-white">
+                                <span>3. 市值</span>
+                                <span class="text-secondary">NT$ ${Math.round(marketValue).toLocaleString()}</span>
+                            </div>
+                            <p class="text-text-secondary text-[10px]">定義：市價 × 股數</p>
+                            <p class="text-primary font-bold">當前帶入：${marketPrice.toFixed(2)} 元 × ${totalShares.toLocaleString()} 股</p>
+                        </div>
+
+                        <!-- 現值 -->
+                        <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
+                            <div class="flex justify-between items-center text-sm font-black text-white">
+                                <span>4. 現值 (預估變現金額)</span>
+                                <span class="text-secondary">NT$ ${Math.round(netValue).toLocaleString()}</span>
+                            </div>
+                            <p class="text-text-secondary text-[10px]">定義：市值 - 預估賣出手續費 - 證交稅</p>
+                            <p class="text-text-secondary text-[10px] text-secondary">稅率類別：${taxDesc}</p>
+                            <p class="text-primary font-bold">算式：NT$ ${Math.round(marketValue).toLocaleString()} (市值) - NT$ ${sellFee} (賣出手續費) - NT$ ${sellTax} (證交稅)</p>
+                        </div>
+
+                        <!-- 預估損益 -->
+                        <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
+                            <div class="flex justify-between items-center text-sm font-black text-white">
+                                <span>5. 預估損益</span>
+                                <span class="${estPl >= 0 ? 'text-danger-red' : 'text-success-emerald'}">NT$ ${Math.round(estPl).toLocaleString()}</span>
+                            </div>
+                            <p class="text-text-secondary text-[10px]">定義：現值 - 付出成本</p>
+                            <p class="text-primary font-bold">算式：NT$ ${Math.round(netValue).toLocaleString()} (現值) - NT$ ${Math.round(totalCost).toLocaleString()} (付出成本)</p>
+                        </div>
+
+                        <!-- 報酬率 -->
+                        <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
+                            <div class="flex justify-between items-center text-sm font-black text-white">
+                                <span>6. 報酬率</span>
+                                <span class="${estPl >= 0 ? 'text-danger-red' : 'text-success-emerald'}">${roi.toFixed(2)} %</span>
+                            </div>
+                            <p class="text-text-secondary text-[10px]">定義：(預估損益 ÷ 付出成本) × 100%</p>
+                            <p class="text-primary font-bold">算式：(NT$ ${Math.round(estPl).toLocaleString()} ÷ NT$ ${Math.round(totalCost).toLocaleString()}) × 100%</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            bodyEl.innerHTML = html;
+            modal.classList.remove('hidden');
+        }
+
+        function closeFormulaActionSheet(event) {
+            if (event) event.stopPropagation();
+            document.getElementById('modal-formula-actionsheet').classList.add('hidden');
         }
 
         function exportData() {
