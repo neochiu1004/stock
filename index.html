@@ -6,16 +6,23 @@
     <meta content="yes" name="apple-mobile-web-app-capable"/>
     <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
     <meta content="控盤方舟 V4" name="apple-mobile-web-app-title"/>
-    <title>雙核心自訂控盤與雙恐慌監控系統 V4 (Mobile Optimized)</title>
+    <title>雙核心自訂控盤與雙恐慌監控系統 V4 (極致優化版)</title>
+    
+    <!-- 引入 Tailwind CSS 與 Google 字型 -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;700&amp;family=JetBrains+Mono:wght@500;700&amp;family=Noto+Sans+TC:wght@300;400;500;700;900&amp;display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+    
+    <!-- MathJax 載入以完美渲染 LaTeX 會計公式 -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
     <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
             theme: {
                 extend: {
-                    "colors": {
+                    colors: {
                         "outline-variant": "#3d4a3d",
                         "primary": "#4be277",
                         "secondary-fixed-dim": "#f7be1d",
@@ -72,10 +79,10 @@
                         "on-primary-fixed": "#002109",
                         "inverse-primary": "#006e2f"
                     },
-                    "fontFamily": {
-                        "body-md": ["Hanken Grotesk"],
-                        "display-lg": ["Hanken Grotesk"],
-                        "headline-md": ["Hanken Grotesk"],
+                    fontFamily: {
+                        "body-md": ["Hanken Grotesk", "Noto Sans TC"],
+                        "display-lg": ["Hanken Grotesk", "Noto Sans TC"],
+                        "headline-md": ["Hanken Grotesk", "Noto Sans TC"],
                         "micro-mono": ["JetBrains Mono"],
                         "label-sm": ["JetBrains Mono"],
                         "data-lg": ["JetBrains Mono"]
@@ -86,32 +93,33 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Hanken Grotesk', 'Noto Sans TC', sans-serif; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
-        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        body { 
+            font-family: 'Hanken Grotesk', 'Noto Sans TC', sans-serif; 
+            -webkit-tap-highlight-color: transparent; 
+            overscroll-behavior-y: none; 
+        }
         .safe-pt { padding-top: max(0.75rem, env(safe-area-inset-top)); }
         .safe-pb { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
         .glass { background: rgba(11, 19, 38, 0.9); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); }
-        .card-imbalanced { 
-            border-color: #ef4444 !important; 
-            box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
-            animation: pulse-border 2s infinite;
-        }
-        @keyframes pulse-border {
-            0% { border-color: rgba(239, 68, 68, 0.5); }
-            50% { border-color: rgba(239, 68, 68, 1); }
-            100% { border-color: rgba(239, 68, 68, 0.5); }
-        }
         input[type="number"]::-webkit-inner-spin-button, 
         input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-        .modal-bottom-sheet { transition: transform 0.3s ease-out; }
+        
+        /* 脈衝邊框動畫 */
+        @keyframes pulse-border {
+            0%, 100% { border-color: rgba(239, 68, 68, 0.4); box-shadow: 0 0 10px rgba(239, 68, 68, 0.1); }
+            50% { border-color: rgba(239, 68, 68, 0.9); box-shadow: 0 0 20px rgba(239, 68, 68, 0.35); }
+        }
+        .animate-pulse-border {
+            animation: pulse-border 2s infinite;
+        }
     </style>
 </head>
 <body class="bg-surface-dim text-on-surface min-h-screen antialiased flex flex-col safe-pt safe-pb">
     
-    <!-- 全域置頂固定面板：極致扁平化設計 -->
+    <!-- 全域置頂固定面板 -->
     <div class="sticky top-0 z-40 glass border-b border-surface-container-highest shadow-2xl">
         <div class="max-w-7xl mx-auto flex flex-col">
-            <!-- Header Section -->
+            <!-- Header 區塊 -->
             <header class="px-4 py-2.5 flex justify-between items-center">
                 <div class="flex items-center gap-2">
                     <span class="w-2.5 h-2.5 rounded-full bg-secondary animate-pulse shrink-0" id="api-status-dot"></span>
@@ -122,8 +130,8 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-primary text-[10px] font-mono font-bold hidden sm:inline" id="global-update-time"></span>
-                    <button class="bg-primary text-on-primary px-3 py-1.5 rounded-full text-xs font-black shadow-md active:scale-95 transition-all" onclick="fetchLatestPrices()" type="button">同步報價</button>
-                    <button class="bg-surface-container-highest text-white p-2 rounded-full border border-outline-variant active:scale-95 transition-all flex items-center justify-center" onclick="copyActionPlan()" type="button" title="複製計畫">
+                    <button class="bg-primary text-on-primary px-3 py-1.5 rounded-full text-xs font-black shadow-md active:scale-95 hover:brightness-110 transition-all" onclick="fetchLatestPrices()" type="button">同步報價</button>
+                    <button class="bg-surface-container-highest text-white p-2 rounded-full border border-outline-variant active:scale-95 hover:bg-surface-elevated transition-all flex items-center justify-center" onclick="copyActionPlan()" type="button" title="複製計畫">
                         <span class="material-symbols-outlined text-[16px]">content_copy</span>
                     </button>
                     <!-- ✨ AI 健檢按鈕 -->
@@ -131,14 +139,14 @@
                         <span class="absolute inset-0 bg-secondary/10 group-hover:bg-secondary/20 transition-colors"></span>
                         <span class="text-[14px] font-black group-hover:scale-110 transition-transform">✨</span>
                     </button>
-                    <!-- 齒輪系統設定按鈕 -->
+                    <!-- 系統設定按鈕 -->
                     <button class="bg-surface-container-highest text-primary p-2 rounded-full border border-primary/20 active:scale-95 transition-all flex items-center justify-center animate-pulse" onclick="openSettingsModal()" type="button" title="系統設定">
                         <span class="material-symbols-outlined text-[16px]">settings</span>
                     </button>
                 </div>
             </header>
             
-            <!-- 極致精簡：單一橫排 Ticker 資訊列 -->
+            <!-- 單一橫排 Ticker 資訊列 -->
             <div class="px-4 pb-3 pt-2 border-t border-white/5 bg-surface-container-lowest/40">
                 <div class="grid grid-cols-3 gap-3 text-left">
                     <!-- 第一欄：總資產 -->
@@ -151,7 +159,6 @@
                         <div class="flex justify-between items-center mb-0.5 gap-1">
                             <div class="flex items-center gap-0.5 min-w-0">
                                 <span class="text-[10px] font-bold text-text-secondary uppercase tracking-wider truncate" id="unrealized-pl-header-title">Unrealized P/L</span>
-                                <!-- ✨ 新增：總覽會計對照說明點擊按鍵 -->
                                 <button onclick="openFormulaSheet(null)" class="text-text-secondary hover:text-primary transition-colors flex items-center justify-center p-0.5" title="點擊檢視總體會計計量公式說明">
                                     <span class="material-symbols-outlined text-[13px]">info</span>
                                 </button>
@@ -173,17 +180,17 @@
         </div>
     </div>
 
-    <!-- Scrollable Main Container -->
+    <!-- 主區塊容器 -->
     <main class="max-w-7xl mx-auto px-4 py-4 w-full flex-grow space-y-6">
         <section class="grid grid-cols-1 gap-4">
-            <!-- Enhanced Chart Card -->
+            <!-- 進階圖表控制卡片 -->
             <div class="bg-surface-container-low border border-surface-container-highest rounded-2xl p-5 shadow-xl">
                 <div class="flex p-1.5 bg-surface-container-highest/40 rounded-xl mb-5 border border-white/5">
                     <button class="flex-1 py-2 text-sm font-black rounded-lg transition-all bg-surface-card text-white shadow-md border border-outline-variant" id="tab-pie" onclick="switchViewMode('PIE')">圓餅佔比</button>
                     <button class="flex-1 py-2 text-sm font-black rounded-lg transition-all text-text-secondary hover:text-white" id="tab-gap" onclick="switchViewMode('GAP')">偏離進度</button>
                 </div>
 
-                <!-- PIE View -->
+                <!-- PIE 模式 -->
                 <div id="view-pie" class="space-y-4">
                     <div class="flex justify-center gap-3 mb-2">
                         <button class="px-5 py-2 rounded-full text-sm font-black bg-action-blue text-white shadow border border-action-blue transition-colors" id="btn-pie-curr" onclick="switchPieType('CURRENT')">當前佔比</button>
@@ -195,7 +202,7 @@
                     <div class="grid grid-cols-2 gap-x-4 gap-y-3 mt-4 px-2" id="main-legend-container"></div>
                 </div>
 
-                <!-- GAP View -->
+                <!-- GAP 模式 -->
                 <div id="view-gap" class="hidden space-y-4">
                     <div class="flex justify-between items-end mb-2 px-1 border-b border-surface-container-highest pb-2">
                         <span class="text-xs font-black text-text-secondary uppercase">Asset Allocation Gap</span>
@@ -208,23 +215,23 @@
                 </div>
             </div>
             
-            <!-- Multi-Segment Allocation Slider Section -->
+            <!-- 多資產滑動調配控制面板 -->
             <div id="allocation-slider-container" class="bg-surface-container border border-surface-container-highest rounded-2xl p-3 sm:p-4 shadow-xl select-none">
-                <!-- Rendered dynamically by renderSliderUI() -->
+                <!-- 動態由 renderSliderUI() 渲染 -->
             </div>
         </section>
 
         <!-- 📅 T+2 交割款預告與日曆面板 -->
         <section class="bg-surface-container border border-surface-container-highest rounded-2xl p-5 shadow-xl space-y-4" id="t2-settlement-tracker">
-            <!-- Will be populated dynamically by renderT2SettlementPanel() -->
+            <!-- 動態由 renderT2SettlementPanel() 渲染 -->
         </section>
 
-        <!-- Dynamic Action Plan Section -->
+        <!-- 動態再平衡動作計畫面板 -->
         <section class="bg-surface-container-low border border-surface-container-highest rounded-2xl p-5 shadow-xl min-h-[100px]" id="panel-dynamic-right-zone">
-            <!-- Rendered by calculate() -->
+            <!-- 由 calculate() 渲染 -->
         </section>
 
-        <!-- Controls Section (Asset Buckets) -->
+        <!-- 資產籃控制列表 (Asset Buckets) -->
         <section class="space-y-4">
             <div class="bg-surface-container-high border border-surface-container-highest rounded-2xl p-5 shadow-lg space-y-5">
                 <div class="flex justify-between items-center">
@@ -274,9 +281,9 @@
         </section>
     </main>
 
-    <!-- Unified Settings Modal -->
+    <!-- ⚙️ 系統參數設定 Modal -->
     <div class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center" id="modal-system-settings">
-        <div class="bg-surface-container-high border-t sm:border border-surface-container-highest rounded-t-3xl sm:rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden modal-bottom-sheet">
+        <div class="bg-surface-container-high border-t sm:border border-surface-container-highest rounded-t-3xl sm:rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-transform duration-300">
             <div class="px-6 py-5 border-b border-surface-container-highest flex justify-between items-center bg-surface-container-highest/20">
                 <h3 class="text-base font-black text-text-primary flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary">settings</span> 系統參數設定
@@ -338,8 +345,8 @@
                 <div class="space-y-3 pt-4 border-t border-white/5">
                     <label class="text-xs font-black text-text-secondary uppercase tracking-widest block">系統備份資料管理</label>
                     <div class="grid grid-cols-2 gap-2">
-                        <button class="bg-surface-container-highest text-white py-3 rounded-xl text-sm font-bold border border-outline-variant active:scale-95 transition-all" onclick="exportData()" type="button">💾 導出 JSON 備份</button>
-                        <button class="bg-surface-container-highest text-white py-3 rounded-xl text-sm font-bold border border-outline-variant active:scale-95 transition-all" onclick="document.getElementById('import-file').click()" type="button">📂 導入 JSON 數據</button>
+                        <button class="bg-surface-container-highest text-white py-3 rounded-xl text-sm font-bold border border-outline-variant active:scale-95 hover:bg-surface-elevated transition-all" onclick="exportData()" type="button">💾 導出 JSON 備份</button>
+                        <button class="bg-surface-container-highest text-white py-3 rounded-xl text-sm font-bold border border-outline-variant active:scale-95 hover:bg-surface-elevated transition-all" onclick="document.getElementById('import-file').click()" type="button">📂 導入 JSON 數據</button>
                         <input type="file" id="import-file" style="display:none" onchange="importData(event)"/>
                         <input type="file" id="import-csv-file" style="display:none" onchange="importCsvData(event)"/>
                     </div>
@@ -347,14 +354,14 @@
             </div>
             
             <div class="p-6 border-t border-surface-container-highest bg-surface-container-highest/20 flex gap-2">
-                <button class="w-full bg-primary text-on-primary py-3.5 rounded-xl text-sm font-black shadow-lg active:scale-95 transition-all" onclick="closeSettingsModal()">套用並關閉</button>
+                <button class="w-full bg-primary text-on-primary py-3.5 rounded-xl text-sm font-black shadow-lg active:scale-95 hover:brightness-110 transition-all" onclick="closeSettingsModal()">套用並關閉</button>
             </div>
         </div>
     </div>
 
-    <!-- Asset Detail Modal -->
+    <!-- 📈 資產細節與交易紀錄明細 Modal -->
     <div class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center" id="modal-dynamic-ledger">
-        <div class="bg-surface-container-high border-t sm:border border-surface-container-highest rounded-t-3xl sm:rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden modal-bottom-sheet">
+        <div class="bg-surface-container-high border-t sm:border border-surface-container-highest rounded-t-3xl sm:rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-transform duration-300">
             <div class="px-6 py-5 border-b border-surface-container-highest flex justify-between items-center bg-surface-container-highest/20">
                 <h3 class="text-base font-black text-text-primary" id="ledger-dynamic-title">資產配置明細</h3>
                 <div class="flex items-center gap-3">
@@ -404,11 +411,12 @@
                     </div>
                     
                     <div class="flex gap-3 pt-2">
-                        <button class="flex-1 bg-surface-container-highest text-white py-3 rounded-xl text-sm font-bold border border-outline-variant active:scale-95 transition-all" id="btn-sync-ticker" onclick="syncModalTicker()">🔍 API 同步</button>
-                        <button class="flex-1 bg-primary text-on-primary py-3 rounded-xl text-sm font-black shadow-lg active:scale-95 transition-all" id="modal-save-btn" onclick="saveModalSettingsOnly()">💾 儲存配置</button>
+                        <button class="flex-1 bg-surface-container-highest hover:bg-surface-elevated text-white py-3 rounded-xl text-sm font-bold border border-outline-variant active:scale-95 transition-all" id="btn-sync-ticker" onclick="syncModalTicker()">🔍 API 同步</button>
+                        <button class="flex-1 bg-primary text-on-primary py-3 rounded-xl text-sm font-black shadow-lg active:scale-95 hover:brightness-110 transition-all" id="modal-save-btn" onclick="saveModalSettingsOnly()">💾 儲存配置</button>
                     </div>
                 </div>
 
+                <!-- 交易流水帳登錄區 -->
                 <div class="pt-6 border-t border-white/5 space-y-5">
                     <span class="text-xs font-black text-action-blue uppercase tracking-widest">Transaction Record</span>
                     <div class="bg-surface-container-lowest/50 p-5 rounded-2xl border border-outline-variant space-y-4">
@@ -428,14 +436,14 @@
                         </div>
                         <div class="flex gap-2 mt-2">
                             <button class="hidden flex-1 bg-surface-container-highest text-white py-3.5 rounded-xl text-sm font-black border border-outline-variant active:scale-95 transition-all" id="btn-cancel-edit-tx" onclick="cancelEditTransaction()">取消編輯</button>
-                            <button class="flex-[2] bg-action-blue text-white py-3.5 rounded-xl text-sm font-black shadow-lg active:scale-95 transition-all" id="btn-submit-tx" onclick="addTransactionRecord()">新增流水明細</button>
+                            <button class="flex-[2] bg-action-blue text-white py-3.5 rounded-xl text-sm font-black shadow-lg active:scale-95 hover:brightness-110 transition-all" id="btn-submit-tx" onclick="addTransactionRecord()">新增流水明細</button>
                         </div>
                     </div>
 
                     <div class="space-y-3 pt-2">
                         <div class="flex justify-between items-center px-1">
                             <span class="text-xs font-bold text-text-secondary">歷史紀錄</span>
-                            <button class="text-[11px] text-danger-red font-black uppercase active:scale-95 px-2 py-1 rounded hover:bg-danger-red/10 transition-colors" onclick="clearAllTransactions()">Clear All</button>
+                            <button class="text-[11px] text-danger-red font-black uppercase active:scale-95 px-2 py-1 rounded hover:bg-danger-red/10 transition-colors" onclick="openClearConfirmModal()">Clear All</button>
                         </div>
                         <div class="space-y-2" id="tx-list-dynamic"></div>
                     </div>
@@ -444,7 +452,7 @@
         </div>
     </div>
 
-    <!-- Confirm Modal -->
+    <!-- ⚠️ 客製化確認刪除資產 Modal -->
     <div class="fixed inset-0 z-[60] hidden bg-black/90 backdrop-blur-md flex items-center justify-center p-6" id="modal-confirm-delete">
         <div class="bg-surface-container-high border border-danger-red/30 rounded-3xl p-8 w-full max-w-sm text-center space-y-6">
             <span class="material-symbols-outlined text-danger-red text-6xl">warning</span>
@@ -459,18 +467,33 @@
         </div>
     </div>
 
-    <!-- Unified Action Sheet -->
+    <!-- ⚠️ 客製化確認清空流水帳 Modal -->
+    <div class="fixed inset-0 z-[60] hidden bg-black/90 backdrop-blur-md flex items-center justify-center p-6" id="modal-confirm-clear">
+        <div class="bg-surface-container-high border border-danger-red/30 rounded-3xl p-8 w-full max-w-sm text-center space-y-6">
+            <span class="material-symbols-outlined text-danger-red text-6xl">delete_sweep</span>
+            <h3 class="text-xl font-black text-white">確認清空交易歷史？</h3>
+            <p class="text-sm text-text-secondary leading-relaxed">
+                這將會永久刪除此資產的所有交易明細。此操作無法撤銷。
+            </p>
+            <div class="flex gap-3 mt-4">
+                <button class="flex-1 bg-surface-container-highest text-white py-3.5 rounded-xl text-sm font-bold active:scale-95 transition-all" onclick="closeClearConfirmModal()">取消</button>
+                <button class="flex-1 bg-danger-red text-white py-3.5 rounded-xl text-sm font-black shadow-lg active:scale-95 transition-all" id="btn-confirm-clear-execute">確認清空</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📱 交易明細長按 Action Sheet -->
     <div class="fixed inset-0 z-[70] hidden bg-black/80 backdrop-blur-sm flex items-end justify-center" id="modal-tx-actionsheet" onclick="closeTxActionSheet(event)">
-        <div class="bg-surface-container-high border-t border-surface-container-highest rounded-t-3xl w-full max-w-md shadow-2xl overflow-hidden modal-bottom-sheet" onclick="event.stopPropagation()">
+        <div class="bg-surface-container-high border-t border-surface-container-highest rounded-t-3xl w-full max-w-md shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
             <div class="px-6 py-4 border-b border-surface-container-highest bg-surface-container-highest/20 flex flex-col gap-1">
                 <span class="text-[10px] font-black text-primary uppercase tracking-widest">交易紀錄操作</span>
                 <p class="text-sm font-mono font-bold text-white" id="tx-actionsheet-desc">載入中...</p>
             </div>
             <div class="p-5 space-y-3">
-                <button onclick="triggerTxAction('EDIT')" class="w-full bg-action-blue hover:bg-action-blue/90 text-white py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg">
+                <button onclick="triggerTxAction('EDIT')" class="w-full bg-action-blue hover:brightness-110 text-white py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg">
                     <span class="material-symbols-outlined text-lg">edit</span> 編輯此筆明細
                 </button>
-                <button onclick="triggerTxAction('DELETE')" class="w-full bg-danger-red hover:bg-danger-red/90 text-white py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg">
+                <button onclick="triggerTxAction('DELETE')" class="w-full bg-danger-red hover:brightness-110 text-white py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg">
                     <span class="material-symbols-outlined text-lg">delete</span> 刪除此筆明細
                 </button>
                 <button onclick="closeTxActionSheet(event)" class="w-full bg-surface-container-highest hover:bg-surface-elevated text-white py-3 rounded-2xl text-xs font-bold active:scale-95 transition-all">
@@ -494,24 +517,24 @@
             </div>
             <div class="p-6 overflow-y-auto max-h-[70vh]">
                 <div id="ai-report-content" class="text-sm leading-relaxed text-on-surface space-y-4">
-                    <!-- AI Content will be injected here -->
+                    <!-- AI 點評內容動態注入 -->
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ✨ T+2 結算選項 Action Sheet -->
+    <!-- 🗓️ T+2 結算選項 Action Sheet -->
     <div class="fixed inset-0 z-[75] hidden bg-black/80 backdrop-blur-sm flex items-end justify-center" id="modal-t2-actionsheet" onclick="closeT2ActionSheet(event)">
-        <div class="bg-surface-container-high border-t border-surface-container-highest rounded-t-3xl w-full max-w-md shadow-2xl overflow-hidden modal-bottom-sheet" onclick="event.stopPropagation()">
+        <div class="bg-surface-container-high border-t border-surface-container-highest rounded-t-3xl w-full max-w-md shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
             <div class="px-6 py-4 border-b border-surface-container-highest bg-surface-container-highest/20 flex flex-col gap-1">
                 <span class="text-[10px] font-black text-primary uppercase tracking-widest">交割款結算選項</span>
                 <p class="text-sm font-mono font-bold text-white">發現今日有交割款：<span id="t2-actionsheet-today-amt" class="text-secondary ml-1"></span></p>
             </div>
             <div class="p-5 space-y-3">
-                <button onclick="executeT2Deduction(true)" class="w-full bg-danger-red hover:bg-danger-red/90 text-white py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg">
+                <button onclick="executeT2Deduction(true)" class="w-full bg-danger-red hover:brightness-110 text-white py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg">
                     <span class="material-symbols-outlined text-lg">done_all</span> 扣除今日 + 未來交割 (並標記已結算)
                 </button>
-                <button onclick="executeT2Deduction(false)" class="w-full bg-action-blue hover:bg-action-blue/90 text-white py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg">
+                <button onclick="executeT2Deduction(false)" class="w-full bg-action-blue hover:brightness-110 text-white py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg">
                     <span class="material-symbols-outlined text-lg">next_plan</span> 僅扣除未來交割 (排除今日，並標記已結算)
                 </button>
                 <button onclick="closeT2ActionSheet(event)" class="w-full bg-surface-container-highest hover:bg-surface-elevated text-white py-3 rounded-2xl text-xs font-bold active:scale-95 transition-all">
@@ -521,9 +544,9 @@
         </div>
     </div>
 
-    <!-- ✨ 新增：會計公式與實數對照 Action Sheet -->
+    <!-- 📊 會計精密公式對照 Action Sheet (支援 LaTeX 美化) -->
     <div class="fixed inset-0 z-[90] hidden bg-black/80 backdrop-blur-sm flex items-end justify-center" id="modal-formula-actionsheet" onclick="closeFormulaActionSheet(event)">
-        <div class="bg-surface-container-high border-t border-surface-container-highest rounded-t-3xl w-full max-w-lg shadow-2xl overflow-hidden modal-bottom-sheet" onclick="event.stopPropagation()">
+        <div class="bg-surface-container-high border-t border-surface-container-highest rounded-t-3xl w-full max-w-lg shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
             <div class="px-6 py-4 border-b border-surface-container-highest bg-surface-container-highest/20 flex justify-between items-center">
                 <div>
                     <span class="text-[10px] font-black text-secondary uppercase tracking-widest">精密會計對照說明</span>
@@ -534,7 +557,7 @@
                 </button>
             </div>
             <div class="p-6 space-y-4 max-h-[65vh] overflow-y-auto" id="formula-sheet-body">
-                <!-- 帶入計算數據 -->
+                <!-- 數據精算與 LaTeX 公式對照 -->
             </div>
             <div class="p-5 border-t border-surface-container-highest bg-surface-container-highest/10">
                 <button onclick="closeFormulaActionSheet(event)" class="w-full bg-surface-container-highest hover:bg-surface-elevated text-white py-3 rounded-2xl text-xs font-bold active:scale-95 transition-all">
@@ -544,13 +567,18 @@
         </div>
     </div>
 
-    <!-- Toast Container -->
+    <!-- 全域通知 Container -->
     <div id="ui-toast-container"></div>
 
+    <!-- ========================================== -->
+    <!--          JAVA SCRIPT 核心控制與互動邏輯      -->
+    <!-- ========================================== -->
     <script>
         const CHART_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e', '#64748b', '#06b6d4', '#f472b6'];
         
+        // 5% 圓整輔助函數
         const round5 = (v) => Math.round(v / 5) * 5;
+
         function updateCardTargetWeightDOM(item, weight) {
             if (item.type !== 'cash') {
                 let el = document.getElementById(`card-tgt-weight-${item.id}`);
@@ -558,6 +586,7 @@
             }
         }
 
+        // 系統主要 State
         let state = {
             fugleApiKey: "", 
             geminiApiKey: "",
@@ -572,7 +601,7 @@
             unit: 1,
             plMode: "GROSS", 
             ignoredRebalanceIds: [],
-            settledT2Dates: [], // ✨ 新增：已手動或自動勾選結算排除之日期記憶槽
+            settledT2Dates: [], 
             assets: [
                 { id: "a1", name: "元大台灣50", ticker: "0050", beta: 1.0, active: true, targetWeight: 40, savedTargetWeight: 40, marketPrice: 195.50, openPrice: 193.00, highPrice: 197.00, lowPrice: 192.50, referencePrice: 191.00, analysisLabel: "偏向買進", analysisReason: "量大收紅，三日均價大於六日均價", lastUpdated: "13:30:00", updateStatus: "success", txs: [{ id: 101, date: '2026-06-23', price: 185.00, shares: 1000, fee: 20, tax: 0, type: 'BUY', linked: false }] },
                 { id: "a2", name: "元大台灣50正2", ticker: "00631L", beta: 2.0, active: true, targetWeight: 40, savedTargetWeight: 40, marketPrice: 225.0, openPrice: 220.00, highPrice: 227.00, lowPrice: 219.00, referencePrice: 218.00, analysisLabel: "偏向買進", analysisReason: "量縮價不跌，三日均價由下往上", lastUpdated: "--", updateStatus: "cache", txs: [{ id: 102, date: '2026-06-24', price: 215.00, shares: 500, fee: 20, tax: 0, type: 'BUY', linked: false }] },
@@ -587,17 +616,17 @@
         let assetIdPendingDelete = null;
         let editingTxId = null; 
 
-        // Slider State
+        // 滑動條控制 State
         let isDragging = false;
         let dragIndex = -1;
         let dragStartX = 0;
         let trackRect = null;
         let dragItems = [];
 
-        // ActionSheet State
+        // ActionSheet 控制 State
         let activeTxIdForActionSheet = null;
 
-        // T+2 Deduction State
+        // T+2 預估 State
         let t2DeductionState = { today: 0, future: 0 };
 
         window.onload = function() {
@@ -618,7 +647,7 @@
             normalizeWeights(); 
         };
 
-        // UI & Core Utils
+        // UI 訊息提示元件 (取代原生 Alert)
         function showToast(message, type = 'info') {
             const container = document.getElementById('ui-toast-container');
             const toast = document.createElement('div');
@@ -658,8 +687,14 @@
             document.body.removeChild(textArea);
         }
 
-        function openSettingsModal() { document.getElementById('modal-system-settings').classList.remove('hidden'); }
-        function closeSettingsModal() { document.getElementById('modal-system-settings').classList.add('hidden'); }
+        // Modal 切換
+        function openSettingsModal() { 
+            const el = document.getElementById('modal-system-settings');
+            el.classList.remove('hidden');
+        }
+        function closeSettingsModal() { 
+            document.getElementById('modal-system-settings').classList.add('hidden'); 
+        }
 
         function togglePlMode() {
             state.plMode = state.plMode === 'NET' ? 'GROSS' : 'NET';
@@ -671,7 +706,7 @@
             if (titleEl) titleEl.innerText = state.plMode === 'NET' ? "未實現損益 (淨額)" : "未實現損益 (帳面)";
 
             renderAssetCards(); calculate();
-            showToast(`已切換損益標準為：${state.plMode === 'NET' ? '【淨損益】(已扣賣出稅費)' : '【帳面損益】'}`, "success");
+            showToast(`已切換損益標準為：${state.plMode === 'NET' ? '【淨損益】(已扣估算交易稅費)' : '【帳面損益】'}`, "success");
         }
 
         async function pasteApiKey(targetId = 'api-key-input') {
@@ -726,7 +761,7 @@
                 state.unit = parsed.unit || 1;
                 state.plMode = parsed.plMode || 'GROSS'; 
                 state.ignoredRebalanceIds = parsed.ignoredRebalanceIds || [];
-                state.settledT2Dates = parsed.settledT2Dates || []; // 恢復排除紀錄
+                state.settledT2Dates = parsed.settledT2Dates || []; 
 
                 if (parsed.fugleApiKey) state.fugleApiKey = parsed.fugleApiKey;
                 if (parsed.geminiApiKey) state.geminiApiKey = parsed.geminiApiKey;
@@ -829,7 +864,7 @@
             normalizeWeights();
         }
 
-        // T+2 結算試算 (排除已結算之日期)
+        // T+2 結算試算
         function applyT2SettlementsToCash() {
             let todayStr = new Date().toISOString().slice(0, 10);
             t2DeductionState.today = 0;
@@ -840,7 +875,6 @@
                     asset.txs.forEach(t => {
                         let sDate = getTPlus2Date(t.date);
                         if (sDate >= todayStr) {
-                            // ✨ 核心規則：如果此交割日已經打勾結算，直接略過，不重複計算
                             if (state.settledT2Dates && state.settledT2Dates.includes(sDate)) {
                                 return;
                             }
@@ -878,7 +912,6 @@
             document.getElementById('modal-t2-actionsheet').classList.add('hidden');
         }
 
-        // 執行預扣扣除，並將相應的日期自動打勾歸檔
         function executeT2Deduction(includeToday) {
             let currentInputCash = parseFloat(document.getElementById('shares-cash').value) || 0;
             let totalToApply = t2DeductionState.future;
@@ -888,10 +921,8 @@
                 totalToApply += t2DeductionState.today;
             }
 
-            // 初始化排除陣列
             if (!state.settledT2Dates) state.settledT2Dates = [];
 
-            // ✨ 當計算後，將計算進去的未來/今日交割日自動打勾記錄
             state.assets.forEach(asset => {
                 if (asset.txs) {
                     asset.txs.forEach(t => {
@@ -915,7 +946,7 @@
 
             let finalCash = currentInputCash + totalToApply;
             if (finalCash < 0) {
-                showToast("⚠️ 注意：預扣後餘額為負數", "error");
+                showToast("⚠️ 注意：預扣後帳戶餘額為負數", "error");
             }
             
             document.getElementById('shares-cash').value = finalCash;
@@ -926,12 +957,11 @@
 
             let actionText = totalToApply > 0 ? "預先加總" : "預先扣除";
             let sign = totalToApply > 0 ? "+" : "";
-            showToast(`已${actionText}交割款：${sign}${Math.round(totalToApply).toLocaleString()} 元，並已將該日期存檔標記！`, "success");
+            showToast(`已${actionText}交割款：${sign}${Math.round(totalToApply).toLocaleString()} 元，並標記存檔！`, "success");
             
             closeT2ActionSheet();
         }
 
-        // ✨ 手動切換已結算日期勾選狀態，方便以後重新計算
         function toggleT2DateSettled(sDate) {
             if (!state.settledT2Dates) state.settledT2Dates = [];
             const idx = state.settledT2Dates.indexOf(sDate);
@@ -946,6 +976,7 @@
             calculate();
         }
 
+        // 調配滑動調配區介面 (極致觸控優化)
         function renderSliderUI() {
             const container = document.getElementById('allocation-slider-container');
             if (!container) return;
@@ -981,10 +1012,10 @@
                 let acc = 0;
                 for (let i = 0; i < items.length - 1; i++) {
                     acc += items[i].weight;
-                    html += `<div id="handle-${i}" class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 cursor-grab pointer-events-auto flex items-center justify-center z-10 hover:scale-110 active:scale-95 touch-none"
+                    html += `<div id="handle-${i}" class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-10 h-10 cursor-grab pointer-events-auto flex items-center justify-center z-10 hover:scale-110 active:scale-95 touch-none"
                                   style="left: ${acc}%;"
                                   onpointerdown="startDrag(event, ${i})">
-                                  <div class="w-4 h-4 bg-white rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.8)] border-2 flex items-center justify-center pointer-events-none" style="border-color: ${items[i].color};">
+                                  <div class="w-5 h-5 bg-white rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.8)] border-2 flex items-center justify-center pointer-events-none animate-pulse-border" style="border-color: ${items[i].color};">
                                     <span class="material-symbols-outlined text-[10px] text-surface-container-lowest font-black" style="transform: scaleX(0.8);">code</span>
                                   </div>
                              </div>`;
@@ -1115,6 +1146,7 @@
             return { shares: totalShares, wac, totalCost: totalCombinedCost };
         }
 
+        // 渲染主要資產卡片區 (極致 Tailwind 精化)
         function renderAssetCards() {
             const container = document.getElementById('dynamic-assets-container');
             let totalVal = state.cash + state.assets.reduce((sum, a) => sum + (aggregateAssetLedger(a.id).shares * a.marketPrice), 0);
@@ -1165,7 +1197,7 @@
                 if (!isActive) {
                     cardBorderClass = "border-dashed border-outline-variant/50 opacity-90";
                 } else if (isImbalanced) {
-                    cardBorderClass = "border-danger-red/50 shadow-[0_0_20px_rgba(239,68,68,0.2)] card-imbalanced";
+                    cardBorderClass = "border-danger-red/50 shadow-[0_0_20px_rgba(239,68,68,0.2)] animate-pulse-border";
                 } else {
                     cardBorderClass = "border-surface-container-highest shadow-2xl";
                 }
@@ -1282,7 +1314,7 @@
             return `${d.getMonth() + 1}/${d.getDate()} (${weekDays[d.getDay()]})`;
         }
 
-        // ✨ 僅顯示今天（含）以後的交割日，並提供手動 checkbox 排除
+        // 渲染 T+2 交割預告區
         function renderT2SettlementPanel() {
             const container = document.getElementById('t2-settlement-tracker');
             if (!container) return;
@@ -1294,7 +1326,6 @@
                 if (asset.txs) {
                     asset.txs.forEach(t => {
                         let sDate = getTPlus2Date(t.date);
-                        // 🟢 僅統計今天（含）之後的交割日
                         if (sDate >= todayStr) {
                             let netAmount = t.type === 'BUY' 
                                 ? -( (t.price * t.shares) + t.fee ) 
@@ -1317,7 +1348,6 @@
                 }
             });
 
-            // 僅排序過濾未來/今日之項目
             let sortedDates = Object.keys(settlements)
                                     .filter(sDate => sDate >= todayStr)
                                     .sort((a, b) => new Date(a) - new Date(b));
@@ -1353,8 +1383,6 @@
             sortedDates.forEach(sDate => {
                 let data = settlements[sDate];
                 let isToday = sDate === todayStr;
-                
-                // ✨ 檢查此交割日是否已手動或自動勾選「結算排除」
                 let isSettled = state.settledT2Dates && state.settledT2Dates.includes(sDate);
 
                 let tomorrow = new Date();
@@ -1396,14 +1424,12 @@
                     ? "border-primary/40 bg-primary/5 shadow-[0_0_15px_rgba(75,226,119,0.1)]" 
                     : "border-white/5 bg-surface-container-highest/10";
                 
-                // 若已排除，則降低亮度
                 if (isSettled) {
                     borderClass = "border-outline-variant/10 bg-surface-container-lowest/30 opacity-60";
                 }
 
                 let todayIndicator = isToday ? `<span class="text-[9px] bg-primary text-on-primary font-black px-1.5 py-0.5 rounded">今日交割</span>` : "";
 
-                // ✨ 提供 Checkbox 交互：打勾與隨時手動取消勾選
                 let checkboxHtml = `
                     <label class="inline-flex items-center gap-1.5 cursor-pointer select-none">
                         <input type="checkbox" class="w-4 h-4 rounded text-primary focus:ring-primary bg-surface-container-lowest border-outline-variant" 
@@ -1454,6 +1480,7 @@
             container.innerHTML = html;
         }
 
+        // 全域平衡計算與決策系統
         function calculate() {
             let cashWeight = state.cashActive !== false ? state.cashWeight : 0;
             let totalAssetWeight = state.assets.reduce((sum, a) => sum + (a.active !== false ? parseFloat(a.targetWeight) : 0), 0);
@@ -1580,7 +1607,7 @@
                     let actionText = isSell ? '掛單賣出' : (isInject ? '預定匯入' : '掛單買進');
                     
                     innerStepsHtml += `
-                        <div class="flex items-center justify-between p-4 bg-surface-container-highest/20 rounded-xl border border-white/5 shadow-sm">
+                        <div class="flex items-center justify-between p-4 bg-surface-container-highest/20 rounded-xl border border-white/5 shadow-sm hover:border-white/10 transition-all">
                             <div class="flex items-center gap-4 min-w-0">
                                 <span class="w-8 h-8 flex items-center justify-center rounded-full text-xs font-black shrink-0 ${badgeColor}">${idx+1}</span>
                                 <div class="min-w-0">
@@ -1628,7 +1655,6 @@
             calculate(); 
         }
 
-        // ✨ 增強版圖表繪製：在 Legend 與 Progress Bar 完美帶入 NT$ 金額實數
         function updateDynamicCharts(currentVals, totalCurrent, tgtCashPct, totalTarget, isValid, expectedAssetValues, expectedCash) {
             let labels = [], currData = [], tgtData = [], pointColors = [];
             let legendHtml = '', gapHtml = '';
@@ -1658,10 +1684,9 @@
 
                 let displayPct = pieViewType === 'CURRENT' ? c_pct.toFixed(1) : t_pct.toFixed(1);
                 
-                // ✨ 圓餅 Legend 優化：增加顯示金額實數
                 let displayVal = pieViewType === 'CURRENT' ? c_val : (totalTarget * t_pct / 100);
                 legendHtml += `
-                    <div class="flex flex-col gap-1 bg-surface-container-highest/30 px-3 py-2 rounded-lg border border-white/5">
+                    <div class="flex flex-col gap-1 bg-surface-container-highest/30 px-3 py-2 rounded-lg border border-white/5 hover:border-white/10 transition-colors">
                         <div class="flex items-center gap-2 min-w-0">
                             <span class="w-2.5 h-2.5 rounded-full shrink-0 ${a.active === false ? 'opacity-50' : ''}" style="background-color: ${color}"></span>
                             <span class="text-xs font-bold text-text-secondary truncate uppercase ${a.active === false ? 'line-through' : ''}">${a.name}</span>
@@ -1672,7 +1697,6 @@
                         </div>
                     </div>`;
 
-                // ✨ GAP 進度條優化：完整顯示金額與比重對照
                 if (a.active !== false) {
                     let isImbalanced = Math.abs(c_pct - t_pct_raw) > state.imbalanceThreshold;
                     let targetVal = totalTarget * (t_pct_raw / 100);
@@ -1688,8 +1712,8 @@
                                 </div>
                             </div>
                             <div class="w-full h-3.5 bg-surface-container-highest rounded-full relative overflow-hidden border border-outline-variant/30">
-                                <div class="absolute top-0 left-0 h-full rounded-full transition-all duration-500 ${isImbalanced ? 'bg-danger-red/80' : 'bg-action-blue/80'}" style="width: ${c_pct}%"></div>
-                                <div class="absolute top-0 h-full w-1.5 bg-white z-10 shadow-[0_0_5px_rgba(0,0,0,0.8)]" style="left: calc(${t_pct_raw}% - 0.75px)"></div>
+                                <div class="absolute top-0 left-0 h-full rounded-full transition-all duration-500 ${isImbalanced ? 'bg-danger-red/80 animate-pulse' : 'bg-action-blue/80'}" style="width: ${c_pct}%"></div>
+                                <div class="absolute top-0 h-full w-1.5 bg-white z-10 shadow-[0_0_2px_black]" style="left: calc(${t_pct_raw}% - 0.75px)"></div>
                             </div>
                         </div>`;
                 }
@@ -1710,10 +1734,9 @@
                 pointColors.push(cashColor);
                 let displayCashPct = pieViewType === 'CURRENT' ? c_cash_pct.toFixed(1) : t_cash_pct.toFixed(1);
 
-                // 現金圖例
                 let displayCashVal = pieViewType === 'CURRENT' ? state.cash : (totalTarget * t_cash_pct / 100);
                 legendHtml += `
-                    <div class="flex flex-col gap-1 bg-surface-container-highest/30 px-3 py-2 rounded-lg border border-white/5">
+                    <div class="flex flex-col gap-1 bg-surface-container-highest/30 px-3 py-2 rounded-lg border border-white/5 hover:border-white/10 transition-colors">
                         <div class="flex items-center gap-2 min-w-0">
                             <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${cashColor}"></span>
                             <span class="text-xs font-bold text-text-secondary truncate uppercase">Cash</span>
@@ -1724,7 +1747,6 @@
                         </div>
                     </div>`;
                 
-                // 現金 GAP
                 if (state.cashActive !== false) {
                     let isCashImbalanced = Math.abs(c_cash_pct - tgtCashPct) > state.imbalanceThreshold;
                     let targetCashVal = totalTarget * (tgtCashPct / 100);
@@ -1741,7 +1763,7 @@
                             </div>
                             <div class="w-full h-3.5 bg-surface-container-lowest rounded-full relative overflow-hidden border border-outline-variant/30">
                                 <div class="absolute top-0 left-0 h-full rounded-full transition-all duration-500 ${isCashImbalanced ? 'bg-danger-red/60' : 'bg-surface-elevated'}" style="width: ${c_cash_pct}%"></div>
-                                <div class="absolute top-0 h-full w-1.5 bg-text-secondary z-10 shadow-[0_0_5px_rgba(0,0,0,0.8)]" style="left: calc(${tgtCashPct}% - 0.75px)"></div>
+                                <div class="absolute top-0 h-full w-1.5 bg-text-secondary z-10 shadow-[0_0_2px_black]" style="left: calc(${tgtCashPct}% - 0.75px)"></div>
                             </div>
                         </div>`;
                 }
@@ -1773,7 +1795,6 @@
                                 bodyFont: { size: 14, family: "'JetBrains Mono', monospace", weight: 'bold' },
                                 padding: 12, 
                                 callbacks: { 
-                                    // ✨ Tooltip 滑鼠懸停同時顯示金額與比例
                                     label: function(context) { 
                                         let pct = context.raw;
                                         let label = context.label || '';
@@ -1914,6 +1935,30 @@
             assetIdPendingDelete = null;
         }
 
+        // 客製化清空流水帳 Modal 開關
+        function openClearConfirmModal() {
+            document.getElementById('modal-confirm-clear').classList.remove('hidden');
+            document.getElementById('btn-confirm-clear-execute').onclick = () => {
+                executeClearAllTransactions();
+                closeClearConfirmModal();
+            };
+        }
+        function closeClearConfirmModal() {
+            document.getElementById('modal-confirm-clear').classList.add('hidden');
+        }
+
+        function executeClearAllTransactions() {
+            let asset = state.assets.find(a => a.id === currentActiveAssetId);
+            if (asset) {
+                if(editingTxId) cancelEditTransaction();
+                asset.txs = []; 
+                let l = aggregateAssetLedger(currentActiveAssetId);
+                document.getElementById('modal-wac-display').innerText = `平均持股成本: NT$ ${l.wac.toFixed(2)}`;
+                normalizeWeights(); renderLedgerTable();
+                showToast(`已清空 【${asset.name}】 的歷史明細`, "success");
+            }
+        }
+
         function addAsset() {
             let newId = "a_" + Date.now();
             state.assets.push({ id: newId, name: "新資產", ticker: "", beta: 1.0, active: true, targetWeight: 0, savedTargetWeight: 0, marketPrice: 100.0, txs: [] });
@@ -1968,6 +2013,7 @@
             }
         }
 
+        // 呼叫 AI 進行分析 (整合系統預設金鑰機制與指數型退避策略)
         async function generateAIReport() {
             const modal = document.getElementById('modal-ai-report');
             const contentBox = document.getElementById('ai-report-content');
@@ -1982,25 +2028,28 @@
 - 未實現損益：${totalPl}
 - 目標資產配置：現金(${state.cashWeight}%)、${assetsText}。
 
-請給出一段繁體中文的精簡點評（包含配置風險提示與優化建議），字數控制在100字左右。
-【強制指令】請務必在回覆結尾，嚴格輸出一組 JSON 格式的建議權重，包含 "cash" 與上述各資產的 id，加總必須為 100。
+請給出一段繁體中文的精簡點評（包含配置風險提示與優化建議），字數控制在120字以內。
+【強制指令】請務必在回覆結尾，嚴格輸出一組 JSON 格式的建議權重，包含 "cash" 與上述各資產的 id，各項目權重加總必須嚴格等於 100。
 範例：
 \`\`\`json
 {"cash": 10, "a1": 40, "a2": 50}
 \`\`\``;
 
-            if (!state.geminiApiKey) {
+            // 如果沒有系統與環境金鑰，則切換到手動複製與貼上解析模式
+            const effectiveApiKey = state.geminiApiKey || "";
+
+            if (!effectiveApiKey) {
                 contentBox.innerHTML = `
                     <div class="space-y-4">
-                        <div class="p-4 bg-secondary/10 border border-secondary/30 rounded-xl text-secondary text-sm font-bold leading-relaxed shadow-inner">
-                            ⚠️ 尚未設定 Gemini API Key。<br>請手動複製以下提示詞，至網頁版 AI (如 ChatGPT 或 Gemini) 詢問，並將完整回覆貼於下方。
+                        <div class="p-4 bg-secondary/10 border border-secondary/30 rounded-xl text-secondary text-xs font-bold leading-relaxed shadow-inner">
+                            ⚠️ 尚未設定 Gemini API Key。<br>請手動複製以下提示詞，至外部 AI (如 ChatGPT 或 Gemini) 詢問，並將其回覆貼於下方。
                         </div>
                         <div class="relative">
                             <textarea id="ai-prompt-copy" class="w-full h-32 p-3 bg-surface-container-highest/50 border border-outline-variant rounded-xl text-[11px] font-mono text-text-secondary focus:outline-none resize-none" readonly>${prompt}</textarea>
                             <button onclick="fallbackCopyTextToClipboard(document.getElementById('ai-prompt-copy').value);" class="absolute top-2 right-2 bg-surface-container-highest hover:bg-surface-elevated text-white p-2 rounded-lg transition-all active:scale-95 shadow-md"><span class="material-symbols-outlined text-[16px]">content_copy</span></button>
                         </div>
                         <textarea id="ai-response-paste" class="w-full h-32 p-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-xs font-mono text-white focus:border-primary focus:outline-none resize-none" placeholder="在此貼上 AI 的完整回覆 (包含 JSON 代碼區塊)..."></textarea>
-                        <button onclick="applyAIWeights(document.getElementById('ai-response-paste').value)" class="w-full bg-primary text-on-primary py-3.5 rounded-xl text-sm font-black shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2">
+                        <button onclick="applyAIWeights(document.getElementById('ai-response-paste').value)" class="w-full bg-primary text-on-primary py-3.5 rounded-xl text-sm font-black shadow-lg active:scale-95 hover:brightness-110 transition-all flex items-center justify-center gap-2">
                             <span class="material-symbols-outlined text-lg">auto_fix_high</span> 解析並一鍵套用配置
                         </button>
                     </div>
@@ -2016,7 +2065,8 @@
             `;
 
             try {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${state.geminiApiKey}`;
+                // 指數退避重試演算法
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${effectiveApiKey}`;
                 let delays = [1000, 2000, 4000, 8000, 16000];
                 let result = null;
                 
@@ -2037,12 +2087,12 @@
                 }
 
                 const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "分析生成失敗，請稍後重試。";
-                const formattedText = text.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<span class="text-secondary font-black">$1</span>');
+                const formattedText = text.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\"/g, '<span class="text-secondary font-black">$1</span>');
                 const rawDataEncoded = encodeURIComponent(text);
                 
                 contentBox.innerHTML = `
-                    <div class="bg-surface-container-highest/30 p-5 rounded-2xl border border-white/5 shadow-inner mb-4">${formattedText}</div>
-                    <button onclick="applyAIWeights(decodeURIComponent('${rawDataEncoded}'))" class="w-full bg-primary text-on-primary py-3.5 rounded-xl text-sm font-black shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2">
+                    <div class="bg-surface-container-highest/30 p-5 rounded-2xl border border-white/5 shadow-inner mb-4 text-xs sm:text-sm leading-relaxed">${formattedText}</div>
+                    <button onclick="applyAIWeights(decodeURIComponent('${rawDataEncoded}'))" class="w-full bg-primary text-on-primary py-3.5 rounded-xl text-sm font-black shadow-lg active:scale-95 hover:brightness-110 transition-all flex items-center justify-center gap-2">
                         <span class="material-symbols-outlined text-lg">auto_fix_high</span> 一鍵套用 AI 建議配置
                     </button>
                 `;
@@ -2109,7 +2159,7 @@
             let shares = parseInt(document.getElementById('input-shares-dynamic').value) || 0;
             let linked = document.getElementById('input-linked-dynamic').checked;
 
-            if (!date || price <= 0 || shares <= 0) return showToast("請填完整", "error");
+            if (!date || price <= 0 || shares <= 0) return showToast("請確認輸入欄位完整且數值大於 0", "error");
             
             let fee = calculateTaiwanStockFee(price, shares, state.discount);
             let tax = calculateTaiwanStockTax(asset.ticker, price, shares, type);
@@ -2208,17 +2258,7 @@
             normalizeWeights(); renderLedgerTable(); showToast("明細已移除", "info");
         }
 
-        function clearAllTransactions() {
-            let asset = state.assets.find(a => a.id === currentActiveAssetId);
-            if(confirm(`確定清除【${asset.name}】所有流水帳？`)) {
-                if(editingTxId) cancelEditTransaction();
-                asset.txs = []; 
-                let l = aggregateAssetLedger(currentActiveAssetId);
-                document.getElementById('modal-wac-display').innerText = `平均持股成本: NT$ ${l.wac.toFixed(2)}`;
-                normalizeWeights(); renderLedgerTable();
-            }
-        }
-
+        // CSV 匯入處理函數
         function parseCsvLine(line) {
             const result = [];
             let current = '';
@@ -2275,7 +2315,7 @@
             const colDateIdx = headerRow.indexOf("成交日期");
 
             if (colNameIdx === -1 || colSharesIdx === -1 || colPriceIdx === -1) {
-                showToast("找不到預期的關鍵欄位（股票名稱, 股數, 成交價 / 成交均價）", "error");
+                showToast("找不到對應欄位（股票名稱, 股數, 成交價 / 成交均價）", "error");
                 return;
             }
 
@@ -2334,7 +2374,7 @@
             }
 
             normalizeWeights();
-            showToast("未實現明細/彙總 CSV 匯入完成！未設定代號之股票已為您標註。", "success");
+            showToast("券商 CSV 明細匯入完成！", "success");
             document.getElementById('import-csv-file').value = ''; 
         }
 
@@ -2399,7 +2439,7 @@
                     document.getElementById('input-price-dynamic').value = price;
                 }
                 
-                showToast("已同步最新報價與決策", "success");
+                showToast("已同步最新報價與市場決策", "success");
                 updateTxPreview(); 
             } catch (e) {
                 showToast("同步失敗", "error");
@@ -2446,11 +2486,9 @@
             if (!state.fugleApiKey) return showToast("尚未設定 Fugle API Key", "error");
 
             const dot = document.getElementById('api-status-dot');
-            const txt = document.getElementById('api-status-text');
             const timeLabel = document.getElementById('global-update-time');
             
             if(dot) dot.className = "w-3 h-3 rounded-full bg-secondary animate-pulse";
-            if(txt) txt.innerText = "API 連線中...";
             
             const now = new Date();
             const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0') + ':' + now.getSeconds().toString().padStart(2, '0');
@@ -2487,12 +2525,11 @@
             if (dot) {
                 if (updatedItems.length > 0) {
                     dot.className = "w-3 h-3 rounded-full bg-primary";
-                    if (txt) txt.innerText = updatedItems.length >= validRequests.length ? "同步成功" : `已更新 ${updatedItems.length}`;
                 } else {
                     dot.className = "w-3 h-3 rounded-full bg-danger-red";
-                    if (txt) txt.innerText = "連線失敗";
                 }
             }
+            showToast("市場即時報價同步成功！", "success");
         }
 
         function copyActionPlan() {
@@ -2530,6 +2567,7 @@
             fallbackCopyTextToClipboard(text);
         }
 
+        // 📊 點擊 Info 彈出精密會計計量公式說明 (LaTeX 優美渲染版)
         function openFormulaSheet(assetId) {
             const modal = document.getElementById('modal-formula-actionsheet');
             const titleEl = document.getElementById('formula-sheet-title');
@@ -2538,8 +2576,8 @@
 
             let html = "";
             if (assetId === null || assetId === undefined) {
-                // 1. 全球總覽會計模型
-                titleEl.innerText = "【全組合總體會計精密核算對照】";
+                // 1. 全球總體會計計量對照模型
+                titleEl.innerText = "【組合總體會計精密計量模型】";
                 
                 let totalCurrentPortfolioStocksMarketValue = 0;
                 let totalPortfolioInitialCost = 0;
@@ -2564,53 +2602,61 @@
                 let totalRoi = totalCost > 0 ? (totalEstPl / totalCost) * 100 : 0;
 
                 html = `
-                    <div class="space-y-4 font-mono text-xs text-on-surface">
+                    <div class="space-y-4 font-mono text-xs text-on-surface leading-relaxed">
                         <!-- 總成本 -->
                         <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
-                            <div class="flex justify-between items-center text-sm font-black text-white">
-                                <span>7. 總成本 (Total Cost)</span>
-                                <span class="text-secondary">NT$ ${Math.round(totalCost).toLocaleString()}</span>
+                            <div class="flex justify-between items-center text-xs font-black text-white">
+                                <span>總成本 (Total Cost)</span>
+                                <span class="text-secondary font-bold">NT$ ${Math.round(totalCost).toLocaleString()}</span>
                             </div>
-                            <p class="text-text-secondary text-[10px]">定義：所有付出成本相加 (股票購買總成本 + 交割戶現金)</p>
-                            <p class="text-primary font-bold">當前：NT$ ${Math.round(totalPortfolioInitialCost).toLocaleString()} (證券成本) + NT$ ${Math.round(state.cash).toLocaleString()} (現金)</p>
+                            <p class="text-text-secondary text-[10px] leading-relaxed">
+                                $$ \\text{Total Cost} = \\sum (\\text{Stock Cost}) + \\text{Cash} $$
+                            </p>
+                            <p class="text-primary font-bold">目前帶入：${Math.round(totalPortfolioInitialCost).toLocaleString()} (證券成本) + ${Math.round(state.cash).toLocaleString()} (現金)</p>
                         </div>
                         
                         <!-- 總現值 -->
                         <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
-                            <div class="flex justify-between items-center text-sm font-black text-white">
-                                <span>8. 總現值 (Total Net Value)</span>
-                                <span class="text-secondary">NT$ ${Math.round(totalCurrentNetVal).toLocaleString()}</span>
+                            <div class="flex justify-between items-center text-xs font-black text-white">
+                                <span>總淨現值 (Total Net Value)</span>
+                                <span class="text-secondary font-bold">NT$ ${Math.round(totalCurrentNetVal).toLocaleString()}</span>
                             </div>
-                            <p class="text-text-secondary text-[10px]">定義：所有現值相加 (股票市值扣除估算賣出費用 + 交割戶現金)</p>
-                            <p class="text-primary font-bold">當前：NT$ ${Math.round(totalCurrentPortfolioStocksMarketValue).toLocaleString()} (市值) - NT$ ${Math.round(totalEstSellCost).toLocaleString()} (估算賣出稅費) + NT$ ${Math.round(state.cash).toLocaleString()} (現金)</p>
+                            <p class="text-text-secondary text-[10px] leading-relaxed">
+                                $$ \\text{Total Net Value} = \\sum (\\text{Market Value} - \\text{Est. Sell Fee} - \\text{Tax}) + \\text{Cash} $$
+                            </p>
+                            <p class="text-primary font-bold">目前帶入：${Math.round(totalCurrentPortfolioStocksMarketValue).toLocaleString()} (市值) - ${Math.round(totalEstSellCost).toLocaleString()} (估算費用) + ${Math.round(state.cash).toLocaleString()} (現金)</p>
                         </div>
 
                         <!-- 總預估損益 -->
                         <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
-                            <div class="flex justify-between items-center text-sm font-black text-white">
-                                <span>9. 總預估損益</span>
-                                <span class="${totalEstPl >= 0 ? 'text-danger-red' : 'text-success-emerald'}">NT$ ${Math.round(totalEstPl).toLocaleString()}</span>
+                            <div class="flex justify-between items-center text-xs font-black text-white">
+                                <span>總預估淨損益 (Est. Total P/L)</span>
+                                <span class="${totalEstPl >= 0 ? 'text-danger-red' : 'text-success-emerald'} font-bold">NT$ ${Math.round(totalEstPl).toLocaleString()}</span>
                             </div>
-                            <p class="text-text-secondary text-[10px]">定義：總現值 - 總成本 (真實反映若立刻全部變現的淨損益)</p>
-                            <p class="text-primary font-bold">算式：NT$ ${Math.round(totalCurrentNetVal).toLocaleString()} (總現值) - NT$ ${Math.round(totalCost).toLocaleString()} (總成本)</p>
+                            <p class="text-text-secondary text-[10px] leading-relaxed">
+                                $$ \\text{Est. Total P/L} = \\text{Total Net Value} - \\text{Total Cost} $$
+                            </p>
+                            <p class="text-primary font-bold">計算過程：${Math.round(totalCurrentNetVal).toLocaleString()} - ${Math.round(totalCost).toLocaleString()}</p>
                         </div>
 
                         <!-- 總報酬率 -->
                         <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
-                            <div class="flex justify-between items-center text-sm font-black text-white">
-                                <span>10. 總報酬率</span>
-                                <span class="${totalEstPl >= 0 ? 'text-danger-red' : 'text-success-emerald'}">${totalRoi.toFixed(2)} %</span>
+                            <div class="flex justify-between items-center text-xs font-black text-white">
+                                <span>總預估淨報酬率 (Total Net ROI)</span>
+                                <span class="${totalEstPl >= 0 ? 'text-danger-red' : 'text-success-emerald'} font-bold">${totalRoi.toFixed(2)} %</span>
                             </div>
-                            <p class="text-text-secondary text-[10px]">定義：總預估損益 ÷ 總成本 × 100%</p>
-                            <p class="text-primary font-bold">算式：(NT$ ${Math.round(totalEstPl).toLocaleString()} ÷ NT$ ${Math.round(totalCost).toLocaleString()}) × 100%</p>
+                            <p class="text-text-secondary text-[10px] leading-relaxed">
+                                $$ \\text{Total ROI} = \\left( \\frac{\\text{Est. Total P/L}}{\\text{Total Cost}} \\right) \\times 100\\% $$
+                            </p>
+                            <p class="text-primary font-bold">計算過程：(${Math.round(totalEstPl).toLocaleString()} ÷ ${Math.round(totalCost).toLocaleString()}) × 100%</p>
                         </div>
                     </div>
                 `;
             } else {
-                // 2. 單檔資產會計模型
+                // 2. 單檔股票會計計量對照模型
                 let a = state.assets.find(x => x.id === assetId);
                 if (!a) return;
-                titleEl.innerText = `【${a.name} (${a.ticker || '無代號'}) 會計實數對照】`;
+                titleEl.innerText = `【${a.name} (${a.ticker || '無代號'}) 精密計量】`;
 
                 let l = aggregateAssetLedger(a.id);
                 let totalShares = l.shares;
@@ -2628,69 +2674,69 @@
 
                 let isETF = /^00/.test(a.ticker || '');
                 let isBondETF = /^00.*B$/i.test(a.ticker || '');
-                let taxDesc = isBondETF ? "債券型 ETF (免稅 0%)" : (isETF ? "股票型 ETF (優惠 0.1%)" : "一般股票 (標準 0.3%)");
+                let taxDesc = isBondETF ? "債券型 ETF (免稅 0%)" : (isETF ? "股票型 ETF (優惠 0.1%)" : "普通股票 (標準 0.3%)");
 
                 html = `
-                    <div class="space-y-4 font-mono text-xs text-on-surface">
-                        <!-- 成交金額 -->
+                    <div class="space-y-4 font-mono text-xs text-on-surface leading-relaxed">
+                        <!-- 市值 -->
                         <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
-                            <div class="flex justify-between items-center text-sm font-black text-white">
-                                <span>1. 成交金額</span>
-                                <span class="text-secondary">NT$ ${Math.round(marketValue).toLocaleString()}</span>
+                            <div class="flex justify-between items-center text-xs font-black text-white">
+                                <span>當前市值 (Market Value)</span>
+                                <span class="text-secondary font-bold">NT$ ${Math.round(marketValue).toLocaleString()}</span>
                             </div>
-                            <p class="text-text-secondary text-[10px]">定義：成交價 × 股數</p>
-                            <p class="text-primary font-bold">當前帶入：${marketPrice.toFixed(2)} 元 × ${totalShares.toLocaleString()} 股</p>
+                            <p class="text-text-secondary text-[10px] leading-relaxed">
+                                $$ \\text{Market Value} = \\text{Market Price} \\times \\text{Shares} $$
+                            </p>
+                            <p class="text-primary font-bold">目前帶入：${marketPrice.toFixed(2)} 元 × ${totalShares.toLocaleString()} 股</p>
+                        </div>
+
+                        <!-- 淨預估現值 -->
+                        <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
+                            <div class="flex justify-between items-center text-xs font-black text-white">
+                                <span>預估現值 (Net Realizable Value)</span>
+                                <span class="text-secondary font-bold">NT$ ${Math.round(netValue).toLocaleString()}</span>
+                            </div>
+                            <p class="text-text-secondary text-[10px] leading-relaxed">
+                                $$ \\text{Net NRV} = \\text{Market Value} - \\text{Est. Fee} - \\text{Est. Tax} $$
+                            </p>
+                            <p class="text-text-secondary text-[10px] text-secondary">稅率分類：${taxDesc}</p>
+                            <p class="text-primary font-bold">計算過程：${Math.round(marketValue).toLocaleString()} - ${sellFee} (費) - ${sellTax} (稅)</p>
                         </div>
 
                         <!-- 付出成本 -->
                         <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
-                            <div class="flex justify-between items-center text-sm font-black text-white">
-                                <span>2. 付出成本</span>
-                                <span class="text-secondary">NT$ ${Math.round(totalCost).toLocaleString()}</span>
+                            <div class="flex justify-between items-center text-xs font-black text-white">
+                                <span>帳面付出總成本 (Total Cost)</span>
+                                <span class="text-secondary font-bold">NT$ ${Math.round(totalCost).toLocaleString()}</span>
                             </div>
-                            <p class="text-text-secondary text-[10px]">定義：成交金額 + 買進手續費</p>
-                            <p class="text-primary font-bold">當前持股買入成本加總：NT$ ${Math.round(totalCost).toLocaleString()}</p>
+                            <p class="text-text-secondary text-[10px] leading-relaxed">
+                                $$ \\text{Total Cost} = \\sum (\\text{Purchase Price} \\times \\text{Shares} + \\text{Fee}) $$
+                            </p>
+                            <p class="text-primary font-bold">目前累計實數成本：NT$ ${Math.round(totalCost).toLocaleString()}</p>
                         </div>
 
-                        <!-- 市值 -->
+                        <!-- 預估淨損益 -->
                         <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
-                            <div class="flex justify-between items-center text-sm font-black text-white">
-                                <span>3. 市值</span>
-                                <span class="text-secondary">NT$ ${Math.round(marketValue).toLocaleString()}</span>
+                            <div class="flex justify-between items-center text-xs font-black text-white">
+                                <span>預估變現淨損益 (Net P/L)</span>
+                                <span class="${estPl >= 0 ? 'text-danger-red' : 'text-success-emerald'} font-bold">NT$ ${Math.round(estPl).toLocaleString()}</span>
                             </div>
-                            <p class="text-text-secondary text-[10px]">定義：市價 × 股數</p>
-                            <p class="text-primary font-bold">當前帶入：${marketPrice.toFixed(2)} 元 × ${totalShares.toLocaleString()} 股</p>
-                        </div>
-
-                        <!-- 現值 -->
-                        <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
-                            <div class="flex justify-between items-center text-sm font-black text-white">
-                                <span>4. 現值 (預估變現金額)</span>
-                                <span class="text-secondary">NT$ ${Math.round(netValue).toLocaleString()}</span>
-                            </div>
-                            <p class="text-text-secondary text-[10px]">定義：市值 - 預估賣出手續費 - 證交稅</p>
-                            <p class="text-text-secondary text-[10px] text-secondary">稅率類別：${taxDesc}</p>
-                            <p class="text-primary font-bold">算式：NT$ ${Math.round(marketValue).toLocaleString()} (市值) - NT$ ${sellFee} (賣出手續費) - NT$ ${sellTax} (證交稅)</p>
-                        </div>
-
-                        <!-- 預估損益 -->
-                        <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
-                            <div class="flex justify-between items-center text-sm font-black text-white">
-                                <span>5. 預估損益</span>
-                                <span class="${estPl >= 0 ? 'text-danger-red' : 'text-success-emerald'}">NT$ ${Math.round(estPl).toLocaleString()}</span>
-                            </div>
-                            <p class="text-text-secondary text-[10px]">定義：現值 - 付出成本</p>
-                            <p class="text-primary font-bold">算式：NT$ ${Math.round(netValue).toLocaleString()} (現值) - NT$ ${Math.round(totalCost).toLocaleString()} (付出成本)</p>
+                            <p class="text-text-secondary text-[10px] leading-relaxed">
+                                $$ \\text{Net P/L} = \\text{Net NRV} - \\text{Total Cost} $$
+                            </p>
+                            <p class="text-primary font-bold">計算過程：${Math.round(netValue).toLocaleString()} (現值) - ${Math.round(totalCost).toLocaleString()} (付出成本)</p>
                         </div>
 
                         <!-- 報酬率 -->
                         <div class="p-4 bg-surface-base/80 rounded-xl border border-white/5 space-y-2">
-                            <div class="flex justify-between items-center text-sm font-black text-white">
-                                <span>6. 報酬率</span>
-                                <span class="${estPl >= 0 ? 'text-danger-red' : 'text-success-emerald'}">${roi.toFixed(2)} %</span>
+                            <div class="flex justify-between items-center text-xs font-black text-white">
+                                <span>預估淨報酬率 (Net ROI)</span>
+                                <span class="${estPl >= 0 ? 'text-danger-red' : 'text-success-emerald'} font-bold">${roi.toFixed(2)} %</span>
                             </div>
-                            <p class="text-text-secondary text-[10px]">定義：(預估損益 ÷ 付出成本) × 100%</p>
-                            <p class="text-primary font-bold">算式：(NT$ ${Math.round(estPl).toLocaleString()} ÷ NT$ ${Math.round(totalCost).toLocaleString()}) × 100%</p>
+                            <p class="text-text-secondary text-[10px] leading-relaxed">
+                                $$ \\text{Net ROI} = \\left( \\frac{\\text{Net P/L}}{\\text{Total Cost}} \\right) \\times 100\\% $$
+                            </p>
+                            <p class="text-primary font-bold">計算過程：(${Math.round(estPl).toLocaleString()} ÷ ${Math.round(totalCost).toLocaleString()}) × 100%</p>
                         </div>
                     </div>
                 `;
@@ -2698,6 +2744,11 @@
 
             bodyEl.innerHTML = html;
             modal.classList.remove('hidden');
+            
+            // 讓 MathJax 重新處理動態產生的 LaTeX 公式，保持渲染精緻美觀
+            if (typeof MathJax !== 'undefined' && MathJax.typesetPromise) {
+                MathJax.typesetPromise();
+            }
         }
 
         function closeFormulaActionSheet(event) {
@@ -2713,6 +2764,7 @@
             a.setAttribute('href', dataUri);
             a.setAttribute('download', `ark_v4_mobile_backup_${new Date().toISOString().slice(0,10)}.json`);
             a.click();
+            showToast("系統設定檔已導出下載", "success");
         }
 
         function importData(event) {
@@ -2724,10 +2776,10 @@
                     const parsed = JSON.parse(e.target.result);
                     if(parsed.assets) {
                         localStorage.setItem('ark_rebalancer_v4_mobile_a', JSON.stringify(parsed));
-                        showToast("數據還原完成！", "success");
+                        showToast("數據還原成功，正在重載頁面...", "success");
                         setTimeout(() => location.reload(), 1000);
-                    } else { showToast("檔案格式錯誤", "error"); }
-                } catch (err) { showToast("解析檔案失敗", "error"); }
+                    } else { showToast("檔案格式錯誤，解析失敗", "error"); }
+                } catch (err) { showToast("解析備份檔案失敗", "error"); }
             };
             reader.readAsText(file);
         }
