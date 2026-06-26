@@ -1,4 +1,3 @@
-
 /**
  * 控盤方舟 V4 (GitHub 專業切分版) - JavaScript 互動與計量核心
  * 所有變數、邏輯與渲染引擎皆在此模組化封裝， comments 使用繁體中文
@@ -9,13 +8,6 @@ const CHART_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#1
 
 // 5% 圓整輔助函數
 const round5 = (v) => Math.round(v / 5) * 5;
-
-function updateCardTargetWeightDOM(item, weight) {
-    if (item.type !== 'cash') {
-        let el = document.getElementById(`card-tgt-weight-${item.id}`);
-        if (el) el.innerText = weight.toFixed(1);
-    }
-}
 
 // 2. 系統主要 State (確保 Fugle 與 Gemini API Key 預設為空字串，保障 GitHub 發布安全)
 let state = {
@@ -33,7 +25,6 @@ let state = {
     plMode: "GROSS", 
     ignoredRebalanceIds: [],
     settledT2Dates: [], 
-    cashHistory: [], 
     assets: [
         { id: "a1", name: "元大台灣50", ticker: "0050", beta: 1.0, active: true, targetWeight: 40, savedTargetWeight: 40, marketPrice: 195.50, openPrice: 193.00, highPrice: 197.00, lowPrice: 192.50, referencePrice: 191.00, analysisLabel: "偏向買進", analysisReason: "量大收紅，三日均價大於六日均價", lastUpdated: "13:30:00", updateStatus: "success", txs: [{ id: 101, date: '2026-06-23', price: 185.00, shares: 1000, fee: 20, tax: 0, type: 'BUY', linked: false }] },
         { id: "a2", name: "元大台灣50正2", ticker: "00631L", beta: 2.0, active: true, targetWeight: 40, savedTargetWeight: 40, marketPrice: 225.0, openPrice: 220.00, highPrice: 227.00, lowPrice: 219.00, referencePrice: 218.00, analysisLabel: "偏向買進", analysisReason: "量縮價不跌，三日均價由下往上", lastUpdated: "--", updateStatus: "cache", txs: [{ id: 102, date: '2026-06-24', price: 215.00, shares: 500, fee: 20, tax: 0, type: 'BUY', linked: false }] },
@@ -48,12 +39,17 @@ let currentActiveAssetId = null;
 let assetIdPendingDelete = null;
 let editingTxId = null; 
 
+// 滑動條控制 State
 let isDragging = false;
 let dragIndex = -1;
 let dragStartX = 0;
 let trackRect = null;
 let dragItems = [];
+
+// ActionSheet 控制 State
 let activeTxIdForActionSheet = null;
+
+// T+2 預估 State
 let t2DeductionState = { today: 0, future: 0 };
 
 // 3. 初始化事件監聽
@@ -73,18 +69,7 @@ document.addEventListener("DOMContentLoaded", () => {
         titleEl.innerText = state.plMode === 'NET' ? "未實現損益 (淨額)" : "未實現損益 (帳面)";
     }
 
-    if (!state.cashHistory || state.cashHistory.length === 0) {
-        state.cashHistory = [{
-            id: Date.now(),
-            date: new Date().toLocaleString(),
-            amount: state.cash,
-            reason: "系統初始化"
-        }];
-    }
-
     normalizeWeights();
-    renderCashHistoryUI();
-    renderRealizedProfitsLedger();
 });
 
 // 4. UI 訊息提示與系統控制函數
@@ -159,89 +144,15 @@ async function pasteApiKey(targetId = 'api-key-input') {
     } catch (err) { showToast("因網頁權限限制，請直接長按輸入框手動貼上", "info"); }
 }
 
-function logCashChange(newAmount, reason) {
-    if (!state.cashHistory) state.cashHistory = [];
-    if (state.cashHistory.length > 0 && state.cashHistory[0].amount === newAmount && state.cashHistory[0].reason === reason) {
-        return;
-    }
-    state.cashHistory.unshift({
-        id: Date.now() + Math.random(),
-        date: new Date().toLocaleString('zh-TW', { hour12: false }),
-        amount: newAmount,
-        reason: reason
-    });
-    if (state.cashHistory.length > 40) {
-        state.cashHistory.pop();
-    }
-    saveDataToLocal();
-    renderCashHistoryUI();
-}
-
-function renderCashHistoryUI() {
-    const container = document.getElementById('cash-history-panel');
-    if (!container) return;
-    if (!state.cashHistory || state.cashHistory.length === 0) {
-        container.innerHTML = `<p class="text-center py-4 text-xs text-text-secondary font-bold">無變動紀錄</p>`;
-        return;
-    }
-    container.innerHTML = state.cashHistory.map(h => {
-        return `
-        <div class="flex items-center justify-between p-2.5 bg-surface-base/80 border border-white/5 rounded-xl text-xs hover:border-white/10 transition-all font-mono">
-            <div class="flex flex-col gap-1 min-w-0 flex-1 pr-2">
-                <div class="flex items-center gap-2">
-                    <span class="text-primary font-bold">NT$ ${Math.round(h.amount).toLocaleString()}</span>
-                    <span class="text-[10px] text-text-secondary truncate bg-surface-container px-2 py-0.5 rounded-lg border border-white/5">${h.reason}</span>
-                </div>
-                <span class="text-[9px] text-text-secondary/60">${h.date}</span>
-            </div>
-            <button onclick="rollbackCash(${h.amount}, '${h.reason}')" class="bg-primary/20 text-primary border border-primary/30 hover:bg-primary hover:text-on-primary px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all shrink-0 active:scale-95">
-                還原
-            </button>
-        </div>`;
-    }).join('');
-}
-
-function rollbackCash(amount, originalReason) {
-    const parsedAmt = parseFloat(amount) || 0;
-    state.cash = parsedAmt;
-    document.getElementById('shares-cash').value = parsedAmt;
-    logCashChange(parsedAmt, `還原 (原: ${originalReason})`);
-    saveDataToLocal();
-    calculate();
-    renderAssetCards();
-    showToast(`已成功還原現金餘額至 NT$ ${Math.round(parsedAmt).toLocaleString()}`, "success");
-}
-
-function toggleCashHistoryPanel() {
-    const panel = document.getElementById('cash-history-panel');
-    const chevron = document.getElementById('cash-history-chevron');
-    if (panel.classList.contains('hidden')) {
-        panel.classList.remove('hidden');
-        chevron.innerText = "expand_less";
-    } else {
-        panel.classList.add('hidden');
-        chevron.innerText = "expand_more";
-    }
-}
-
 function saveDataToLocal() {
     state.fugleApiKey = document.getElementById('api-key-input').value.trim();
     state.geminiApiKey = document.getElementById('gemini-api-key-input').value.trim();
-    
-    const prevCash = state.cash;
-    const currentInputCash = parseFloat(document.getElementById('shares-cash').value) || 0;
-    state.cash = currentInputCash;
-
+    state.cash = parseFloat(document.getElementById('shares-cash').value) || 0;
     state.injection = parseFloat(document.getElementById('new-injection').value) || 0;
     state.discount = parseFloat(document.getElementById('fee-discount').value) || 2.8;
     state.unit = parseInt(document.getElementById('trade-unit').value) || 1;
     state.imbalanceThreshold = parseFloat(document.getElementById('imbalance-threshold').value) || 5;
     state.inflowOnly = document.getElementById('inflow-only').checked;
-
-    if (prevCash !== currentInputCash) {
-        logCashChange(currentInputCash, "手動調整金額");
-    }
-
     localStorage.setItem('ark_rebalancer_v4_mobile_a', JSON.stringify(state));
 }
 
@@ -262,7 +173,6 @@ function loadSavedData() {
         state.imbalanceThreshold = parsed.imbalanceThreshold || 5;
         state.cash = parsed.cash || 0;
         state.cashActive = parsed.cashActive !== false;
-        state.cashHistory = parsed.cashHistory || [];
         
         if (parsed.cashWeight === undefined) {
             let totalAssetW = state.assets.reduce((sum, a) => sum + (parseFloat(a.targetWeight) || 0), 0);
@@ -358,18 +268,6 @@ function toggleAssetActive(id) {
     normalizeWeights();
 }
 
-function toggleCashActive() {
-    if (state.cashActive !== false) {
-        state.cashActive = false;
-        state.savedCashWeight = state.cashWeight;
-        state.cashWeight = 0;
-    } else {
-        state.cashActive = true;
-        state.cashWeight = state.savedCashWeight || 10;
-    }
-    normalizeWeights();
-}
-
 // 5. T+2 交割與排除功能核心
 function applyT2SettlementsToCash() {
     let todayStr = new Date().toISOString().slice(0, 10);
@@ -461,7 +359,6 @@ function executeT2Deduction(includeToday) {
     document.getElementById('shares-cash').value = finalCash;
     state.cash = finalCash;
     
-    logCashChange(finalCash, "T+2 交割扣除");
     saveDataToLocal();
     calculate();
 
@@ -486,7 +383,7 @@ function toggleT2DateSettled(sDate) {
     calculate();
 }
 
-// 6. 滑動 UI 動態渲染核心
+// 6. 滑動 UI 電腦端與行動端觸控拖曳
 function renderSliderUI() {
     const container = document.getElementById('allocation-slider-container');
     if (!container) return;
@@ -637,122 +534,6 @@ function calculateTaiwanStockTax(ticker, price, shares, type) {
     return Math.round(price * shares * 0.003);
 }
 
-// 15. WAC 行動平均成本庫
-function aggregateAssetLedger(assetId) {
-    let asset = state.assets.find(a => a.id === assetId);
-    let txs = (asset && asset.txs) ? asset.txs : [];
-    
-    let sortedTxs = [...txs].sort((a, b) => new Date(a.date) - new Date(b.date));
-    
-    let totalShares = 0;
-    let totalCost = 0;
-    let wac = 0;
-
-    sortedTxs.forEach(t => {
-        if (t.type === 'BUY') {
-            let buyCost = (t.price * t.shares) + t.fee + (t.tax || 0);
-            totalShares += t.shares;
-            totalCost += buyCost;
-            wac = totalShares > 0 ? (totalCost / totalShares) : 0;
-        } else if (t.type === 'SELL') {
-            totalShares -= t.shares;
-            if (totalShares < 0) totalShares = 0;
-            totalCost = totalShares * wac;
-        }
-    });
-
-    return { shares: totalShares, wac: wac, totalCost: totalCost };
-}
-
-// 動態計算歷史已實現獲利紀錄
-function calculateRealizedProfits() {
-    let realizedList = [];
-    state.assets.forEach(asset => {
-        let txs = asset.txs || [];
-        let sortedTxs = [...txs].sort((a, b) => new Date(a.date) - new Date(b.date));
-        
-        let totalShares = 0;
-        let totalCost = 0;
-        let wac = 0;
-
-        sortedTxs.forEach(t => {
-            if (t.type === 'BUY') {
-                let buyCost = (t.price * t.shares) + t.fee + (t.tax || 0);
-                totalShares += t.shares;
-                totalCost += buyCost;
-                wac = totalShares > 0 ? (totalCost / totalShares) : 0;
-            } else if (t.type === 'SELL') {
-                let costOfSold = wac * t.shares;
-                let netSellProceeds = (t.price * t.shares) - t.fee - (t.tax || 0);
-                let p_l = netSellProceeds - costOfSold;
-
-                realizedList.push({
-                    id: t.id,
-                    assetName: asset.name,
-                    ticker: asset.ticker || "無代號",
-                    date: t.date,
-                    shares: t.shares,
-                    sellPrice: t.price,
-                    buyCostPerShare: wac,
-                    realizedPL: p_l,
-                    fee: t.fee,
-                    tax: t.tax
-                });
-
-                totalShares -= t.shares;
-                if (totalShares < 0) totalShares = 0;
-                totalCost = totalShares * wac;
-            }
-        });
-    });
-    return realizedList.sort((a, b) => new Date(b.date) - new Date(a.date));
-}
-
-// 渲染已實現獲利明細列表
-function renderRealizedProfitsLedger() {
-    const container = document.getElementById('realized-profits-ledger-container');
-    const totalLabel = document.getElementById('stat-total-realized-profit');
-    if (!container) return;
-
-    const list = calculateRealizedProfits();
-    let sumRealized = 0;
-
-    if (list.length === 0) {
-        container.innerHTML = `<p class="text-center py-6 text-xs text-text-secondary font-bold border border-dashed border-white/5 rounded-xl bg-surface-container-highest/10">目前尚無已實現賣出獲利紀錄。</p>`;
-        if (totalLabel) totalLabel.innerText = "累計獲利: NT$ 0";
-        return;
-    }
-
-    container.innerHTML = list.map(item => {
-        sumRealized += item.realizedPL;
-        const plColor = item.realizedPL >= 0 ? "text-danger-red" : "text-success-emerald";
-        const plPrefix = item.realizedPL >= 0 ? "+" : "";
-        return `
-        <div class="p-4 bg-surface-base/60 border border-white/5 rounded-2xl flex flex-col gap-2 font-mono text-xs hover:bg-surface-base transition-colors">
-            <div class="flex justify-between items-center border-b border-white/5 pb-2">
-                <span class="font-black text-white text-sm">${item.assetName} <span class="text-text-secondary/70">(${item.ticker})</span></span>
-                <span class="text-text-secondary/60 text-[10px] bg-surface-container px-2 py-0.5 rounded-lg border border-white/5">${item.date}</span>
-            </div>
-            <div class="grid grid-cols-2 gap-y-1.5 text-text-secondary">
-                <div>賣出數量: <span class="text-white font-bold">${item.shares.toLocaleString()} 股</span></div>
-                <div>賣出單價: <span class="text-white font-bold">NT$ ${item.sellPrice.toFixed(2)}</span></div>
-                <div>買入均價: <span class="text-white font-bold">NT$ ${item.buyCostPerShare.toFixed(2)}</span></div>
-                <div>估算稅費: <span class="text-white font-bold">${item.fee + item.tax}</span> <span class="text-[9px] opacity-70">(費:${item.fee}/稅:${item.tax})</span></div>
-            </div>
-            <div class="flex justify-between items-center pt-1.5 border-t border-white/5">
-                <span class="font-bold text-text-secondary">單筆已實現損益:</span>
-                <span class="${plColor} font-black text-base">${plPrefix}NT$ ${Math.round(item.realizedPL).toLocaleString()}</span>
-            </div>
-        </div>`;
-    }).join('');
-
-    if (totalLabel) {
-        const prefix = sumRealized >= 0 ? "+" : "";
-        totalLabel.innerText = `累計獲利: NT$ ${prefix}${Math.round(sumRealized).toLocaleString()}`;
-        totalLabel.className = `text-sm font-black font-mono border px-3 py-1 rounded-xl ${sumRealized >= 0 ? 'bg-danger-red/10 border-danger-red/30 text-danger-red' : 'bg-success-emerald/10 border-success-emerald/30 text-success-emerald'}`;
-    }
-}
-
 // 7. 金融精算與再平衡核心 (隔離未參與再平衡的資產)
 function calculate() {
     let cashWeight = state.cashActive !== false ? state.cashWeight : 0;
@@ -790,6 +571,7 @@ function calculate() {
     let totalTarget = totalCurrent + state.injection;
     let unreleasedTotalPlAmount = totalCurrentPortfolioStocksMarketValue - totalPortfolioInitialCost;
 
+    // 【核心邏輯修正】計算「僅參與再平衡」的 active 現值總額，排除未參與資產
     let totalActiveCurrent = 0;
     if (state.cashActive !== false) {
         totalActiveCurrent += state.cash;
@@ -841,10 +623,11 @@ function calculate() {
     if (state.injection > 0) actions.push({ type: 'INJECT', ticker: '新資金準備', shares: 0, value: state.injection });
 
     state.assets.forEach(asset => {
-        if (asset.active === false) return; 
+        if (asset.active === false) return; // 確實排除未參與再平衡的股票
         if (state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(asset.id)) return;
 
         let t_weight = (parseFloat(asset.targetWeight) || 0) / 100;
+        // 【核心邏輯修正】使用只含 active 的目標總額進行配分計算
         let t_val = totalActiveTarget * t_weight;
         let c_val = currentAssetValues[asset.id];
         let deltaVal = t_val - c_val;
@@ -908,9 +691,9 @@ function calculate() {
     innerStepsHtml += `</div></div>`;
     if (rightZoneContainer) rightZoneContainer.innerHTML = innerStepsHtml;
 
+    // 【核心邏輯修正】將 totalActiveTarget 傳入圖表函數，使顯示與計算高度一致
     updateDynamicCharts(currentAssetValues, totalCurrent, cashWeight, totalTarget, true, expectedAssetValues, expectedCash, totalActiveTarget);
     renderT2SettlementPanel();
-    renderRealizedProfitsLedger();
 }
 
 function switchViewMode(mode) {
@@ -940,13 +723,14 @@ function switchPieType(type) {
     calculate(); 
 }
 
-// 8. 增強型圖表繪製
+// 8. 增強型圖表繪製 (支援 active 權重專屬比例分配)
 function updateDynamicCharts(currentVals, totalCurrent, tgtCashPct, totalTarget, isValid, expectedAssetValues, expectedCash, totalActiveTarget) {
     let labels = [], currData = [], tgtData = [], pointColors = [];
     let legendHtml = '', gapHtml = '';
     const legendContainer = document.getElementById('main-legend-container');
     const gapBarsContainer = document.getElementById('gap-bars-container');
 
+    // 【邏輯修正】採用只含 active 的目標池作為目標金額計算基準
     let activeTargetPool = (typeof totalActiveTarget !== 'undefined' && totalActiveTarget > 0) ? totalActiveTarget : totalTarget;
 
     state.assets.forEach((a, i) => {
@@ -1249,17 +1033,14 @@ function executeClearAllTransactions() {
         let l = aggregateAssetLedger(currentActiveAssetId);
         document.getElementById('modal-wac-display').innerText = `平均持股成本: NT$ ${l.wac.toFixed(2)}`;
         normalizeWeights(); renderLedgerTable();
-        showToast(`已清空 【${asset.name}】 的歷史交易紀錄`, "success");
+        showToast(`已清空 【${asset.name}】 的歷史明細`, "success");
     }
 }
 
-// 【修復】新增資產時強制重新綁定與渲染畫面
 function addAsset() {
     let newId = "a_" + Date.now();
     state.assets.push({ id: newId, name: "新資產", ticker: "", beta: 1.0, active: true, targetWeight: 0, savedTargetWeight: 0, marketPrice: 100.0, txs: [] });
     normalizeWeights();
-    renderAssetCards(); // 強制重繪卡片列表
-    renderSliderUI();   // 強制重繪滑動條
     setTimeout(() => openLedgerModal(newId), 100);
 }
 
@@ -1339,20 +1120,6 @@ function cancelEditTransaction() {
 function deleteTransaction(id) {
     if (editingTxId === id) cancelEditTransaction();
     let asset = state.assets.find(a => a.id === currentActiveAssetId);
-    let tx = asset.txs.find(t => t.id === id);
-    
-    if (tx && tx.linked) {
-        let simulatedCash = state.cash;
-        if (tx.type === 'BUY') {
-            simulatedCash += ((tx.price * tx.shares) + tx.fee);
-        } else if (tx.type === 'SELL') {
-            simulatedCash -= ((tx.price * tx.shares) - tx.fee - (tx.tax || 0));
-        }
-        state.cash = simulatedCash;
-        document.getElementById('shares-cash').value = simulatedCash;
-        logCashChange(simulatedCash, `刪除連動交易還原 (${asset.name})`);
-    }
-
     asset.txs = asset.txs.filter(t => t.id !== id);
     
     let l = aggregateAssetLedger(currentActiveAssetId);
@@ -1519,6 +1286,7 @@ function parseCsvLine(line) {
     return result;
 }
 
+// 建立 Promise 封裝的多檔非同步 CSV 讀取器
 function readCsvFileAsText(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -1528,7 +1296,6 @@ function readCsvFileAsText(file) {
     });
 }
 
-// 【修復】多筆 CSV 匯入後強制重新綁定與渲染畫面
 async function importCsvData(event) {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -1607,10 +1374,12 @@ async function importCsvData(event) {
         return;
     }
 
+    // 將多檔解析出來的數據整合與合併至系統 state.assets 中
     for (const name in parsedGroups) {
         const groupData = parsedGroups[name];
         let existingAsset = state.assets.find(a => a.name.trim() === name.trim());
         if (existingAsset) {
+            // 重複股票時，自動合併與串接交易紀錄
             if (!existingAsset.txs) existingAsset.txs = [];
             existingAsset.txs = [...existingAsset.txs, ...groupData.txs];
             existingAsset.marketPrice = groupData.marketPrice;
@@ -1625,14 +1394,9 @@ async function importCsvData(event) {
         }
     }
 
-    // 強制完整重新綁定與渲染畫面
     normalizeWeights();
-    renderAssetCards();
-    renderSliderUI();
-    calculate();
-
     if (errorCount > 0) {
-        showToast(`已成功合併匯入 ${successCount} 個 CSV 檔案，但有 ${errorCount} 個檔案格式有誤。`, "success");
+        showToast(`已成功合併匯入 ${successCount} 個 CSV 檔案，但有 ${errorCount} 個檔案格式有誤而略過。`, "success");
     } else {
         showToast(`成功合併匯入並解析 ${successCount} 個券商 CSV 帳戶明細！`, "success");
     }
@@ -1881,7 +1645,7 @@ function openFormulaSheet(assetId) {
                         <span class="text-secondary font-bold">NT$ ${Math.round(marketValue).toLocaleString()}</span>
                     </div>
                     <p class="text-text-secondary text-[10px] leading-relaxed">
-                        $$\\text{Market Value} = \\text{Market Price} \\times \\text{Shares}$$
+                        $$ \\text{Market Value} = \\text{Market Price} \\times \\text{Shares} $$
                     </p>
                     <p class="text-primary font-bold">目前帶入：${marketPrice.toFixed(2)} 元 × ${totalShares.toLocaleString()} 股</p>
                 </div>
@@ -1892,7 +1656,7 @@ function openFormulaSheet(assetId) {
                         <span class="text-secondary font-bold">NT$ ${Math.round(netValue).toLocaleString()}</span>
                     </div>
                     <p class="text-text-secondary text-[10px] leading-relaxed">
-                        $$\\text{Net NRV} = \\text{Market Value} - \\text{Est. Fee} - \\text{Est. Tax}$$
+                        $$ \\text{Net NRV} = \\text{Market Value} - \\text{Est. Fee} - \\text{Est. Tax} $$
                     </p>
                     <p class="text-text-secondary text-[10px] text-secondary">稅率分類：${taxDesc}</p>
                     <p class="text-primary font-bold">計算過程：${Math.round(marketValue).toLocaleString()} - ${sellFee} (費) - ${sellTax} (稅)</p>
@@ -1904,7 +1668,7 @@ function openFormulaSheet(assetId) {
                         <span class="text-secondary font-bold">NT$ ${Math.round(totalCost).toLocaleString()}</span>
                     </div>
                     <p class="text-text-secondary text-[10px] leading-relaxed">
-                        $$\\text{Total Cost} = \\sum (\\text{Purchase Price} \\times \\text{Shares} + \\text{Fee})$$
+                        $$ \\text{Total Cost} = \\sum (\\text{Purchase Price} \\times \\text{Shares} + \\text{Fee}) $$
                     </p>
                     <p class="text-primary font-bold">目前累計實數成本：NT$ ${Math.round(totalCost).toLocaleString()}</p>
                 </div>
@@ -1915,7 +1679,7 @@ function openFormulaSheet(assetId) {
                         <span class="${estPl >= 0 ? 'text-danger-red' : 'text-success-emerald'} font-bold">NT$ ${Math.round(estPl).toLocaleString()}</span>
                     </div>
                     <p class="text-text-secondary text-[10px] leading-relaxed">
-                        $$\\text{Net P/L} = \\text{Net NRV} - \\text{Total Cost}$$
+                        $$ \\text{Net P/L} = \\text{Net NRV} - \\text{Total Cost} $$
                     </p>
                     <p class="text-primary font-bold">計算過程：${Math.round(netValue).toLocaleString()} (現值) - ${Math.round(totalCost).toLocaleString()} (付出成本)</p>
                 </div>
@@ -1926,7 +1690,7 @@ function openFormulaSheet(assetId) {
                         <span class="${estPl >= 0 ? 'text-danger-red' : 'text-success-emerald'} font-bold">${roi.toFixed(2)} %</span>
                     </div>
                     <p class="text-text-secondary text-[10px] leading-relaxed">
-                        $$\\text{Net ROI} = \\left( \\frac{\\text{Net P/L}}{\\text{Total Cost}} \\right) \\times 100\\%$$
+                        $$ \\text{Net ROI} = \\left( \\frac{\\text{Net P/L}}{\\text{Total Cost}} \\right) \\times 100\\% $$
                     </p>
                     <p class="text-primary font-bold">計算過程：(${Math.round(estPl).toLocaleString()} ÷ ${Math.round(totalCost).toLocaleString()}) × 100%</p>
                 </div>
@@ -1984,4 +1748,224 @@ function resetProportions() {
     items.forEach(item => updateItemWeight(item, avg));
     normalizeWeights(); 
     showToast("比例已重設等比 (依 5% 圓整)", "success");
+}
+
+// 15. WAC 行動平均成本庫
+function aggregateAssetLedger(assetId) {
+    let asset = state.assets.find(a => a.id === assetId);
+    let txs = (asset && asset.txs) ? asset.txs : [];
+    
+    // 依據時間從舊到新排序計算移動平均成本 (Moving Average Cost)
+    let sortedTxs = [...txs].sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    let totalShares = 0;
+    let totalCost = 0;
+    let wac = 0;
+
+    sortedTxs.forEach(t => {
+        if (t.type === 'BUY') {
+            let buyCost = (t.price * t.shares) + t.fee + (t.tax || 0);
+            totalShares += t.shares;
+            totalCost += buyCost;
+            wac = totalShares > 0 ? (totalCost / totalShares) : 0;
+        } else if (t.type === 'SELL') {
+            // 賣出股票不改變剩餘股份的平均成本 (WAC維持不變)
+            // 等比例扣減已賣出部分所佔的歷史成本
+            totalShares -= t.shares;
+            if (totalShares < 0) totalShares = 0;
+            totalCost = totalShares * wac;
+        }
+    });
+
+    return { shares: totalShares, wac: wac, totalCost: totalCost };
+}
+
+// 16. 複製再平衡計畫
+function copyActionPlan() {
+    let text = `ARK V4 REBALANCE PLAN (Mobile) - ${new Date().toLocaleString()}\n`;
+    text += `Scale: ${document.getElementById('stat-total-asset').innerText}\n`;
+    text += `Status: ${document.getElementById('stat-total-pl').innerText}\n`;
+    text += `----------------------------------\n`;
+    
+    let tradeUnit = state.unit;
+    
+    // 【核心邏輯修正】計畫輸出時，也僅計算 active 參與再平衡之目標規模
+    let totalActiveCurrent = 0;
+    if (state.cashActive !== false) {
+        totalActiveCurrent += state.cash;
+    }
+    state.assets.forEach(asset => {
+        if (asset.active !== false) {
+            totalActiveCurrent += aggregateAssetLedger(asset.id).shares * asset.marketPrice;
+        }
+    });
+    let totalActiveTarget = totalActiveCurrent + state.injection;
+
+    state.assets.forEach(asset => {
+        if (asset.active === false) return; // 確實排除未參與再平衡股票
+        if (state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(asset.id)) return;
+
+        let t_val = totalActiveTarget * ((parseFloat(asset.targetWeight) || 0) / 100);
+        let c_val = aggregateAssetLedger(asset.id).shares * asset.marketPrice;
+        if(asset.marketPrice <= 0) return;
+        let deltaShares = (t_val - c_val) / asset.marketPrice;
+
+        deltaShares = tradeUnit === 1000 
+            ? (deltaShares > 0 ? Math.floor(deltaShares / 1000) * 1000 : Math.round(deltaShares / 1000) * 1000)
+            : (deltaShares > 0 ? Math.floor(deltaShares) : Math.round(deltaShares));
+
+        if(deltaShares < 0 && !state.inflowOnly) text += `賣出 ${asset.ticker || asset.name} ${Math.abs(deltaShares)} 股\n`;
+        if(deltaShares > 0) text += `買進 ${asset.ticker || asset.name} ${deltaShares} 股\n`;
+    });
+
+    if (text.endsWith(`----------------------------------\n`)) text += "No Actions Required.\n";
+    
+    fallbackCopyTextToClipboard(text);
+}
+
+// 17. 渲染資產卡片列表
+function renderAssetCards() {
+    const container = document.getElementById('dynamic-assets-container');
+    let totalVal = state.cash + state.assets.reduce((sum, a) => sum + (aggregateAssetLedger(a.id).shares * a.marketPrice), 0);
+    
+    document.getElementById('toggle-cash-active').checked = state.cashActive !== false;
+    document.getElementById('cash-status-label').innerText = state.cashActive !== false ? "參與再平衡" : "已排除，不參與再平衡";
+    if(state.cashActive === false) document.getElementById('cash-status-label').className = "text-xs text-danger-red font-bold mt-0.5";
+    else document.getElementById('cash-status-label').className = "text-xs text-text-secondary font-mono mt-0.5";
+
+    container.innerHTML = state.assets.map(a => {
+        let l = aggregateAssetLedger(a.id);
+        let currentVal = l.shares * a.marketPrice;
+        let pl = currentVal - l.totalCost;
+        let plPct = l.totalCost > 0 ? (pl / l.totalCost) * 100 : 0;
+        let actW = totalVal > 0 ? (currentVal / totalVal) * 100 : 0;
+        
+        let isActive = a.active !== false;
+        let isImbalanced = isActive && Math.abs(actW - a.targetWeight) > state.imbalanceThreshold;
+        
+        let basePrice = a.referencePrice || a.openPrice;
+        let diff = (a.marketPrice && basePrice) ? (a.marketPrice - basePrice) : 0;
+        let diffPct = basePrice ? ((diff / basePrice) * 100).toFixed(2) : 0;
+        let isUp = diff >= 0;
+        let colorClass = isUp ? 'text-danger-red' : 'text-success-emerald';
+        let sign = isUp && diff > 0 ? '+' : '';
+        let arrow = isUp && diff > 0 ? '▲' : (diff < 0 ? '▼' : '-');
+
+        let badgeHtml = '';
+        if (a.analysisLabel) {
+            let badgeColor = 'bg-surface-container-highest text-white border-outline-variant';
+            if (a.analysisLabel.includes('買')) badgeColor = 'bg-danger-red/20 text-danger-red border-danger-red/30';
+            else if (a.analysisLabel.includes('賣')) badgeColor = 'bg-success-emerald/20 text-success-emerald border-success-emerald/30';
+            badgeHtml = `<span class="border px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 tracking-wide ${badgeColor}">${a.analysisLabel}</span>`;
+        }
+
+        let activeStatusHtml = !isActive 
+            ? `<span class="border border-danger-red/30 bg-danger-red/10 text-danger-red px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 tracking-wide">未參與平衡</span>` 
+            : '';
+
+        let toggleHtml = `
+            <label class="relative inline-flex items-center cursor-pointer ml-auto shrink-0 z-20" title="加入/排除再平衡">
+                <input type="checkbox" class="sr-only peer" ${isActive ? 'checked' : ''} onchange="toggleAssetActive('${a.id}')">
+                <div class="w-9 h-5 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+        `;
+
+        let cardBorderClass = "";
+        if (!isActive) {
+            cardBorderClass = "border-dashed border-outline-variant/50 opacity-90";
+        } else if (isImbalanced) {
+            cardBorderClass = "border-danger-red/50 shadow-[0_0_20px_rgba(239,68,68,0.2)] animate-pulse-border";
+        } else {
+            cardBorderClass = "border-surface-container-highest shadow-2xl";
+        }
+
+        let hasNoTicker = !a.ticker || a.ticker.trim() === "";
+        let tickerBadgeHtml = "";
+        let warningBannerHtml = "";
+
+        if (hasNoTicker) {
+            tickerBadgeHtml = `<span class="bg-secondary/10 border border-secondary/30 px-3 py-1.5 rounded-lg text-xs font-black text-secondary tracking-widest shadow-inner animate-pulse">⚠️ 缺少代號</span>`;
+            warningBannerHtml = `
+            <div class="mt-4 p-3.5 bg-secondary/15 border border-secondary/20 rounded-2xl flex items-center gap-2.5 text-secondary">
+                <span class="material-symbols-outlined text-lg shrink-0 animate-pulse">warning</span>
+                <span class="text-xs font-bold leading-relaxed">請點擊卡片，手動設定「股價代號」以同步即時價格與決策資訊。</span>
+            </div>`;
+        } else {
+            tickerBadgeHtml = `<span class="bg-surface-base border border-outline-variant px-3 py-1.5 rounded-lg text-xs font-black text-text-secondary tracking-widest shadow-inner">${a.ticker}</span>`;
+        }
+
+        let sellFee = calculateTaiwanStockFee(a.marketPrice, l.shares, state.discount);
+        let sellTax = calculateTaiwanStockTax(a.ticker, a.marketPrice, l.shares, 'SELL');
+        let estSellCost = sellFee + sellTax;
+
+        let displayPl = pl;
+        let displayPlPct = plPct;
+        if (state.plMode === 'NET') {
+            displayPl = pl - estSellCost;
+            displayPlPct = l.totalCost > 0 ? (displayPl / l.totalCost) * 100 : 0;
+        }
+
+        let cardPlLabel = state.plMode === 'NET' ? "未實現損益 (淨額)" : "未實現損益 (帳面)";
+        let priceColor = diff > 0 ? 'text-danger-red' : (diff < 0 ? 'text-success-emerald' : 'text-text-secondary');
+
+        return `
+        <article class="bg-surface-card rounded-[24px] p-6 border ${cardBorderClass} transition-all">
+            <div class="flex justify-between items-center mb-5 gap-2 relative">
+                <div class="flex items-center gap-2 flex-wrap min-w-0 pr-12 cursor-pointer w-full" onclick="openLedgerModal('${a.id}')">
+                    ${tickerBadgeHtml}
+                    ${badgeHtml}
+                    ${activeStatusHtml}
+                    <h2 class="text-2xl font-black text-white tracking-wide truncate ${!isActive ? 'text-text-secondary' : ''}">${a.name}</h2>
+                </div>
+                <div class="absolute right-0 top-1/2 -translate-y-1/2">${toggleHtml}</div>
+            </div>
+            
+            <div class="cursor-pointer" onclick="openLedgerModal('${a.id}')">
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="bg-surface-base/80 px-4 py-3.5 rounded-2xl border border-outline-variant/40 shadow-inner flex flex-col justify-between min-h-[110px]">
+                        <p class="text-xs text-text-secondary font-black mb-1.5 tracking-widest">目前現價</p>
+                        <div>
+                            <p class="text-white font-black text-3xl font-mono leading-none">${a.marketPrice.toFixed(2)}</p>
+                            <p class="text-sm font-black ${priceColor} mt-2.5 tracking-wide font-mono">${arrow} ${Math.abs(diff).toFixed(2)} (${sign}${diffPct}%)</p>
+                        </div>
+                    </div>
+                    <div class="bg-surface-base/80 px-4 py-3.5 rounded-2xl border border-outline-variant/40 shadow-inner flex flex-col justify-between min-h-[110px]">
+                        <p class="text-xs text-text-secondary font-black mb-1.5 tracking-widest">即時市值</p>
+                        <p class="text-action-blue font-black text-3xl font-mono tracking-tight my-auto">NT$ ${Math.round(currentVal).toLocaleString()}</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="bg-surface-base/60 p-3.5 rounded-2xl border border-outline-variant/20 shadow-inner">
+                        <p class="text-xs text-text-secondary font-black mb-1.5 tracking-widest">持股成本</p>
+                        <p class="font-mono font-black text-lg text-white">NT$ ${Math.round(l.totalCost).toLocaleString()}</p>
+                    </div>
+                    <div class="bg-surface-base/60 p-3.5 rounded-2xl border border-outline-variant/20 shadow-inner">
+                        <p class="text-xs text-text-secondary font-black mb-1.5 tracking-widest">持有股數</p>
+                        <p class="font-mono font-black text-lg text-white">${l.shares.toLocaleString()}</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 relative">
+                    <div class="bg-surface-base/80 p-4 rounded-2xl border border-outline-variant/40 shadow-inner flex flex-col justify-between min-h-[115px]">
+                        <p class="text-xs text-text-secondary font-black mb-1.5 tracking-widest">配置權重</p>
+                        <p class="font-black text-3xl ${isImbalanced ? 'text-danger-red' : 'text-primary'}">${actW.toFixed(1)}% <span class="text-text-secondary text-sm font-bold">/ <span id="card-tgt-weight-${a.id}">${a.targetWeight.toFixed(1)}</span>%</span></p>
+                    </div>
+                    <div class="bg-surface-base/80 p-4 rounded-2xl border border-outline-variant/40 shadow-inner flex flex-col justify-between min-h-[115px]">
+                        <div class="flex justify-between items-center w-full">
+                            <p class="text-xs text-text-secondary font-black tracking-widest">${cardPlLabel}</p>
+                            <button onclick="event.stopPropagation(); openFormulaSheet('${a.id}')" class="text-text-secondary hover:text-primary transition-colors flex items-center justify-center p-0.5" title="點擊檢視單檔會計計量公式說明">
+                                <span class="material-symbols-outlined text-[14px]">info</span>
+                            </button>
+                        </div>
+                        <div class="mt-1">
+                            <p class="font-black text-3xl ${displayPl >= 0 ? 'text-danger-red' : 'text-success-emerald'} leading-none">${displayPl >= 0 ? '+' : ''}${displayPlPct.toFixed(1)}%</p>
+                            <p class="text-sm font-black ${displayPl >= 0 ? 'text-danger-red/80' : 'text-success-emerald/80'} mt-2.5 tracking-wide">${displayPl >= 0 ? '+' : '-'}NT$ ${Math.abs(Math.round(displayPl)).toLocaleString()}</p>
+                        </div>
+                    </div>
+                </div>
+                ${warningBannerHtml}
+            </div>
+        </article>`;
+    }).join('');
 }
