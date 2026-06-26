@@ -615,11 +615,9 @@
 
     <div id="ui-toast-container"></div>
 
-    <!-- 將原有 app.js 邏輯整合於此 -->
     <script>
         /**
-         * 控盤方舟 V4.1 - 互動與計量邏輯 (合併整合版)
-         * 加入了 WAC 加權平均已實現獲利計算、現金異動歷史紀錄
+         * 控盤方舟 V4.2 - 完美會計分離更新
          */
 
         const CHART_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e', '#64748b', '#06b6d4', '#f472b6'];
@@ -641,7 +639,7 @@
             cash: 15000,
             cashActive: true,
             cashWeight: 0,
-            cashHistory: [], // 新增現金歷史紀錄
+            cashHistory: [], 
             injection: 0,
             discount: 2.8,
             unit: 1,
@@ -769,7 +767,7 @@
                 state.imbalanceThreshold = parsed.imbalanceThreshold || 5;
                 state.cash = parsed.cash || 0;
                 state.cashActive = parsed.cashActive !== false;
-                state.cashHistory = parsed.cashHistory || []; // 載入現金歷史
+                state.cashHistory = parsed.cashHistory || []; 
                 
                 if (parsed.cashWeight === undefined) {
                     let totalAssetW = state.assets.reduce((sum, a) => sum + (parseFloat(a.targetWeight) || 0), 0);
@@ -797,7 +795,6 @@
             } catch(e) { console.error("Data restore error", e); }
         }
 
-        // ====== 現金異動與歷史紀錄相關邏輯 ======
         function handleManualCashUpdate() {
             let el = document.getElementById('shares-cash');
             let newVal = parseFloat(el.value) || 0;
@@ -819,7 +816,7 @@
                 diff: newVal - state.cash,
                 reason: reason
             });
-            if (state.cashHistory.length > 50) state.cashHistory.length = 50; // 最多保留 50 筆
+            if (state.cashHistory.length > 50) state.cashHistory.length = 50; 
         }
 
         function openCashHistoryModal() {
@@ -862,15 +859,12 @@
                 logCashChange(amount, `還原至歷史紀錄金額`);
                 state.cash = amount;
                 document.getElementById('shares-cash').value = amount;
-                saveDataToLocal();
-                calculate();
-                openCashHistoryModal(); // 重新渲染列表
+                saveDataToLocal(); calculate(); openCashHistoryModal();
                 showToast(`現金已成功還原為 NT$ ${Math.round(amount).toLocaleString()}`, "success");
             } else {
                 showToast(`目前現金已是此金額`, "info");
             }
         }
-        // ========================================
 
         function getActiveItems() {
             let items = [];
@@ -941,7 +935,6 @@
             normalizeWeights();
         }
 
-        // T+2 相關邏輯
         function applyT2SettlementsToCash() {
             let todayStr = new Date().toISOString().slice(0, 10);
             t2DeductionState.today = 0;
@@ -1013,13 +1006,12 @@
             if (finalCash < 0) showToast("⚠️ 注意：預扣後帳戶餘額為負數", "error");
             
             let actionText = totalToApply > 0 ? "預先加總" : "預先扣除";
-            logCashChange(finalCash, `結算 T+2交割款 (${actionText})`); // 紀錄至歷史
+            logCashChange(finalCash, `結算 T+2交割款 (${actionText})`); 
             
             document.getElementById('shares-cash').value = finalCash;
             state.cash = finalCash;
             
-            saveDataToLocal();
-            calculate();
+            saveDataToLocal(); calculate();
 
             let sign = totalToApply > 0 ? "+" : "";
             showToast(`已${actionText}交割款：${sign}${Math.round(totalToApply).toLocaleString()} 元，並標記存檔！`, "success");
@@ -1039,7 +1031,6 @@
             saveDataToLocal(); calculate();
         }
 
-        // Slider UI
         function renderSliderUI() {
             const container = document.getElementById('allocation-slider-container');
             if (!container) return;
@@ -1165,18 +1156,13 @@
             return Math.round(price * shares * 0.003);
         }
 
-        /**
-         * 核心更新：使用「加權平均成本法 (WAC)」重新計算資產數據
-         * 並支援計算歷史賣出的「已實現損益 (Realized P/L)」
-         */
         function aggregateAssetLedger(assetId) {
             let asset = state.assets.find(a => a.id === assetId);
-            // 必須依照時間排序才能正確計算加權平均成本
             let txs = (asset && asset.txs) ? [...asset.txs].sort((a,b) => new Date(a.date) - new Date(b.date) || a.id - b.id) : [];
             
             let totalShares = 0;
             let totalCombinedCost = 0;
-            let totalRealizedPl = 0; // 新增：已實現獲利
+            let totalRealizedPl = 0; 
 
             txs.forEach(t => {
                 if (t.type === 'BUY') {
@@ -1184,13 +1170,13 @@
                     totalCombinedCost += (t.price * t.shares) + t.fee + (t.tax || 0);
                 } else if (t.type === 'SELL') {
                     let wac = totalShares > 0 ? (totalCombinedCost / totalShares) : 0;
-                    let costOfSold = wac * t.shares; // 賣出股數的成本
-                    let netProceeds = (t.price * t.shares) - t.fee - (t.tax || 0); // 賣出實收金額
-                    let realizedPl = netProceeds - costOfSold; // 單次賣出獲利
+                    let costOfSold = wac * t.shares; 
+                    let netProceeds = (t.price * t.shares) - t.fee - (t.tax || 0); 
+                    let realizedPl = netProceeds - costOfSold; 
                     
                     totalRealizedPl += realizedPl;
                     totalShares -= t.shares;
-                    totalCombinedCost -= costOfSold; // 依比例扣除總成本
+                    totalCombinedCost -= costOfSold; 
                     
                     if (totalShares <= 0) {
                         totalShares = 0;
@@ -1205,6 +1191,8 @@
 
         function renderAssetCards() {
             const container = document.getElementById('dynamic-assets-container');
+            
+            // 計算「總資產」還是要加總所有的（包含 active=false 的）
             let totalVal = state.cash + state.assets.reduce((sum, a) => sum + (aggregateAssetLedger(a.id).shares * a.marketPrice), 0);
             
             document.getElementById('toggle-cash-active').checked = state.cashActive !== false;
@@ -1480,22 +1468,25 @@
         }
 
         function calculate() {
-            let cashWeight = state.cashActive !== false ? state.cashWeight : 0;
-            let totalAssetWeight = state.assets.reduce((sum, a) => sum + (a.active !== false ? parseFloat(a.targetWeight) : 0), 0);
-            
             let rightZoneContainer = document.getElementById('panel-dynamic-right-zone');
             let tradeUnit = state.unit;
             
+            // 用於計算整個帳戶「總資產」與「總損益」的變數
             let totalCurrentPortfolioStocksMarketValue = 0;
             let totalPortfolioInitialCost = 0;
             let totalFrictionCost = 0;
             let totalEstSellCost = 0; 
+            
+            // 新增：獨立計算「再平衡資金池」 (只加總 active 的資產與現金)
+            let rebalancePoolCurrentValue = 0; 
             let currentAssetValues = {};
             
             state.assets.forEach(asset => {
                 let ledger = aggregateAssetLedger(asset.id);
                 let val = ledger.shares * asset.marketPrice;
                 currentAssetValues[asset.id] = val;
+                
+                // 無論是否 active，都計入「總體帳戶」的市值與成本
                 totalCurrentPortfolioStocksMarketValue += val;
                 totalPortfolioInitialCost += ledger.totalCost;
                 
@@ -1505,16 +1496,20 @@
                     totalEstSellCost += (sellFee + sellTax);
                 }
                 if (asset.txs) asset.txs.forEach(t => totalFrictionCost += (t.fee || 0) + (t.tax || 0));
+
+                // 【核心修復】：如果資產有參與再平衡，才將其市值計入「再平衡資金池」
+                if (asset.active !== false && !(state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(asset.id))) {
+                    rebalancePoolCurrentValue += val;
+                }
             });
             
-            let totalCurrent = totalCurrentPortfolioStocksMarketValue + state.cash;
-            let totalTarget = totalCurrent + state.injection;
+            // 計算「總體帳戶」指標 (顯示於畫面上方)
+            let totalOverallCurrent = totalCurrentPortfolioStocksMarketValue + state.cash;
             let unreleasedTotalPlAmount = totalCurrentPortfolioStocksMarketValue - totalPortfolioInitialCost;
-
             let displayTotalPl = state.plMode === 'NET' ? (unreleasedTotalPlAmount - totalEstSellCost) : unreleasedTotalPlAmount;
             let overallPortfolioRoi = totalPortfolioInitialCost > 0 ? (displayTotalPl / totalPortfolioInitialCost) * 100 : 0;
             
-            document.getElementById('stat-total-asset').innerText = `NT$ ${Math.round(totalTarget).toLocaleString()}`;
+            document.getElementById('stat-total-asset').innerText = `NT$ ${Math.round(totalOverallCurrent + state.injection).toLocaleString()}`;
             
             let titleEl = document.getElementById('unrealized-pl-header-title');
             if (titleEl) titleEl.innerText = state.plMode === 'NET' ? "未實現 (淨)" : "未實現 (帳面)";
@@ -1531,9 +1526,10 @@
             }
             document.getElementById('stat-total-friction').innerText = `F: ${Math.round(totalFrictionCost).toLocaleString()}`;
 
+            // Beta 值計算 (維持用 overall 比例算，或只看 active 也可以，這裡維持全域)
             let currBeta = 0, tgtBeta = 0;
             state.assets.forEach(asset => {
-                let actualW = totalCurrent > 0 ? (currentAssetValues[asset.id] / totalCurrent) : 0;
+                let actualW = totalOverallCurrent > 0 ? (currentAssetValues[asset.id] / totalOverallCurrent) : 0;
                 let targetW = asset.active !== false ? (parseFloat(asset.targetWeight) || 0) : 0;
                 let assetBeta = asset.beta !== undefined ? parseFloat(asset.beta) : 1.0;
                 currBeta += actualW * assetBeta;
@@ -1542,14 +1538,24 @@
             document.getElementById('stat-curr-beta').innerText = currBeta.toFixed(2);
             document.getElementById('stat-tgt-beta').innerText = tgtBeta.toFixed(2);
 
+            // 【計算再平衡動作】
+            // 加入現金到再平衡池 (如果現金有參與)
+            if (state.cashActive !== false) {
+                rebalancePoolCurrentValue += state.cash;
+            }
+            // 加上預定新注資 = 最終用來分配權重的總金額
+            let rebalancePoolTargetValue = rebalancePoolCurrentValue + state.injection;
+
             let actions = [];
             if (state.injection > 0) actions.push({ type: 'INJECT', ticker: '新資金準備', shares: 0, value: state.injection });
 
             state.assets.forEach(asset => {
+                // 被凍結(active=false)或排除的標的，直接跳過不計算動作
                 if (asset.active === false || (state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(asset.id))) return; 
 
                 let t_weight = (parseFloat(asset.targetWeight) || 0) / 100;
-                let t_val = totalTarget * t_weight;
+                // 分配基準改用 rebalancePoolTargetValue，排除掉凍結資產的市值
+                let t_val = rebalancePoolTargetValue * t_weight; 
                 let c_val = currentAssetValues[asset.id];
                 let deltaVal = t_val - c_val;
   
@@ -1566,8 +1572,14 @@
 
             let expectedAssetValues = {...currentAssetValues};
             actions.forEach(act => { if (act.type === 'BUY' && act.id) expectedAssetValues[act.id] += act.value; });
-            let expectedTotalStocksVal = state.assets.reduce((sum, a) => sum + expectedAssetValues[a.id], 0);
-            let expectedCash = Math.max(0, totalTarget - expectedTotalStocksVal);
+            // 計算預期現金時，也要只算 active 的資產
+            let expectedTotalActiveStocksVal = state.assets.reduce((sum, a) => {
+                if (a.active !== false && !(state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(a.id))) {
+                    return sum + expectedAssetValues[a.id];
+                }
+                return sum;
+            }, 0);
+            let expectedCash = Math.max(0, rebalancePoolTargetValue - expectedTotalActiveStocksVal);
 
             let innerStepsHtml = `
                 <div class="space-y-4">
@@ -1604,7 +1616,9 @@
             innerStepsHtml += `</div></div>`;
             if (rightZoneContainer) rightZoneContainer.innerHTML = innerStepsHtml;
 
-            updateDynamicCharts(currentAssetValues, totalCurrent, cashWeight, totalTarget, true, expectedAssetValues, expectedCash);
+            // 圖表傳遞 rebalancePoolCurrentValue 作為分母，讓圓餅圖在顯示時不會加入被排除的資產
+            let cashWeight = state.cashActive !== false ? state.cashWeight : 0;
+            updateDynamicCharts(currentAssetValues, rebalancePoolCurrentValue, cashWeight, rebalancePoolTargetValue, true, expectedAssetValues, expectedCash);
             renderT2SettlementPanel();
         }
 
@@ -1635,19 +1649,21 @@
             calculate(); 
         }
 
-        function updateDynamicCharts(currentVals, totalCurrent, tgtCashPct, totalTarget, isValid, expectedAssetValues, expectedCash) {
+        function updateDynamicCharts(currentVals, poolCurrentTotal, tgtCashPct, poolTargetTotal, isValid, expectedAssetValues, expectedCash) {
             let labels = [], currData = [], tgtData = [], pointColors = [];
             let legendHtml = '', gapHtml = '';
             const legendContainer = document.getElementById('main-legend-container');
             const gapBarsContainer = document.getElementById('gap-bars-container');
 
             state.assets.forEach((a, i) => {
-                if(a.active === false && pieViewType === 'TARGET') return; 
+                // 【核心修復】如果是 active=false (凍結資產)，在圖表中完全隱藏，不論是 CURRENT 還是 TARGET 模式
+                if(a.active === false || (state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(a.id))) return; 
+                
                 let color = CHART_COLORS[i % CHART_COLORS.length];
                 let c_val = currentVals[a.id] || 0;
-                let c_pct = totalCurrent > 0 ? (c_val / totalCurrent) * 100 : 0;
-                let t_pct_raw = a.active !== false ? (parseFloat(a.targetWeight) || 0) : 0;
-                let t_pct = (state.inflowOnly && expectedAssetValues && pieViewType === 'TARGET') ? (totalTarget > 0 ? ((expectedAssetValues[a.id] || 0) / totalTarget) * 100 : 0) : t_pct_raw;
+                let c_pct = poolCurrentTotal > 0 ? (c_val / poolCurrentTotal) * 100 : 0;
+                let t_pct_raw = (parseFloat(a.targetWeight) || 0);
+                let t_pct = (state.inflowOnly && expectedAssetValues && pieViewType === 'TARGET') ? (poolTargetTotal > 0 ? ((expectedAssetValues[a.id] || 0) / poolTargetTotal) * 100 : 0) : t_pct_raw;
 
                 if (pieViewType === 'CURRENT' && c_pct === 0) return; 
                 
@@ -1657,12 +1673,12 @@
                 pointColors.push(color);
 
                 let displayPct = pieViewType === 'CURRENT' ? c_pct.toFixed(1) : t_pct.toFixed(1);
-                let displayVal = pieViewType === 'CURRENT' ? c_val : (totalTarget * t_pct / 100);
+                let displayVal = pieViewType === 'CURRENT' ? c_val : (poolTargetTotal * t_pct / 100);
                 legendHtml += `
                     <div class="flex flex-col gap-1 bg-surface-container-highest/30 px-3 py-2 rounded-lg border border-white/5 hover:border-white/10 transition-colors">
                         <div class="flex items-center gap-2 min-w-0">
-                            <span class="w-2.5 h-2.5 rounded-full shrink-0 ${a.active === false ? 'opacity-50' : ''}" style="background-color: ${color}"></span>
-                            <span class="text-xs font-bold text-text-secondary truncate uppercase ${a.active === false ? 'line-through' : ''}">${a.name}</span>
+                            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${color}"></span>
+                            <span class="text-xs font-bold text-text-secondary truncate uppercase">${a.name}</span>
                         </div>
                         <div class="flex justify-between items-center mt-0.5 font-mono text-[10px]">
                             <span class="text-text-secondary">NT$ ${Math.round(displayVal).toLocaleString()}</span>
@@ -1670,40 +1686,38 @@
                         </div>
                     </div>`;
 
-                if (a.active !== false) {
-                    let isImbalanced = Math.abs(c_pct - t_pct_raw) > state.imbalanceThreshold;
-                    let targetVal = totalTarget * (t_pct_raw / 100);
-                    gapHtml += `
-                        <div class="flex flex-col gap-1.5 relative group cursor-pointer" onclick="openLedgerModal('${a.id}')">
-                            <div class="flex justify-between items-end flex-wrap gap-1">
-                                <span class="text-xs font-bold text-white group-hover:text-primary transition-colors">${a.name}</span>
-                                <div class="flex items-baseline gap-1 font-mono text-[11px] text-right">
-                                    <span class="text-text-secondary">NT$ ${Math.round(c_val).toLocaleString()}</span>
-                                    <span class="font-black ${isImbalanced ? 'text-danger-red' : 'text-action-blue'}">(${c_pct.toFixed(1)}%)</span>
-                                    <span class="text-text-secondary">/ NT$ ${Math.round(targetVal).toLocaleString()}</span>
-                                    <span class="text-text-secondary">(${t_pct_raw.toFixed(1)}%)</span>
-                                </div>
+                let isImbalanced = Math.abs(c_pct - t_pct_raw) > state.imbalanceThreshold;
+                let targetVal = poolTargetTotal * (t_pct_raw / 100);
+                gapHtml += `
+                    <div class="flex flex-col gap-1.5 relative group cursor-pointer" onclick="openLedgerModal('${a.id}')">
+                        <div class="flex justify-between items-end flex-wrap gap-1">
+                            <span class="text-xs font-bold text-white group-hover:text-primary transition-colors">${a.name}</span>
+                            <div class="flex items-baseline gap-1 font-mono text-[11px] text-right">
+                                <span class="text-text-secondary">NT$ ${Math.round(c_val).toLocaleString()}</span>
+                                <span class="font-black ${isImbalanced ? 'text-danger-red' : 'text-action-blue'}">(${c_pct.toFixed(1)}%)</span>
+                                <span class="text-text-secondary">/ NT$ ${Math.round(targetVal).toLocaleString()}</span>
+                                <span class="text-text-secondary">(${t_pct_raw.toFixed(1)}%)</span>
                             </div>
-                            <div class="w-full h-3.5 bg-surface-container-highest rounded-full relative overflow-hidden border border-outline-variant/30">
-                                <div class="absolute top-0 left-0 h-full rounded-full transition-all duration-500 ${isImbalanced ? 'bg-danger-red/80' : 'bg-action-blue/80'}" style="width: ${c_pct}%"></div>
-                                <div class="absolute top-0 h-full w-1.5 bg-white z-10 shadow-[0_0_2px_black]" style="left: calc(${t_pct_raw}% - 0.75px)"></div>
-                            </div>
-                        </div>`;
-                }
+                        </div>
+                        <div class="w-full h-3.5 bg-surface-container-highest rounded-full relative overflow-hidden border border-outline-variant/30">
+                            <div class="absolute top-0 left-0 h-full rounded-full transition-all duration-500 ${isImbalanced ? 'bg-danger-red/80' : 'bg-action-blue/80'}" style="width: ${c_pct}%"></div>
+                            <div class="absolute top-0 h-full w-1.5 bg-white z-10 shadow-[0_0_2px_black]" style="left: calc(${t_pct_raw}% - 0.75px)"></div>
+                        </div>
+                    </div>`;
             });
 
-            if (state.cashActive !== false || pieViewType === 'CURRENT') {
+            if (state.cashActive !== false) {
                 labels.push("Settlement Cash");
-                let c_cash_pct = totalCurrent > 0 ? ((state.cash / totalCurrent) * 100) : 0;
+                let c_cash_pct = poolCurrentTotal > 0 ? ((state.cash / poolCurrentTotal) * 100) : 0;
                 currData.push(c_cash_pct.toFixed(1));
                 
-                let t_cash_pct = (state.inflowOnly && expectedAssetValues && pieViewType === 'TARGET') ? (totalTarget > 0 ? (expectedCash / totalTarget) * 100 : 0) : (state.cashActive !== false ? state.cashWeight : 0);
+                let t_cash_pct = (state.inflowOnly && expectedAssetValues && pieViewType === 'TARGET') ? (poolTargetTotal > 0 ? (expectedCash / poolTargetTotal) * 100 : 0) : tgtCashPct;
                 tgtData.push(t_cash_pct.toFixed(1));
                 
                 let cashColor = CHART_COLORS[state.assets.length % CHART_COLORS.length];
                 pointColors.push(cashColor);
                 let displayCashPct = pieViewType === 'CURRENT' ? c_cash_pct.toFixed(1) : t_cash_pct.toFixed(1);
-                let displayCashVal = pieViewType === 'CURRENT' ? state.cash : (totalTarget * t_cash_pct / 100);
+                let displayCashVal = pieViewType === 'CURRENT' ? state.cash : (poolTargetTotal * t_cash_pct / 100);
                 legendHtml += `
                     <div class="flex flex-col gap-1 bg-surface-container-highest/30 px-3 py-2 rounded-lg border border-white/5 hover:border-white/10 transition-colors">
                         <div class="flex items-center gap-2 min-w-0">
@@ -1716,26 +1730,24 @@
                         </div>
                     </div>`;
                 
-                if (state.cashActive !== false) {
-                    let isCashImbalanced = Math.abs(c_cash_pct - tgtCashPct) > state.imbalanceThreshold;
-                    let targetCashVal = totalTarget * (tgtCashPct / 100);
-                    gapHtml += `
-                        <div class="flex flex-col gap-1.5 relative mt-2 pt-4 border-t border-surface-container-highest">
-                            <div class="flex justify-between items-end flex-wrap gap-1">
-                                <span class="text-xs font-bold text-text-secondary">Settlement Cash</span>
-                                <div class="flex items-baseline gap-1 font-mono text-[11px] text-right">
-                                    <span class="text-text-secondary">NT$ ${Math.round(state.cash).toLocaleString()}</span>
-                                    <span class="font-black ${isCashImbalanced ? 'text-danger-red' : 'text-action-blue'}">(${c_cash_pct.toFixed(1)}%)</span>
-                                    <span class="text-text-secondary">/ NT$ ${Math.round(targetCashVal).toLocaleString()}</span>
-                                    <span class="text-text-secondary">(${tgtCashPct.toFixed(1)}%)</span>
-                                </div>
+                let isCashImbalanced = Math.abs(c_cash_pct - tgtCashPct) > state.imbalanceThreshold;
+                let targetCashVal = poolTargetTotal * (tgtCashPct / 100);
+                gapHtml += `
+                    <div class="flex flex-col gap-1.5 relative mt-2 pt-4 border-t border-surface-container-highest">
+                        <div class="flex justify-between items-end flex-wrap gap-1">
+                            <span class="text-xs font-bold text-text-secondary">Settlement Cash</span>
+                            <div class="flex items-baseline gap-1 font-mono text-[11px] text-right">
+                                <span class="text-text-secondary">NT$ ${Math.round(state.cash).toLocaleString()}</span>
+                                <span class="font-black ${isCashImbalanced ? 'text-danger-red' : 'text-action-blue'}">(${c_cash_pct.toFixed(1)}%)</span>
+                                <span class="text-text-secondary">/ NT$ ${Math.round(targetCashVal).toLocaleString()}</span>
+                                <span class="text-text-secondary">(${tgtCashPct.toFixed(1)}%)</span>
                             </div>
-                            <div class="w-full h-3.5 bg-surface-container-lowest rounded-full relative overflow-hidden border border-outline-variant/30">
-                                <div class="absolute top-0 left-0 h-full rounded-full transition-all duration-500 ${isCashImbalanced ? 'bg-danger-red/60' : 'bg-surface-elevated'}" style="width: ${c_cash_pct}%"></div>
-                                <div class="absolute top-0 h-full w-1.5 bg-text-secondary z-10 shadow-[0_0_2px_black]" style="left: calc(${tgtCashPct}% - 0.75px)"></div>
-                            </div>
-                        </div>`;
-                }
+                        </div>
+                        <div class="w-full h-3.5 bg-surface-container-lowest rounded-full relative overflow-hidden border border-outline-variant/30">
+                            <div class="absolute top-0 left-0 h-full rounded-full transition-all duration-500 ${isCashImbalanced ? 'bg-danger-red/60' : 'bg-surface-elevated'}" style="width: ${c_cash_pct}%"></div>
+                            <div class="absolute top-0 h-full w-1.5 bg-text-secondary z-10 shadow-[0_0_2px_black]" style="left: calc(${tgtCashPct}% - 0.75px)"></div>
+                        </div>
+                    </div>`;
             }
 
             if (legendContainer) legendContainer.innerHTML = legendHtml;
@@ -1755,8 +1767,8 @@
                                 callbacks: { 
                                     label: function(context) { 
                                         let pct = context.raw; let label = context.label || ''; let amt = 0;
-                                        if (label === "Settlement Cash") amt = pieViewType === 'CURRENT' ? state.cash : (totalTarget * parseFloat(pct) / 100);
-                                        else { let asset = state.assets.find(x => x.name === label); if (asset) amt = pieViewType === 'CURRENT' ? (currentVals[asset.id] || 0) : (totalTarget * parseFloat(pct) / 100); }
+                                        if (label === "Settlement Cash") amt = pieViewType === 'CURRENT' ? state.cash : (poolTargetTotal * parseFloat(pct) / 100);
+                                        else { let asset = state.assets.find(x => x.name === label); if (asset) amt = pieViewType === 'CURRENT' ? (currentVals[asset.id] || 0) : (poolTargetTotal * parseFloat(pct) / 100); }
                                         return ` ${label}: NT$ ${Math.round(amt).toLocaleString()} (${pct}%)`; 
                                     } 
                                 }
@@ -2372,17 +2384,29 @@
             text += `----------------------------------\n`;
             
             let tradeUnit = state.unit;
-            let totalCurrentPortfolioStocksMarketValue = 0;
-            state.assets.forEach(asset => totalCurrentPortfolioStocksMarketValue += (aggregateAssetLedger(asset.id).shares * asset.marketPrice));
-            let totalTarget = totalCurrentPortfolioStocksMarketValue + state.cash + state.injection;
+            
+            // 【核心修復】只將「有參與再平衡」的資產市值納入計算池
+            let rebalancePoolValue = state.injection;
+            state.assets.forEach(asset => {
+                if (asset.active !== false && !(state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(asset.id))) {
+                    rebalancePoolValue += (aggregateAssetLedger(asset.id).shares * asset.marketPrice);
+                }
+            });
+            if (state.cashActive !== false) {
+                rebalancePoolValue += state.cash;
+            }
 
             state.assets.forEach(asset => {
-                if (state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(asset.id)) return;
-                let t_val = totalTarget * ((parseFloat(asset.targetWeight) || 0) / 100);
+                // 【核心修復】跳過凍結與排除的資產
+                if (asset.active === false || (state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(asset.id))) return;
+                
+                let t_val = rebalancePoolValue * ((parseFloat(asset.targetWeight) || 0) / 100);
                 let c_val = aggregateAssetLedger(asset.id).shares * asset.marketPrice;
                 if(asset.marketPrice <= 0) return;
+                
                 let deltaShares = (t_val - c_val) / asset.marketPrice;
                 deltaShares = tradeUnit === 1000 ? (deltaShares > 0 ? Math.floor(deltaShares / 1000) * 1000 : Math.round(deltaShares / 1000) * 1000) : (deltaShares > 0 ? Math.floor(deltaShares) : Math.round(deltaShares));
+                
                 if(deltaShares < 0 && !state.inflowOnly) text += `賣出 ${asset.ticker || asset.name} ${Math.abs(deltaShares)} 股\n`;
                 if(deltaShares > 0) text += `買進 ${asset.ticker || asset.name} ${deltaShares} 股\n`;
             });
