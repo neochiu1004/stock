@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html class="dark" lang="zh-TW">
 <head>
@@ -236,6 +237,7 @@
                         Asset Buckets
                     </h2>
                     <div class="flex gap-2">
+                        <!-- 支援多檔案上傳 (multiple) -->
                         <button class="bg-surface-container-highest hover:bg-surface-elevated text-white text-xs font-black px-4 py-2 rounded-full border border-outline-variant transition-all active:scale-95 flex items-center gap-1.5" onclick="document.getElementById('import-csv-file').click()">
                             <span class="material-symbols-outlined text-[16px]">upload_file</span>
                             匯入券商 CSV
@@ -322,7 +324,6 @@
     <!-- 原有其他 Modals (System Settings, Ledger, Confirmations, etc.) -->
     <!-- ⚙️ 系統參數設定 Modal -->
     <div class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center" id="modal-system-settings">
-        <!-- 內容省略，同原有 -->
         <div class="bg-surface-container-high border-t sm:border border-surface-container-highest rounded-t-3xl sm:rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-transform duration-300">
             <div class="px-6 py-5 border-b border-surface-container-highest flex justify-between items-center bg-surface-container-highest/20">
                 <h3 class="text-base font-black text-text-primary flex items-center gap-2">
@@ -388,7 +389,9 @@
                         <button class="bg-surface-container-highest text-white py-3 rounded-xl text-sm font-bold border border-outline-variant active:scale-95 hover:bg-surface-elevated transition-all" onclick="exportData()" type="button">💾 導出 JSON 備份</button>
                         <button class="bg-surface-container-highest text-white py-3 rounded-xl text-sm font-bold border border-outline-variant active:scale-95 hover:bg-surface-elevated transition-all" onclick="document.getElementById('import-file').click()" type="button">📂 導入 JSON 數據</button>
                         <input type="file" id="import-file" style="display:none" onchange="importData(event)"/>
-                        <input type="file" id="import-csv-file" style="display:none" onchange="importCsvData(event)"/>
+                        
+                        <!-- CSV 匯入 Input，新增 multiple 支援多選 -->
+                        <input type="file" id="import-csv-file" multiple accept=".csv" style="display:none" onchange="importCsvData(event)"/>
                     </div>
                 </div>
             </div>
@@ -617,7 +620,7 @@
 
     <script>
         /**
-         * 控盤方舟 V4.2 - 完美會計分離更新
+         * 控盤方舟 V4.3 - 多檔案批次匯入與交割現金流智慧分類引擎
          */
 
         const CHART_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e', '#64748b', '#06b6d4', '#f472b6'];
@@ -1148,12 +1151,14 @@
             return Math.max(1, Math.floor(discountedFee));
         }
 
-        function calculateTaiwanStockTax(ticker, price, shares, type) {
+        function calculateTaiwanStockTax(identifier, price, shares, type) {
             if (type === 'BUY') return 0;
-            let cleanTicker = (ticker || '').trim().toUpperCase();
-            if (/^00.*B$/.test(cleanTicker)) return 0;
-            if (/^00/.test(cleanTicker)) return Math.round(price * shares * 0.001);
-            return Math.round(price * shares * 0.003);
+            let cleanId = (identifier || '').trim().toUpperCase();
+            if (/^00.*B$/.test(cleanId)) return 0; // 債券ETF免稅
+            if (/^00/.test(cleanId) || cleanId.includes('ETF') || cleanId.includes('正2') || cleanId.includes('反1')) {
+                return Math.round(price * shares * 0.001); // ETF 交易稅千分之1
+            }
+            return Math.round(price * shares * 0.003); // 一般股票千分之3
         }
 
         function aggregateAssetLedger(assetId) {
@@ -1250,7 +1255,7 @@
                     </div>` : "";
 
                 let sellFee = calculateTaiwanStockFee(a.marketPrice, l.shares, state.discount);
-                let sellTax = calculateTaiwanStockTax(a.ticker, a.marketPrice, l.shares, 'SELL');
+                let sellTax = calculateTaiwanStockTax(a.ticker || a.name, a.marketPrice, l.shares, 'SELL');
                 let estSellCost = sellFee + sellTax;
 
                 let displayPl = state.plMode === 'NET' ? (pl - estSellCost) : pl;
@@ -1471,13 +1476,11 @@
             let rightZoneContainer = document.getElementById('panel-dynamic-right-zone');
             let tradeUnit = state.unit;
             
-            // 用於計算整個帳戶「總資產」與「總損益」的變數
             let totalCurrentPortfolioStocksMarketValue = 0;
             let totalPortfolioInitialCost = 0;
             let totalFrictionCost = 0;
             let totalEstSellCost = 0; 
             
-            // 新增：獨立計算「再平衡資金池」 (只加總 active 的資產與現金)
             let rebalancePoolCurrentValue = 0; 
             let currentAssetValues = {};
             
@@ -1486,24 +1489,21 @@
                 let val = ledger.shares * asset.marketPrice;
                 currentAssetValues[asset.id] = val;
                 
-                // 無論是否 active，都計入「總體帳戶」的市值與成本
                 totalCurrentPortfolioStocksMarketValue += val;
                 totalPortfolioInitialCost += ledger.totalCost;
                 
                 if (ledger.shares > 0) {
                     let sellFee = calculateTaiwanStockFee(asset.marketPrice, ledger.shares, state.discount);
-                    let sellTax = calculateTaiwanStockTax(asset.ticker, asset.marketPrice, ledger.shares, 'SELL');
+                    let sellTax = calculateTaiwanStockTax(asset.ticker || asset.name, asset.marketPrice, ledger.shares, 'SELL');
                     totalEstSellCost += (sellFee + sellTax);
                 }
                 if (asset.txs) asset.txs.forEach(t => totalFrictionCost += (t.fee || 0) + (t.tax || 0));
 
-                // 【核心修復】：如果資產有參與再平衡，才將其市值計入「再平衡資金池」
                 if (asset.active !== false && !(state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(asset.id))) {
                     rebalancePoolCurrentValue += val;
                 }
             });
             
-            // 計算「總體帳戶」指標 (顯示於畫面上方)
             let totalOverallCurrent = totalCurrentPortfolioStocksMarketValue + state.cash;
             let unreleasedTotalPlAmount = totalCurrentPortfolioStocksMarketValue - totalPortfolioInitialCost;
             let displayTotalPl = state.plMode === 'NET' ? (unreleasedTotalPlAmount - totalEstSellCost) : unreleasedTotalPlAmount;
@@ -1526,7 +1526,6 @@
             }
             document.getElementById('stat-total-friction').innerText = `F: ${Math.round(totalFrictionCost).toLocaleString()}`;
 
-            // Beta 值計算 (維持用 overall 比例算，或只看 active 也可以，這裡維持全域)
             let currBeta = 0, tgtBeta = 0;
             state.assets.forEach(asset => {
                 let actualW = totalOverallCurrent > 0 ? (currentAssetValues[asset.id] / totalOverallCurrent) : 0;
@@ -1538,23 +1537,18 @@
             document.getElementById('stat-curr-beta').innerText = currBeta.toFixed(2);
             document.getElementById('stat-tgt-beta').innerText = tgtBeta.toFixed(2);
 
-            // 【計算再平衡動作】
-            // 加入現金到再平衡池 (如果現金有參與)
             if (state.cashActive !== false) {
                 rebalancePoolCurrentValue += state.cash;
             }
-            // 加上預定新注資 = 最終用來分配權重的總金額
             let rebalancePoolTargetValue = rebalancePoolCurrentValue + state.injection;
 
             let actions = [];
             if (state.injection > 0) actions.push({ type: 'INJECT', ticker: '新資金準備', shares: 0, value: state.injection });
 
             state.assets.forEach(asset => {
-                // 被凍結(active=false)或排除的標的，直接跳過不計算動作
                 if (asset.active === false || (state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(asset.id))) return; 
 
                 let t_weight = (parseFloat(asset.targetWeight) || 0) / 100;
-                // 分配基準改用 rebalancePoolTargetValue，排除掉凍結資產的市值
                 let t_val = rebalancePoolTargetValue * t_weight; 
                 let c_val = currentAssetValues[asset.id];
                 let deltaVal = t_val - c_val;
@@ -1572,7 +1566,7 @@
 
             let expectedAssetValues = {...currentAssetValues};
             actions.forEach(act => { if (act.type === 'BUY' && act.id) expectedAssetValues[act.id] += act.value; });
-            // 計算預期現金時，也要只算 active 的資產
+            
             let expectedTotalActiveStocksVal = state.assets.reduce((sum, a) => {
                 if (a.active !== false && !(state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(a.id))) {
                     return sum + expectedAssetValues[a.id];
@@ -1616,7 +1610,6 @@
             innerStepsHtml += `</div></div>`;
             if (rightZoneContainer) rightZoneContainer.innerHTML = innerStepsHtml;
 
-            // 圖表傳遞 rebalancePoolCurrentValue 作為分母，讓圓餅圖在顯示時不會加入被排除的資產
             let cashWeight = state.cashActive !== false ? state.cashWeight : 0;
             updateDynamicCharts(currentAssetValues, rebalancePoolCurrentValue, cashWeight, rebalancePoolTargetValue, true, expectedAssetValues, expectedCash);
             renderT2SettlementPanel();
@@ -1656,7 +1649,6 @@
             const gapBarsContainer = document.getElementById('gap-bars-container');
 
             state.assets.forEach((a, i) => {
-                // 【核心修復】如果是 active=false (凍結資產)，在圖表中完全隱藏，不論是 CURRENT 還是 TARGET 模式
                 if(a.active === false || (state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(a.id))) return; 
                 
                 let color = CHART_COLORS[i % CHART_COLORS.length];
@@ -1934,6 +1926,172 @@
             activeTxIdForActionSheet = null;
         }
 
+        // ==========================================
+        // 核心更新：智慧防呆多檔案匯入 CSV (V4.3)
+        // ==========================================
+        
+        function parseCsvLine(line) {
+            const result = [];
+            let current = '', inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                if (char === '"') inQuotes = !inQuotes;
+                else if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; } 
+                else current += char;
+            }
+            result.push(current.trim());
+            return result;
+        }
+
+        async function importCsvData(event) {
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
+
+            showToast(`開始解析 ${files.length} 個檔案...`, "info");
+            
+            let totalAssetsAdded = 0;
+            let totalTxsAdded = 0;
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const text = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = () => resolve(null);
+                    reader.readAsText(file, "big5");
+                });
+
+                if (text) {
+                    const res = processCsvContent(text, file.name);
+                    totalAssetsAdded += res.newAssets;
+                    totalTxsAdded += res.newTxs;
+                }
+            }
+
+            normalizeWeights();
+            calculate();
+            renderAssetCards();
+            
+            showToast(`CSV 處理完成！新增 ${totalAssetsAdded} 檔標的，成功匯入 ${totalTxsAdded} 筆明細。`, "success");
+            event.target.value = ''; // 重置 input 讓下次同檔名也能觸發
+        }
+
+        function processCsvContent(text, filename) {
+            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+            if (lines.length < 2) return { newAssets: 0, newTxs: 0 };
+
+            const headerRow = parseCsvLine(lines[0]);
+
+            // 自動判斷模式：如果有賣出特徵或檔名包含「已實現」，判定為 SELL 模式 (交割款追蹤)
+            const isRealized = headerRow.includes("賣出單價") || headerRow.includes("賣出日期") || filename.includes("已實現");
+
+            // 定位通用欄位
+            const colNameIdx = headerRow.indexOf("股票名稱") !== -1 ? headerRow.indexOf("股票名稱") : headerRow.indexOf("股名");
+            const colSharesIdx = headerRow.indexOf("股數") !== -1 ? headerRow.indexOf("股數") : headerRow.indexOf("成交股數");
+            const colMarketPriceIdx = headerRow.indexOf("市價");
+
+            // 定位價格與日期欄位
+            let colPriceIdx = -1, colDateIdx = -1;
+            let colFeeIdx = headerRow.indexOf("手續費");
+            let colTaxIdx = headerRow.indexOf("交易稅");
+
+            if (isRealized) {
+                colPriceIdx = headerRow.indexOf("賣出單價");
+                colDateIdx = headerRow.indexOf("賣出日期") !== -1 ? headerRow.indexOf("賣出日期") : headerRow.indexOf("日期");
+            } else {
+                colPriceIdx = headerRow.indexOf("成交價") !== -1 ? headerRow.indexOf("成交價") : headerRow.indexOf("成交均價");
+                colDateIdx = headerRow.indexOf("成交日期") !== -1 ? headerRow.indexOf("成交日期") : headerRow.indexOf("日期");
+            }
+
+            // 防呆備用價格欄位
+            if (colPriceIdx === -1) colPriceIdx = headerRow.indexOf("成交單價") !== -1 ? headerRow.indexOf("成交單價") : -1;
+
+            if (colNameIdx === -1 || colSharesIdx === -1 || colPriceIdx === -1) {
+                console.warn(`檔案 ${filename} 缺少必要欄位，已跳過。`);
+                return { newAssets: 0, newTxs: 0 };
+            }
+
+            let newAssetsCount = 0;
+            let newTxsCount = 0;
+
+            for (let i = 1; i < lines.length; i++) {
+                const cols = parseCsvLine(lines[i]);
+                if (cols.length < headerRow.length) continue;
+
+                const stockName = cols[colNameIdx];
+                if (!stockName || stockName.startsWith("總") || stockName === "總計") continue;
+
+                const sharesStr = cols[colSharesIdx].replace(/,/g, '').replace(/"/g, '');
+                const priceStr = cols[colPriceIdx].replace(/,/g, '').replace(/"/g, '');
+                const shares = parseInt(sharesStr, 10);
+                const price = parseFloat(priceStr);
+
+                if (isNaN(shares) || isNaN(price) || shares <= 0 || price <= 0) continue;
+
+                const type = isRealized ? 'SELL' : 'BUY';
+                let dateStr = (colDateIdx !== -1 && cols[colDateIdx]) ? cols[colDateIdx].replace(/\//g, "-") : new Date().toISOString().slice(0, 10);
+
+                // 解析手續費與稅，如果有提供直接用，沒有則自動計算
+                let fee = (colFeeIdx !== -1 && cols[colFeeIdx]) ? parseInt(cols[colFeeIdx].replace(/,/g, '')) : calculateTaiwanStockFee(price, shares, state.discount);
+                if (isNaN(fee)) fee = calculateTaiwanStockFee(price, shares, state.discount);
+
+                let tax = 0;
+                if (type === 'SELL') {
+                    tax = (colTaxIdx !== -1 && cols[colTaxIdx]) ? parseInt(cols[colTaxIdx].replace(/,/g, '')) : calculateTaiwanStockTax(stockName, price, shares, 'SELL');
+                    if (isNaN(tax)) tax = 0;
+                }
+
+                // 尋找或創建資產
+                let asset = state.assets.find(a => a.name.trim() === stockName.trim());
+                if (!asset) {
+                    asset = {
+                        id: "a_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
+                        name: stockName,
+                        ticker: "", 
+                        beta: 1.0,
+                        active: true,
+                        targetWeight: 0,
+                        savedTargetWeight: 0,
+                        marketPrice: price, 
+                        txs: []
+                    };
+                    state.assets.push(asset);
+                    newAssetsCount++;
+                }
+
+                // 如果是未實現(庫存)，順便更新最新市價
+                if (!isRealized && colMarketPriceIdx !== -1 && cols[colMarketPriceIdx]) {
+                    const mp = parseFloat(cols[colMarketPriceIdx].replace(/,/g, '').replace(/"/g, ''));
+                    if (!isNaN(mp) && mp > 0) asset.marketPrice = mp;
+                }
+
+                // 智慧防重複：如果相同日期、類別、股數、價格的紀錄已存在，則跳過
+                const isDuplicate = asset.txs.some(t =>
+                    t.date === dateStr &&
+                    t.type === type &&
+                    t.shares === shares &&
+                    Math.abs(t.price - price) < 0.01
+                );
+
+                if (!isDuplicate) {
+                    asset.txs.push({
+                        id: Date.now() + Math.random(),
+                        date: dateStr,
+                        price: price,
+                        shares: shares,
+                        fee: fee,
+                        tax: tax,
+                        type: type,
+                        linked: false
+                    });
+                    newTxsCount++;
+                }
+            }
+
+            return { newAssets: newAssetsCount, newTxs: newTxsCount };
+        }
+        // ==========================================
+
         function closeAIReportModal() { document.getElementById('modal-ai-report').classList.add('hidden'); }
 
         function applyAIWeights(text) {
@@ -2191,81 +2349,6 @@
             normalizeWeights(); renderLedgerTable(); showToast("明細已移除", "info");
         }
 
-        function parseCsvLine(line) {
-            const result = [];
-            let current = '', inQuotes = false;
-            for (let i = 0; i < line.length; i++) {
-                const char = line[i];
-                if (char === '"') inQuotes = !inQuotes;
-                else if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; } 
-                else current += char;
-            }
-            result.push(current.trim());
-            return result;
-        }
-
-        function importCsvData(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try { processCsvText(e.target.result); } catch (err) { showToast("解析 CSV 失敗，請確認檔案格式", "error"); console.error(err); }
-            };
-            reader.readAsText(file, "big5");
-        }
-
-        function processCsvText(text) {
-            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-            if (lines.length < 2) return showToast("CSV 內容不足", "error");
-
-            const headerRow = parseCsvLine(lines[0]);
-            const colNameIdx = headerRow.indexOf("股票名稱");
-            const colSharesIdx = headerRow.indexOf("股數");
-            let colPriceIdx = headerRow.indexOf("成交價") !== -1 ? headerRow.indexOf("成交價") : headerRow.indexOf("成交均價");
-            const colMarketPriceIdx = headerRow.indexOf("市價");
-            const colDateIdx = headerRow.indexOf("成交日期");
-
-            if (colNameIdx === -1 || colSharesIdx === -1 || colPriceIdx === -1) return showToast("找不到對應欄位", "error");
-
-            const parsedGroups = {};
-            for (let i = 1; i < lines.length; i++) {
-                const cols = parseCsvLine(lines[i]);
-                if (cols.length < headerRow.length) continue;
-                
-                const stockName = cols[colNameIdx];
-                if (!stockName || stockName.startsWith("總預估") || stockName.startsWith("總融資") || stockName === "總計") continue; 
-
-                const shares = parseInt(cols[colSharesIdx].replace(/,/g, '').replace(/"/g, ''));
-                const price = parseFloat(cols[colPriceIdx].replace(/,/g, '').replace(/"/g, ''));
-                if (isNaN(shares) || isNaN(price) || shares <= 0 || price <= 0) continue;
-
-                const marketPrice = (colMarketPriceIdx !== -1 && cols[colMarketPriceIdx]) ? parseFloat(cols[colMarketPriceIdx].replace(/,/g, '').replace(/"/g, '')) : price;
-                let dateStr = (colDateIdx !== -1 && cols[colDateIdx]) ? cols[colDateIdx].replace(/\//g, "-") : new Date().toISOString().slice(0, 10);
-
-                if (!parsedGroups[stockName]) parsedGroups[stockName] = { name: stockName, marketPrice: marketPrice, txs: [] };
-                
-                parsedGroups[stockName].txs.push({
-                    id: Date.now() + Math.random(), date: dateStr, price: price, shares: shares,
-                    fee: calculateTaiwanStockFee(price, shares, state.discount), tax: 0, type: 'BUY', linked: false 
-                });
-            }
-
-            for (const name in parsedGroups) {
-                const groupData = parsedGroups[name];
-                let existingAsset = state.assets.find(a => a.name.trim() === name.trim());
-                if (existingAsset) {
-                    existingAsset.txs = groupData.txs; existingAsset.marketPrice = groupData.marketPrice; existingAsset.active = true;
-                } else {
-                    state.assets.push({
-                        id: "a_" + Date.now() + Math.floor(Math.random()*1000), name: groupData.name, ticker: "", beta: 1.0, active: true,
-                        targetWeight: 0, savedTargetWeight: 0, marketPrice: groupData.marketPrice, txs: groupData.txs
-                    });
-                }
-            }
-
-            normalizeWeights(); showToast("券商 CSV 明細匯入完成！", "success"); document.getElementById('import-csv-file').value = ''; 
-        }
-
         async function fetchWithTimeout(url, timeoutMs = 5000, options = {}) {
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -2385,7 +2468,6 @@
             
             let tradeUnit = state.unit;
             
-            // 【核心修復】只將「有參與再平衡」的資產市值納入計算池
             let rebalancePoolValue = state.injection;
             state.assets.forEach(asset => {
                 if (asset.active !== false && !(state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(asset.id))) {
@@ -2397,7 +2479,6 @@
             }
 
             state.assets.forEach(asset => {
-                // 【核心修復】跳過凍結與排除的資產
                 if (asset.active === false || (state.ignoredRebalanceIds && state.ignoredRebalanceIds.includes(asset.id))) return;
                 
                 let t_val = rebalancePoolValue * ((parseFloat(asset.targetWeight) || 0) / 100);
