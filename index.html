@@ -35,6 +35,8 @@
         }
     </script>
     <style>
+        /* html 的 font-size 將透過 JS 動態調整來實現全域等比例縮放 */
+        html { font-size: 100%; transition: font-size 0.2s ease-out; }
         body { font-family: 'Inter', 'Noto Sans TC', sans-serif; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -53,8 +55,8 @@
         </button>
     </header>
 
-    <!-- 主內容區 -->
-    <main class="flex-1 overflow-y-auto hide-scrollbar pb-24 relative" id="main-container">
+    <!-- 主內容區 (下方預留 pb-36 空間防止 iPhone Homebar 或導覽列遮擋設定) -->
+    <main class="flex-1 overflow-y-auto hide-scrollbar pb-36 relative" id="main-container">
         
         <!-- ==================== TAB 1: 資產 (Assets) ==================== -->
         <section id="view-assets" class="px-5 py-6 space-y-6 hidden">
@@ -82,7 +84,7 @@
                 <!-- 動態生成資產卡片 -->
             </div>
 
-            <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mt-2">
+            <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mt-2 relative">
                 <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-full bg-brand-navy flex items-center justify-center">
                         <span class="material-symbols-outlined text-white text-[16px]">payments</span>
@@ -96,7 +98,7 @@
                     <div class="text-base font-black text-brand-navy" id="asset-cash-value">0</div>
                     <div class="text-xs text-slate-400 font-bold" id="asset-cash-pct">0%</div>
                 </div>
-                <div class="absolute inset-x-5 opacity-0 h-16 cursor-pointer" onclick="openCashModal()"></div>
+                <div class="absolute inset-0 opacity-0 cursor-pointer" onclick="openCashModal()"></div>
             </div>
 
             <button onclick="openAssetModal()" class="w-full py-3 mt-4 border-2 border-dashed border-gray-300 rounded-2xl text-slate-500 font-bold flex justify-center items-center gap-2 active:bg-gray-100 transition-colors">
@@ -180,6 +182,17 @@
                     <input type="password" id="input-api-key" class="w-full bg-slate-50 px-4 py-3 rounded-xl font-mono text-sm border border-gray-200 outline-none focus:border-brand-navy transition-colors" placeholder="請貼上您的 API Key" onchange="updateSettings()">
                 </div>
                 <p class="text-[11px] text-slate-400">用於即時同步台股報價，金鑰僅儲存於您的瀏覽器本地端，不經任何第三方伺服器。</p>
+            </div>
+
+            <h2 class="text-lg font-black text-brand-navy pt-4">顯示設定</h2>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center">
+                <span class="font-bold text-slate-700">全域文字與介面大小</span>
+                <select id="input-zoom" class="bg-slate-50 px-3 py-2 rounded-lg font-bold text-brand-navy border border-gray-200 outline-none focus:border-brand-navy" onchange="updateSettings()">
+                    <option value="90">小 (90%)</option>
+                    <option value="100">預設 (100%)</option>
+                    <option value="110">大 (110%)</option>
+                    <option value="120">特大 (120%)</option>
+                </select>
             </div>
 
             <h2 class="text-lg font-black text-brand-navy pt-4">資料管理</h2>
@@ -310,6 +323,7 @@
             threshold: 5,
             newFunds: 0,
             fugleKey: '',
+            zoomLevel: 100, // 全域縮放預設值
             lastUpdate: '--:--'
         };
 
@@ -321,14 +335,18 @@
         /* ==================== 初始化與生命週期 ==================== */
         window.onload = () => {
             loadData();
+            applyZoom(); // 套用縮放大小
             switchTab('assets');
             
-            // 綁定目標配置的 Input 防呆更新
-            document.getElementById('input-new-funds').addEventListener('input', (e) => {
-                state.newFunds = parseFloat(e.target.value) || 0;
-                saveData();
-                renderRebalance();
-            });
+            // 綁定目標配置的 Input 變更
+            const newFundsInput = document.getElementById('input-new-funds');
+            if (newFundsInput) {
+                newFundsInput.addEventListener('input', (e) => {
+                    state.newFunds = parseFloat(e.target.value) || 0;
+                    saveData();
+                    renderRebalance();
+                });
+            }
         };
 
         function saveData() {
@@ -342,39 +360,57 @@
                     const parsed = JSON.parse(data);
                     state = { ...state, ...parsed };
                     
-                    // 確保舊資料格式相容
-                    if(!state.assets) state.assets = [];
+                    // 相容與安全兜底
+                    if (!state.assets) state.assets = [];
+                    if (!state.zoomLevel) state.zoomLevel = 100;
                     
-                    // 更新 UI 綁定
-                    document.getElementById('input-threshold').value = state.threshold;
-                    document.getElementById('input-new-funds').value = state.newFunds;
-                    document.getElementById('input-api-key').value = state.fugleKey || '';
-                } catch (e) { console.error('Data parsing failed'); }
+                    // 防禦性 DOM 綁定
+                    const thresholdInput = document.getElementById('input-threshold');
+                    if (thresholdInput) thresholdInput.value = state.threshold;
+
+                    const newFundsInput = document.getElementById('input-new-funds');
+                    if (newFundsInput) newFundsInput.value = state.newFunds;
+
+                    const apiKeyInput = document.getElementById('input-api-key');
+                    if (apiKeyInput) apiKeyInput.value = state.fugleKey || '';
+
+                    const zoomInput = document.getElementById('input-zoom');
+                    if (zoomInput) zoomInput.value = state.zoomLevel;
+                } catch (e) { 
+                    console.error('Data parsing failed', e); 
+                }
             }
+        }
+
+        /* ==================== 全域 UI 縮放控制 ==================== */
+        function applyZoom() {
+            const level = state.zoomLevel || 100;
+            document.documentElement.style.fontSize = `${level}%`;
         }
 
         /* ==================== UI 切換與輔助 ==================== */
         function switchTab(tabId) {
             currentTab = tabId;
             
-            // 更新底部按鈕樣式
             ['assets', 'rebalance', 'targets', 'settings'].forEach(id => {
                 const btn = document.getElementById(`tab-btn-${id}`);
                 const view = document.getElementById(`view-${id}`);
-                if (id === tabId) {
-                    btn.classList.add('active', 'text-brand-navy');
-                    btn.classList.remove('text-slate-400');
-                    view.classList.remove('hidden');
-                } else {
-                    btn.classList.remove('active', 'text-brand-navy');
-                    btn.classList.add('text-slate-400');
-                    view.classList.add('hidden');
+                if (btn && view) {
+                    if (id === tabId) {
+                        btn.classList.add('active', 'text-brand-navy');
+                        btn.classList.remove('text-slate-400');
+                        view.classList.remove('hidden');
+                    } else {
+                        btn.classList.remove('active', 'text-brand-navy');
+                        btn.classList.add('text-slate-400');
+                        view.classList.add('hidden');
+                    }
                 }
             });
 
-            // 根據不同分頁觸發特定渲染
             const titleMap = { 'assets': '資產總覽', 'rebalance': '再平衡', 'targets': '目標配置', 'settings': '設定' };
-            document.getElementById('header-title').innerText = titleMap[tabId];
+            const headerTitle = document.getElementById('header-title');
+            if (headerTitle) headerTitle.innerText = titleMap[tabId];
 
             if (tabId === 'assets') renderAssets();
             if (tabId === 'rebalance') renderRebalance();
@@ -384,16 +420,16 @@
         function showToast(msg, type = 'info') {
             const container = document.getElementById('toast-container');
             const txt = document.getElementById('toast-text');
-            txt.innerText = msg;
-            
-            container.classList.remove('-translate-y-10', 'opacity-0');
-            setTimeout(() => {
-                container.classList.add('-translate-y-10', 'opacity-0');
-            }, 2500);
+            if (container && txt) {
+                txt.innerText = msg;
+                container.classList.remove('-translate-y-10', 'opacity-0');
+                setTimeout(() => {
+                    container.classList.add('-translate-y-10', 'opacity-0');
+                }, 2500);
+            }
         }
 
         /* ==================== 核心計算與渲染 ==================== */
-        
         function calculateTotal() {
             let stockTotal = state.assets.reduce((sum, a) => sum + (a.shares * a.price), 0);
             return stockTotal + state.cash;
@@ -402,10 +438,18 @@
         // --- TAB 1: 資產 ---
         function renderAssets() {
             const total = calculateTotal();
-            document.getElementById('asset-total-value').innerText = Math.round(total).toLocaleString();
-            document.getElementById('asset-cash-value').innerText = `NT$${Math.round(state.cash).toLocaleString()}`;
-            document.getElementById('asset-cash-pct').innerText = total > 0 ? `${((state.cash / total) * 100).toFixed(1)}%` : '0%';
-            document.getElementById('last-update-time').innerText = `最後更新 ${state.lastUpdate}`;
+            
+            const totalValueEl = document.getElementById('asset-total-value');
+            if (totalValueEl) totalValueEl.innerText = Math.round(total).toLocaleString();
+
+            const cashValueEl = document.getElementById('asset-cash-value');
+            if (cashValueEl) cashValueEl.innerText = `NT$${Math.round(state.cash).toLocaleString()}`;
+
+            const cashPctEl = document.getElementById('asset-cash-pct');
+            if (cashPctEl) cashPctEl.innerText = total > 0 ? `${((state.cash / total) * 100).toFixed(1)}%` : '0%';
+
+            const lastUpdateEl = document.getElementById('last-update-time');
+            if (lastUpdateEl) lastUpdateEl.innerText = `最後更新 ${state.lastUpdate}`;
 
             const listContainer = document.getElementById('asset-list-container');
             let listHtml = '';
@@ -415,20 +459,18 @@
             let chartColors = [];
             let legendHtml = '';
 
-            // 股票
+            // 股票明細渲染
             state.assets.forEach((a, i) => {
                 const val = a.shares * a.price;
                 const pct = total > 0 ? ((val / total) * 100) : 0;
                 const color = STOCK_COLORS[i % STOCK_COLORS.length];
                 
-                // 盈虧計算 (台灣股市慣例：紅漲/賺，綠跌/賠)
-                const totalCost = a.shares * (a.avgCost || a.price); // 沒填均價就當 0 損益
+                const totalCost = a.shares * (a.avgCost || a.price);
                 const plAmount = val - totalCost;
                 const plPct = totalCost > 0 ? (plAmount / totalCost) * 100 : 0;
                 const plSign = plAmount > 0 ? '▲' : (plAmount < 0 ? '▼' : '');
                 const plColorClass = plAmount > 0 ? 'text-red-500' : (plAmount < 0 ? 'text-green-500' : 'text-slate-400');
                 
-                // 當日漲跌計算
                 let dailyHtml = `<span class="text-slate-300 font-mono">--</span>`;
                 if (a.previousClose && a.previousClose > 0) {
                     const dailyChange = a.price - a.previousClose;
@@ -451,13 +493,10 @@
                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center cursor-pointer active:bg-gray-50 transition-colors relative overflow-hidden" onclick="openAssetModal('${a.id}')">
                     <div class="absolute left-0 top-0 bottom-0 w-1.5" style="background-color: ${color}"></div>
                     <div class="w-full pl-2">
-                        <!-- 標題與現值 -->
                         <div class="flex justify-between items-center mb-2 border-b border-gray-50 pb-2">
-                            <span class="font-bold text-brand-navy text-sm">${a.ticker} <span class="text-[11px] text-slate-500 font-medium ml-1">${a.name}</span></span>
+                            <span class="font-bold text-brand-navy text-sm">${a.ticker || '無代號'} <span class="text-[11px] text-slate-500 font-medium ml-1">${a.name}</span></span>
                             <span class="font-black text-brand-navy">NT$${Math.round(val).toLocaleString()}</span>
                         </div>
-                        
-                        <!-- 漲跌幅與盈虧 -->
                         <div class="flex justify-between items-center text-[11px] mb-2">
                             <div class="flex flex-col">
                                 <span class="text-[10px] text-slate-400 mb-0.5 font-bold">當日漲跌</span>
@@ -471,8 +510,6 @@
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- 股數成本與佔比 -->
                         <div class="flex justify-between items-center text-xs text-slate-400 mt-2 bg-slate-50 p-2 rounded-lg">
                             <span class="font-mono">持有 ${a.shares} 股 @ ${a.price.toFixed(2)}</span>
                             <span class="font-bold text-brand-navy">${pct.toFixed(1)}%</span>
@@ -483,25 +520,30 @@
                 legendHtml += `<div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full" style="background-color: ${color}"></span> <span class="truncate max-w-[80px]" title="${a.name}">${a.ticker || a.name}</span> ${pct.toFixed(1)}%</div>`;
             });
 
-            // 現金也加入圖表
+            // 現金加入圓餅圖
             chartLabels.push('現金');
             const cashPct = total > 0 ? ((state.cash / total) * 100) : 0;
             chartData.push(cashPct.toFixed(1));
-            chartColors.push('#0b1120'); // Brand Navy
+            chartColors.push('#0b1120');
             
             legendHtml += `<div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-brand-navy"></span> 現金 ${cashPct.toFixed(1)}%</div>`;
 
-            listContainer.innerHTML = listHtml || `<div class="text-center py-6 text-sm text-slate-400">目前沒有股票資產</div>`;
+            if (listContainer) {
+                listContainer.innerHTML = listHtml || `<div class="text-center py-6 text-sm text-slate-400">目前沒有股票資產</div>`;
+            }
 
-            // 圖例
             const legendContainer = document.getElementById('asset-chart-legend');
-            legendContainer.innerHTML = legendHtml;
+            if (legendContainer) {
+                legendContainer.innerHTML = legendHtml;
+            }
 
             drawChart(chartLabels, chartData, chartColors);
         }
 
         function drawChart(labels, data, colors) {
-            const ctx = document.getElementById('assetChart').getContext('2d');
+            const canvas = document.getElementById('assetChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
             if (chartInstance) chartInstance.destroy();
             
             chartInstance = new Chart(ctx, {
@@ -522,12 +564,13 @@
             });
         }
 
-        // --- TAB 2: 再平衡 (包含防呆交割計算) ---
+        // --- TAB 2: 再平衡 ---
         function renderRebalance() {
             const totalCurrent = calculateTotal();
             const totalTargetPool = totalCurrent + state.newFunds;
             
-            document.getElementById('rebalance-sim-total').innerText = `NT$ ${Math.round(totalTargetPool).toLocaleString()}`;
+            const rebalanceSimTotal = document.getElementById('rebalance-sim-total');
+            if (rebalanceSimTotal) rebalanceSimTotal.innerText = `NT$ ${Math.round(totalTargetPool).toLocaleString()}`;
             
             const actionsContainer = document.getElementById('rebalance-actions-container');
             const safetyContainer = document.getElementById('rebalance-safety-container');
@@ -536,14 +579,10 @@
             let isImbalanced = false;
             let actionsHtml = '';
 
-            // 檢查與計算
             let calcs = [];
-            
-            // 記錄操作，用於計算預估餘額
             let totalSellAmount = 0;
             let totalBuyAmount = 0;
             
-            // 計算股票
             state.assets.forEach(a => {
                 const currentVal = a.shares * a.price;
                 const currentPct = totalCurrent > 0 ? (currentVal / totalCurrent) * 100 : 0;
@@ -568,14 +607,13 @@
                 });
             });
 
-            // 【優化 C】：強迫排序，賣出(SELL) 必須在最上方，再來是持平(HOLD)，買入(BUY) 在最後。
+            // 強制排程順序：賣出第一
             const orderScore = { 'SELL': 1, 'HOLD': 2, 'BUY': 3 };
             calcs.sort((a, b) => {
                 if (orderScore[a.type] !== orderScore[b.type]) return orderScore[a.type] - orderScore[b.type];
                 return b.actionValue - a.actionValue;
             });
 
-            // 渲染列表並加總交割金額
             calcs.forEach(c => {
                 if (c.type === 'SELL') totalSellAmount += c.actionValue;
                 if (c.type === 'BUY') totalBuyAmount += c.actionValue;
@@ -605,35 +643,42 @@
                 </div>`;
             });
 
-            actionsContainer.innerHTML = actionsHtml || '<div class="text-center text-slate-400 text-sm py-4">目前無需調整</div>';
+            if (actionsContainer) {
+                actionsContainer.innerHTML = actionsHtml || '<div class="text-center text-slate-400 text-sm py-4">目前無需調整</div>';
+            }
             
-            // 【優化 C】：計算預估執行後剩餘交割現金
+            // 安全防呆餘額試算
             let finalEstimatedCash = state.cash + state.newFunds + totalSellAmount - totalBuyAmount;
             let cashWarningHtml = finalEstimatedCash < 0 
                 ? `<p class="text-[11px] text-brand-red mt-2 font-bold leading-relaxed">⚠️ 警告：預估執行後現金不足，恐有違約交割風險！請先補足資金或調低股票目標佔比。</p>` 
                 : `<p class="text-[11px] text-slate-400 mt-2 font-medium">預估現金充足，可安心依照順序執行操作。</p>`;
                 
-            safetyContainer.innerHTML = `
-                <div class="mt-2 p-4 bg-slate-50 border ${finalEstimatedCash < 0 ? 'border-brand-red/30 bg-red-50/50' : 'border-gray-200'} rounded-2xl">
-                    <h4 class="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-1">
-                        <span class="material-symbols-outlined text-[14px]">shield</span> 交割安全防呆評估
-                    </h4>
-                    <div class="flex justify-between items-center text-sm border-b border-gray-200 pb-2">
-                        <span class="font-bold text-slate-700">預估執行後剩餘現金</span>
-                        <span class="font-black font-mono text-base ${finalEstimatedCash < 0 ? 'text-brand-red' : 'text-brand-green'}">
-                            NT$ ${Math.round(finalEstimatedCash).toLocaleString()}
-                        </span>
+            if (safetyContainer) {
+                safetyContainer.innerHTML = `
+                    <div class="mt-2 p-4 bg-slate-50 border ${finalEstimatedCash < 0 ? 'border-brand-red/30 bg-red-50/50' : 'border-gray-200'} rounded-2xl">
+                        <h4 class="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[14px]">shield</span> 交割安全防呆評估
+                        </h4>
+                        <div class="flex justify-between items-center text-sm border-b border-gray-200 pb-2">
+                            <span class="font-bold text-slate-700">預估執行後剩餘現金</span>
+                            <span class="font-black font-mono text-base ${finalEstimatedCash < 0 ? 'text-brand-red' : 'text-brand-green'}">
+                                NT$ ${Math.round(finalEstimatedCash).toLocaleString()}
+                            </span>
+                        </div>
+                        ${cashWarningHtml}
                     </div>
-                    ${cashWarningHtml}
-                </div>
-            `;
+                `;
+            }
 
-            document.getElementById('rebalance-alert-threshold').innerText = `${state.threshold}%`;
-            if(isImbalanced) { alertBox.classList.remove('hidden'); } else { alertBox.classList.add('hidden'); }
+            const alertThreshold = document.getElementById('rebalance-alert-threshold');
+            if (alertThreshold) alertThreshold.innerText = `${state.threshold}%`;
+            
+            if (alertBox) {
+                if (isImbalanced) { alertBox.classList.remove('hidden'); } else { alertBox.classList.add('hidden'); }
+            }
         }
-        function triggerRecalculate() { renderRebalance(); }
 
-        // --- TAB 3: 目標配置 (包含快捷按鈕) ---
+        // --- TAB 3: 目標配置 ---
         function renderTargets() {
             const listContainer = document.getElementById('target-config-list');
             const presetsContainer = document.getElementById('target-presets-container');
@@ -643,23 +688,26 @@
             state.assets.forEach(a => totalTarget += a.targetWeight);
             
             const totalDisplay = document.getElementById('target-total-pct');
-            totalDisplay.innerText = `${totalTarget}%`;
-            totalDisplay.className = `text-xl font-black ${totalTarget === 100 ? 'text-brand-navy' : 'text-brand-red'}`;
+            if (totalDisplay) {
+                totalDisplay.innerText = `${totalTarget}%`;
+                totalDisplay.className = `text-xl font-black ${totalTarget === 100 ? 'text-brand-navy' : 'text-brand-red'}`;
+            }
 
-            // 【優化 A & B】：渲染快速配置模型按鈕
-            presetsContainer.innerHTML = `
-                <div class="flex justify-between items-center bg-white p-2 rounded-xl border border-gray-100 shadow-sm mb-4">
-                    <span class="text-[10px] font-black text-slate-400 pl-2 uppercase tracking-wider">快速配置模型</span>
-                    <div class="flex gap-1.5">
-                        <button onclick="applyTargetPreset('zero')" class="px-2.5 py-1.5 bg-gray-100 rounded flex items-center gap-1 text-[10px] font-bold text-slate-600 active:scale-95 transition-all"><span class="material-symbols-outlined text-[12px]">refresh</span> 歸零</button>
-                        <button onclick="applyTargetPreset('equal')" class="px-2.5 py-1.5 bg-gray-100 rounded text-[10px] font-bold text-slate-600 active:scale-95 transition-all">均分</button>
-                        <button onclick="applyTargetPreset('8020')" class="px-2.5 py-1.5 bg-gray-100 rounded text-[10px] font-bold text-slate-600 active:scale-95 transition-all">80/20</button>
-                        <button onclick="applyTargetPreset('allin')" class="px-2.5 py-1.5 bg-brand-navy text-white rounded text-[10px] font-bold active:scale-95 transition-all">滿倉</button>
+            if (presetsContainer) {
+                presetsContainer.innerHTML = `
+                    <div class="flex justify-between items-center bg-white p-2 rounded-xl border border-gray-100 shadow-sm mb-4">
+                        <span class="text-[10px] font-black text-slate-400 pl-2 uppercase tracking-wider">快速配置模型</span>
+                        <div class="flex gap-1.5">
+                            <button onclick="applyTargetPreset('zero')" class="px-2.5 py-1.5 bg-gray-100 rounded flex items-center gap-1 text-[10px] font-bold text-slate-600 active:scale-95 transition-all"><span class="material-symbols-outlined text-[12px]">refresh</span> 歸零</button>
+                            <button onclick="applyTargetPreset('equal')" class="px-2.5 py-1.5 bg-gray-100 rounded text-[10px] font-bold text-slate-600 active:scale-95 transition-all">均分</button>
+                            <button onclick="applyTargetPreset('8020')" class="px-2.5 py-1.5 bg-gray-100 rounded text-[10px] font-bold text-slate-600 active:scale-95 transition-all">80/20</button>
+                            <button onclick="applyTargetPreset('allin')" class="px-2.5 py-1.5 bg-brand-navy text-white rounded text-[10px] font-bold active:scale-95 transition-all">滿倉</button>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            }
 
-            // 渲染股票列 (原生滑桿)
+            // 股票滑桿
             state.assets.forEach((a, i) => {
                 const color = STOCK_COLORS[i % STOCK_COLORS.length];
                 html += `
@@ -667,7 +715,7 @@
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <span class="w-3.5 h-3.5 rounded-full" style="background-color: ${color}"></span>
-                            <span class="font-bold text-lg text-slate-700">${a.ticker} <span class="text-sm text-slate-400 font-medium ml-1">${a.name}</span></span>
+                            <span class="font-bold text-lg text-slate-700">${a.ticker || '無代號'} <span class="text-sm text-slate-400 font-medium ml-1">${a.name}</span></span>
                         </div>
                         <span class="font-black text-brand-navy text-2xl" id="target-pct-${a.id}">${a.targetWeight}%</span>
                     </div>
@@ -677,7 +725,7 @@
                 </div>`;
             });
 
-            // 渲染現金列 (自動結算，防呆禁用拖曳)
+            // 現金唯讀滑桿 (自動補足)
             html += `
             <div class="bg-slate-50 p-4 rounded-2xl shadow-sm border border-gray-100 space-y-3 opacity-80">
                 <div class="flex items-center justify-between">
@@ -691,10 +739,10 @@
                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-not-allowed" style="accent-color: #0b1120">
             </div>`;
 
-            listContainer.innerHTML = html;
+            if (listContainer) listContainer.innerHTML = html;
         }
 
-        // 【優化 A & B】：快速配置演算法 (包含餘數分配防呆)
+        // 快速配置演算法 (包含除不盡餘數處理)
         function applyTargetPreset(presetType) {
             const stockCount = state.assets.length;
             if (stockCount === 0) return showToast('請先新增股票資產');
@@ -703,7 +751,7 @@
                 state.assets.forEach(a => a.targetWeight = 0);
                 state.cashTargetWeight = 100;
             } else if (presetType === 'equal') {
-                const totalItems = stockCount + 1; // 包含現金
+                const totalItems = stockCount + 1;
                 const baseWeight = Math.floor(100 / totalItems);
                 let remainder = 100 - (baseWeight * totalItems);
                 
@@ -734,7 +782,7 @@
             
             saveData();
             renderTargets();
-            showToast('已套用快速配置', 'success');
+            showToast('已套用快速配置模型', 'success');
         }
 
         function updateAssetTargetRange(id, val) {
@@ -742,10 +790,10 @@
             let otherTotal = 0;
             state.assets.forEach(a => { if (a.id !== id) otherTotal += a.targetWeight; });
 
-            // 防呆：確保股票總和不超過 100%
             if (newVal + otherTotal > 100) {
                 newVal = 100 - otherTotal;
-                document.getElementById(`target-slider-${id}`).value = newVal; // 強制將滑桿拉回合法最大值
+                const slider = document.getElementById(`target-slider-${id}`);
+                if (slider) slider.value = newVal;
             }
 
             const asset = state.assets.find(a => a.id === id);
@@ -753,14 +801,21 @@
                 asset.targetWeight = newVal; 
                 state.cashTargetWeight = 100 - (otherTotal + newVal);
                 
-                // 獨立 DOM 更新：只修改文字與進度條，避免 innerHTML 重繪中斷使用者的拖曳手感
-                document.getElementById(`target-pct-${id}`).innerText = `${newVal}%`;
-                document.getElementById('target-cash-pct').innerText = `${state.cashTargetWeight}%`;
-                document.getElementById('target-cash-slider').value = state.cashTargetWeight;
+                // 動態無縫更新
+                const targetPctText = document.getElementById(`target-pct-${id}`);
+                if (targetPctText) targetPctText.innerText = `${newVal}%`;
                 
-                // 強制將頂部總合校正回 100%
-                document.getElementById('target-total-pct').innerText = '100%';
-                document.getElementById('target-total-pct').className = 'text-xl font-black text-brand-navy';
+                const cashPctText = document.getElementById('target-cash-pct');
+                if (cashPctText) cashPctText.innerText = `${state.cashTargetWeight}%`;
+                
+                const cashSlider = document.getElementById('target-cash-slider');
+                if (cashSlider) cashSlider.value = state.cashTargetWeight;
+                
+                const totalPctText = document.getElementById('target-total-pct');
+                if (totalPctText) {
+                    totalPctText.innerText = '100%';
+                    totalPctText.className = 'text-xl font-black text-brand-navy';
+                }
                 
                 saveData(); 
             }
@@ -768,18 +823,27 @@
 
         // --- TAB 4: 設定 ---
         function updateSettings() {
-            state.fugleKey = document.getElementById('input-api-key').value.trim();
-            state.threshold = parseFloat(document.getElementById('input-threshold').value) || 5;
+            const apiKeyInput = document.getElementById('input-api-key');
+            if (apiKeyInput) state.fugleKey = apiKeyInput.value.trim();
+
+            const thresholdInput = document.getElementById('input-threshold');
+            if (thresholdInput) state.threshold = parseFloat(thresholdInput.value) || 5;
+
+            const zoomInput = document.getElementById('input-zoom');
+            if (zoomInput) state.zoomLevel = parseInt(zoomInput.value) || 100;
+            
+            applyZoom();
             saveData();
             showToast('設定已儲存', 'success');
         }
 
         /* ==================== Modals (CRUD) ==================== */
-        
-        // 股票編輯
         function openAssetModal(id = null) {
             const content = document.getElementById('modal-asset-content');
-            document.getElementById('modal-asset').classList.remove('hidden');
+            const modal = document.getElementById('modal-asset');
+            if (!modal || !content) return;
+            
+            modal.classList.remove('hidden');
             setTimeout(() => content.classList.remove('translate-y-full'), 10);
             
             if (id) {
@@ -803,11 +867,15 @@
                 document.getElementById('btn-delete-asset').classList.add('hidden');
             }
         }
+
         function closeAssetModal() {
             const content = document.getElementById('modal-asset-content');
+            const modal = document.getElementById('modal-asset');
+            if (!content || !modal) return;
             content.classList.add('translate-y-full');
-            setTimeout(() => document.getElementById('modal-asset').classList.add('hidden'), 300);
+            setTimeout(() => modal.classList.add('hidden'), 300);
         }
+
         function saveAsset() {
             const id = document.getElementById('modal-asset-id').value;
             const data = {
@@ -819,12 +887,13 @@
             };
             if (id) {
                 const asset = state.assets.find(a => a.id === id);
-                Object.assign(asset, data);
+                if (asset) Object.assign(asset, data);
             } else {
                 state.assets.push({ id: Date.now().toString(), targetWeight: 0, ...data });
             }
             saveData(); renderAssets(); closeAssetModal(); showToast('儲存成功');
         }
+
         function deleteAsset() {
             const id = document.getElementById('modal-asset-id').value;
             if(confirm('確定要刪除此資產？')) {
@@ -833,95 +902,30 @@
             }
         }
 
-        // 現金編輯
         function openCashModal() {
             const content = document.getElementById('modal-cash-content');
-            document.getElementById('modal-cash').classList.remove('hidden');
+            const modal = document.getElementById('modal-cash');
+            if (!content || !modal) return;
+            modal.classList.remove('hidden');
             document.getElementById('modal-cash-value').value = state.cash;
             setTimeout(() => content.classList.remove('translate-y-full'), 10);
         }
+
         function closeCashModal() {
             const content = document.getElementById('modal-cash-content');
+            const modal = document.getElementById('modal-cash');
+            if (!content || !modal) return;
             content.classList.add('translate-y-full');
-            setTimeout(() => document.getElementById('modal-cash').classList.add('hidden'), 300);
+            setTimeout(() => modal.classList.add('hidden'), 300);
         }
+
         function saveCash() {
-            state.cash = parseFloat(document.getElementById('modal-cash-value').value) || 0;
+            const val = document.getElementById('modal-cash-value').value;
+            state.cash = parseFloat(val) || 0;
             saveData(); renderAssets(); closeCashModal();
         }
 
-        /* ==================== PWA 支援 (單檔動態注入) ==================== */
-        function initPWA() {
-            // 1. 動態生成 App Manifest 與 Apple Touch Icon (高質感 SVG 圖示)
-            const iconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%230b1120' rx='22'/%3E%3Cpath d='M30 55 L50 35 L70 55 M50 35 L50 75' stroke='%2384cc16' stroke-width='8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
-            const manifest = {
-                name: "極簡再平衡", short_name: "再平衡", start_url: location.href,
-                display: "standalone", background_color: "#f8fafc", theme_color: "#ffffff",
-                icons: [{ src: iconSvg, sizes: "512x512", type: "image/svg+xml" }]
-            };
-            
-            // 改用 Data URI 取代 Blob，徹底避免跨域 iframe 阻擋 blob: 協定的安全報錯
-            const manifestUrl = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
-            document.head.insertAdjacentHTML('beforeend', `<link rel="manifest" href="${manifestUrl}">`);
-            document.head.insertAdjacentHTML('beforeend', `<link rel="apple-touch-icon" href="${iconSvg}">`);
-
-            // 已徹底移除 Service Worker (navigator.serviceWorker.register) 以避免控制台報錯。
-            // PWA 的「加入主畫面」功能依然可以正常使用。
-        }
-        initPWA();
-
-        /* ==================== API 報價同步 ==================== */
-        async function syncPrices() {
-            if (!navigator.onLine) return showToast('目前處於離線狀態，無法同步', 'error');
-
-            if (!state.fugleKey) {
-                switchTab('settings');
-                return showToast('請先設定 Fugle API Key', 'error');
-            }
-            
-            const icon = document.getElementById('sync-icon');
-            icon.classList.add('animate-spin');
-            
-            let successCount = 0;
-            
-            for (let a of state.assets) {
-                if (!a.ticker) continue;
-                try {
-                    const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${a.ticker}`, {
-                        headers: { 'X-API-KEY': state.fugleKey }
-                    });
-                    if (res.ok) {
-                        const data = await res.json();
-                        const price = parseFloat(data.latest_price || data.realtime?.latest_trade_price || data.lastPrice || data.closePrice);
-                        
-                        // 擷取昨收價用於計算當日漲跌
-                        const prevClose = parseFloat(data.previous_close || data.previousClose || data.referencePrice);
-                        
-                        if (!isNaN(price) && price > 0) {
-                            a.price = price;
-                            if (!isNaN(prevClose) && prevClose > 0) {
-                                a.previousClose = prevClose;
-                            }
-                            if(data.name) a.name = data.name;
-                            successCount++;
-                        }
-                    }
-                } catch(e) { console.error(e); }
-            }
-
-            icon.classList.remove('animate-spin');
-            
-            const now = new Date();
-            state.lastUpdate = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
-            
-            saveData();
-            if (currentTab === 'assets') renderAssets();
-            if (currentTab === 'rebalance') renderRebalance();
-            
-            showToast(`已同步 ${successCount} 檔報價`, 'success');
-        }
-
-        /* ==================== 資料匯入匯出 ==================== */
+        /* ==================== 資料備份與還原 ==================== */
         function exportData() {
             saveData();
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
@@ -941,13 +945,13 @@
                     if (parsed.assets && typeof parsed.cash !== 'undefined') {
                         state = parsed;
                         saveData();
-                        showToast('資料還原成功！請重新整理。', 'success');
-                        setTimeout(() => location.reload(), 1500);
+                        showToast('資料還原成功！', 'success');
+                        setTimeout(() => location.reload(), 1000);
                     } else { showToast('檔案格式錯誤', 'error'); }
                 } catch (err) { showToast('讀取失敗', 'error'); }
             };
             reader.readAsText(file);
-            e.target.value = ''; // 允許重複選取相同檔案
+            e.target.value = '';
         }
 
         /* ==================== 券商 CSV 解析與匯入 ==================== */
@@ -999,11 +1003,11 @@
                     newAssets.push({
                         id: Date.now().toString() + i,
                         name: name,
-                        ticker: '', // 券商匯出通常無代碼，需手動補上
+                        ticker: '', 
                         shares: shares,
                         price: price,
                         avgCost: avgCost,
-                        previousClose: price, // 預設以現價作為昨收基準
+                        previousClose: price, 
                         targetWeight: 0
                     });
                 }
@@ -1017,21 +1021,114 @@
                     renderTargets();
                     renderRebalance();
                     
-                    showToast(`匯入 ${newAssets.length} 檔資產！請點擊卡片補上代號以利同步報價。`, 'success');
+                    showToast(`匯入 ${newAssets.length} 檔資產！請補上代號以利同步報價。`, 'success');
                 } else {
                     showToast('未能從檔案中解析出任何有效庫存', 'error');
                 }
             };
             
-            // 台灣券商匯出檔案多為 Big5 編碼，避免中文變亂碼
             reader.readAsText(file, 'Big5');
-            e.target.value = ''; // 重置 input 狀態
+            e.target.value = '';
         }
         
+        /* ==================== API 報價同步 ==================== */
+        async function syncPrices() {
+            if (!navigator.onLine) return showToast('目前處於離線狀態，無法同步', 'error');
+            if (!state.fugleKey) {
+                switchTab('settings');
+                return showToast('請先設定 Fugle API Key', 'error');
+            }
+            
+            const icon = document.getElementById('sync-icon');
+            if (icon) icon.classList.add('animate-spin');
+            
+            let successCount = 0;
+            for (let a of state.assets) {
+                if (!a.ticker) continue;
+                try {
+                    const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${a.ticker}`, {
+                        headers: { 'X-API-KEY': state.fugleKey }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        const price = parseFloat(data.latest_price || data.realtime?.latest_trade_price || data.lastPrice || data.closePrice);
+                        const prevClose = parseFloat(data.previous_close || data.previousClose || data.referencePrice);
+                        
+                        if (!isNaN(price) && price > 0) {
+                            a.price = price;
+                            if (!isNaN(prevClose) && prevClose > 0) {
+                                a.previousClose = prevClose;
+                            }
+                            if(data.name) a.name = data.name;
+                            successCount++;
+                        }
+                    }
+                } catch(e) { console.error(e); }
+            }
+
+            if (icon) icon.classList.remove('animate-spin');
+            
+            const now = new Date();
+            state.lastUpdate = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+            
+            saveData();
+            if (currentTab === 'assets') renderAssets();
+            if (currentTab === 'rebalance') renderRebalance();
+            
+            showToast(`已成功同步 ${successCount} 檔最新報價`, 'success');
+        }
+
+        /* ==================== 原廠設定與純前端記憶體重置 (避開 Iframe 安全攔截) ==================== */
         function factoryReset() {
-            if (confirm("警告：這將會清除所有股票與設定資料，確定要恢復原廠設定嗎？")) {
-                localStorage.removeItem(STORAGE_KEY);
-                location.reload();
+            if (confirm("⚠️ 警告：這將會清除所有股票與設定資料，確定要恢復原廠設定嗎？")) {
+                try {
+                    // 1. 清除 LocalStorage 緩存
+                    localStorage.removeItem(STORAGE_KEY);
+                    
+                    // 2. 直接在記憶體中重寫為初始乾淨 State
+                    state = {
+                        assets: [
+                            { id: '1', name: '元大台灣50正2', ticker: '00631L', shares: 1000, price: 61.04, avgCost: 55.0, previousClose: 60.5, targetWeight: 30 },
+                            { id: '2', name: '群益臺灣加權正2', ticker: '00685L', shares: 400, price: 303.0, avgCost: 310.0, previousClose: 305.0, targetWeight: 30 }
+                        ],
+                        cash: 200000,
+                        cashTargetWeight: 40,
+                        threshold: 5,
+                        newFunds: 0,
+                        fugleKey: '',
+                        zoomLevel: 100,
+                        lastUpdate: '--:--'
+                    };
+                    
+                    // 3. 儲存新初始狀態，確保刷新也有效
+                    saveData();
+                    
+                    // 4. 更新設定面頁中的實體 UI 欄位，確保資料一致
+                    const zoomInput = document.getElementById('input-zoom');
+                    if (zoomInput) zoomInput.value = 100;
+                    
+                    const thresholdInput = document.getElementById('input-threshold');
+                    if (thresholdInput) thresholdInput.value = 5;
+                    
+                    const apiKeyInput = document.getElementById('input-api-key');
+                    if (apiKeyInput) apiKeyInput.value = '';
+                    
+                    const newFundsInput = document.getElementById('input-new-funds');
+                    if (newFundsInput) newFundsInput.value = 0;
+                    
+                    // 5. 強制套用與重新渲染全部組件
+                    applyZoom();
+                    renderAssets();
+                    renderTargets();
+                    renderRebalance();
+                    
+                    // 6. 安全切換至首頁，不使用會遭跨域 iframe 阻擋的 location.reload()
+                    switchTab('assets');
+                    showToast('系統已重置並恢復預設原廠設定！', 'success');
+                } catch (err) {
+                    console.error("Factory Reset Error: ", err);
+                    showToast('重置過程中發生錯誤', 'error');
+                }
             }
         }
     </script>
