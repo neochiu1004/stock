@@ -313,6 +313,7 @@
         /* ==================== 狀態與核心資料 ==================== */
         const STORAGE_KEY = 'ark_rebalancer_v2_lite';
         
+        // 系統啟動時的預設資料 (供第一次開啟展示用)
         let state = {
             assets: [
                 { id: '1', name: '元大台灣50正2', ticker: '00631L', shares: 1000, price: 61.04, avgCost: 55.0, previousClose: 60.5, targetWeight: 30 },
@@ -745,7 +746,7 @@
         // 快速配置演算法 (包含除不盡餘數處理)
         function applyTargetPreset(presetType) {
             const stockCount = state.assets.length;
-            if (stockCount === 0) return showToast('請先新增股票資產');
+            if (stockCount === 0) return showToast('目前沒有股票資產可配置');
 
             if (presetType === 'zero') {
                 state.assets.forEach(a => a.targetWeight = 0);
@@ -925,7 +926,71 @@
             saveData(); renderAssets(); closeCashModal();
         }
 
-        /* ==================== 資料備份與還原 ==================== */
+        /* ==================== PWA 支援 (單檔動態注入) ==================== */
+        function initPWA() {
+            // 1. 動態生成 App Manifest 與 Apple Touch Icon (高質感 SVG 圖示)
+            const iconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%230b1120' rx='22'/%3E%3Cpath d='M30 55 L50 35 L70 55 M50 35 L50 75' stroke='%2384cc16' stroke-width='8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
+            const manifest = {
+                name: "極簡再平衡", short_name: "再平衡", start_url: location.href,
+                display: "standalone", background_color: "#f8fafc", theme_color: "#ffffff",
+                icons: [{ src: iconSvg, sizes: "512x512", type: "image/svg+xml" }]
+            };
+            
+            // 改用 Data URI 取代 Blob，徹底避免跨域 iframe 阻擋 blob: 協定的安全報錯
+            const manifestUrl = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
+            document.head.insertAdjacentHTML('beforeend', `<link rel="manifest" href="${manifestUrl}">`);
+            document.head.insertAdjacentHTML('beforeend', `<link rel="apple-touch-icon" href="${iconSvg}">`);
+        }
+        initPWA();
+
+        /* ==================== API 報價同步 ==================== */
+        async function syncPrices() {
+            if (!navigator.onLine) return showToast('目前處於離線狀態，無法同步', 'error');
+            if (!state.fugleKey) {
+                switchTab('settings');
+                return showToast('請先設定 Fugle API Key', 'error');
+            }
+            
+            const icon = document.getElementById('sync-icon');
+            if (icon) icon.classList.add('animate-spin');
+            
+            let successCount = 0;
+            for (let a of state.assets) {
+                if (!a.ticker) continue;
+                try {
+                    const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${a.ticker}`, {
+                        headers: { 'X-API-KEY': state.fugleKey }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        const price = parseFloat(data.latest_price || data.realtime?.latest_trade_price || data.lastPrice || data.closePrice);
+                        const prevClose = parseFloat(data.previous_close || data.previousClose || data.referencePrice);
+                        
+                        if (!isNaN(price) && price > 0) {
+                            a.price = price;
+                            if (!isNaN(prevClose) && prevClose > 0) {
+                                a.previousClose = prevClose;
+                            }
+                            if(data.name) a.name = data.name;
+                            successCount++;
+                        }
+                    }
+                } catch(e) { console.error(e); }
+            }
+
+            if (icon) icon.classList.remove('animate-spin');
+            
+            const now = new Date();
+            state.lastUpdate = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+            
+            saveData();
+            if (currentTab === 'assets') renderAssets();
+            if (currentTab === 'rebalance') renderRebalance();
+            
+            showToast(`已成功同步 ${successCount} 檔最新報價`, 'success');
+        }
+
+        /* ==================== 資料匯入匯出 ==================== */
         function exportData() {
             saveData();
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
@@ -946,7 +1011,20 @@
                         state = parsed;
                         saveData();
                         showToast('資料還原成功！', 'success');
-                        setTimeout(() => location.reload(), 1000);
+                        
+                        // 使用前端覆寫取代 Reload 避免沙盒攔截
+                        const zoomInput = document.getElementById('input-zoom');
+                        if (zoomInput) zoomInput.value = state.zoomLevel || 100;
+                        const thresholdInput = document.getElementById('input-threshold');
+                        if (thresholdInput) thresholdInput.value = state.threshold || 5;
+                        const apiKeyInput = document.getElementById('input-api-key');
+                        if (apiKeyInput) apiKeyInput.value = state.fugleKey || '';
+                        const newFundsInput = document.getElementById('input-new-funds');
+                        if (newFundsInput) newFundsInput.value = state.newFunds || 0;
+                        
+                        applyZoom();
+                        switchTab('assets');
+
                     } else { showToast('檔案格式錯誤', 'error'); }
                 } catch (err) { showToast('讀取失敗', 'error'); }
             };
@@ -1031,76 +1109,26 @@
             e.target.value = '';
         }
         
-        /* ==================== API 報價同步 ==================== */
-        async function syncPrices() {
-            if (!navigator.onLine) return showToast('目前處於離線狀態，無法同步', 'error');
-            if (!state.fugleKey) {
-                switchTab('settings');
-                return showToast('請先設定 Fugle API Key', 'error');
-            }
-            
-            const icon = document.getElementById('sync-icon');
-            if (icon) icon.classList.add('animate-spin');
-            
-            let successCount = 0;
-            for (let a of state.assets) {
-                if (!a.ticker) continue;
-                try {
-                    const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${a.ticker}`, {
-                        headers: { 'X-API-KEY': state.fugleKey }
-                    });
-                    if (res.ok) {
-                        const data = await res.json();
-                        const price = parseFloat(data.latest_price || data.realtime?.latest_trade_price || data.lastPrice || data.closePrice);
-                        const prevClose = parseFloat(data.previous_close || data.previousClose || data.referencePrice);
-                        
-                        if (!isNaN(price) && price > 0) {
-                            a.price = price;
-                            if (!isNaN(prevClose) && prevClose > 0) {
-                                a.previousClose = prevClose;
-                            }
-                            if(data.name) a.name = data.name;
-                            successCount++;
-                        }
-                    }
-                } catch(e) { console.error(e); }
-            }
-
-            if (icon) icon.classList.remove('animate-spin');
-            
-            const now = new Date();
-            state.lastUpdate = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
-            
-            saveData();
-            if (currentTab === 'assets') renderAssets();
-            if (currentTab === 'rebalance') renderRebalance();
-            
-            showToast(`已成功同步 ${successCount} 檔最新報價`, 'success');
-        }
-
-        /* ==================== 原廠設定與純前端記憶體重置 (避開 Iframe 安全攔截) ==================== */
+        /* ==================== 原廠設定與純前端記憶體重置 ==================== */
         function factoryReset() {
             if (confirm("⚠️ 警告：這將會清除所有股票與設定資料，確定要恢復原廠設定嗎？")) {
                 try {
                     // 1. 清除 LocalStorage 緩存
                     localStorage.removeItem(STORAGE_KEY);
                     
-                    // 2. 直接在記憶體中重寫為初始乾淨 State
+                    // 2. 真正「完全淨空」的初始記憶體狀態
                     state = {
-                        assets: [
-                            { id: '1', name: '元大台灣50正2', ticker: '00631L', shares: 1000, price: 61.04, avgCost: 55.0, previousClose: 60.5, targetWeight: 30 },
-                            { id: '2', name: '群益臺灣加權正2', ticker: '00685L', shares: 400, price: 303.0, avgCost: 310.0, previousClose: 305.0, targetWeight: 30 }
-                        ],
-                        cash: 200000,
-                        cashTargetWeight: 40,
-                        threshold: 5,
-                        newFunds: 0,
+                        assets: [],               // 清空所有持股
+                        cash: 0,                  // 現金歸零
+                        cashTargetWeight: 100,    // 股票清空，目標配置必須100%退回現金，避免跑版
+                        threshold: 5,             
+                        newFunds: 0,              
                         fugleKey: '',
                         zoomLevel: 100,
                         lastUpdate: '--:--'
                     };
                     
-                    // 3. 儲存新初始狀態，確保刷新也有效
+                    // 3. 儲存新初始狀態
                     saveData();
                     
                     // 4. 更新設定面頁中的實體 UI 欄位，確保資料一致
@@ -1122,9 +1150,9 @@
                     renderTargets();
                     renderRebalance();
                     
-                    // 6. 安全切換至首頁，不使用會遭跨域 iframe 阻擋的 location.reload()
+                    // 6. 安全切換至首頁
                     switchTab('assets');
-                    showToast('系統已重置並恢復預設原廠設定！', 'success');
+                    showToast('資料已完全淨空', 'success');
                 } catch (err) {
                     console.error("Factory Reset Error: ", err);
                     showToast('重置過程中發生錯誤', 'error');
