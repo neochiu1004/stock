@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -55,7 +56,7 @@
         </button>
     </header>
 
-    <!-- 主內容區 (下方預留 pb-36 空間防止 iPhone Homebar 或導覽列遮擋設定) -->
+    <!-- 主內容區 -->
     <main class="flex-1 overflow-y-auto hide-scrollbar pb-36 relative" id="main-container">
         
         <!-- ==================== TAB 1: 資產 (Assets) ==================== -->
@@ -106,7 +107,35 @@
             </button>
         </section>
 
-        <!-- ==================== TAB 2: 再平衡 (Rebalance) ==================== -->
+        <!-- ==================== TAB 2: 目標配置 (Targets) ==================== -->
+        <section id="view-targets" class="px-5 py-6 space-y-6 hidden">
+            
+            <div class="flex justify-between items-end border-b border-gray-200 pb-3">
+                <h2 class="text-lg font-black text-brand-navy">配置百分比</h2>
+                <div class="text-xl font-black" id="target-total-pct">100%</div>
+            </div>
+
+            <div id="target-presets-container">
+                <!-- 快速配置按鈕區 -->
+            </div>
+
+            <div class="space-y-4" id="target-config-list">
+                <!-- 動態生成配置比例調整器 -->
+            </div>
+
+            <div class="mt-8">
+                <h2 class="text-lg font-black text-brand-navy mb-4">再平衡設定</h2>
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center">
+                    <span class="font-bold text-slate-700">絕對偏離目標</span>
+                    <div class="flex items-center gap-1">
+                        <input type="number" id="input-threshold" class="w-16 bg-slate-50 px-3 py-2 rounded-lg font-bold text-brand-navy text-center border border-gray-200 outline-none focus:border-brand-navy" value="5" onchange="updateSettings()">
+                        <span class="text-slate-400 font-bold">%</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 3: 再平衡 (Rebalance) ==================== -->
         <section id="view-rebalance" class="px-5 py-6 space-y-5 hidden">
             
             <div id="rebalance-alert" class="bg-brand-orange text-white p-4 rounded-2xl shadow-sm hidden">
@@ -144,34 +173,6 @@
             </div>
         </section>
 
-        <!-- ==================== TAB 3: 目標配置 (Targets) ==================== -->
-        <section id="view-targets" class="px-5 py-6 space-y-6 hidden">
-            
-            <div class="flex justify-between items-end border-b border-gray-200 pb-3">
-                <h2 class="text-lg font-black text-brand-navy">配置百分比</h2>
-                <div class="text-xl font-black" id="target-total-pct">100%</div>
-            </div>
-
-            <div id="target-presets-container">
-                <!-- 快速配置按鈕區 -->
-            </div>
-
-            <div class="space-y-4" id="target-config-list">
-                <!-- 動態生成配置比例調整器 -->
-            </div>
-
-            <div class="mt-8">
-                <h2 class="text-lg font-black text-brand-navy mb-4">再平衡設定</h2>
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center">
-                    <span class="font-bold text-slate-700">絕對偏離目標</span>
-                    <div class="flex items-center gap-1">
-                        <input type="number" id="input-threshold" class="w-16 bg-slate-50 px-3 py-2 rounded-lg font-bold text-brand-navy text-center border border-gray-200 outline-none focus:border-brand-navy" value="5" onchange="updateSettings()">
-                        <span class="text-slate-400 font-bold">%</span>
-                    </div>
-                </div>
-            </div>
-        </section>
-
         <!-- ==================== TAB 4: 設定 (Settings) ==================== -->
         <section id="view-settings" class="px-5 py-6 space-y-6 hidden">
             <h2 class="text-lg font-black text-brand-navy">系統與 API</h2>
@@ -186,13 +187,11 @@
 
             <h2 class="text-lg font-black text-brand-navy pt-4">顯示設定</h2>
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center">
-                <span class="font-bold text-slate-700">全域文字與介面大小</span>
-                <select id="input-zoom" class="bg-slate-50 px-3 py-2 rounded-lg font-bold text-brand-navy border border-gray-200 outline-none focus:border-brand-navy" onchange="updateSettings()">
-                    <option value="90">小 (90%)</option>
-                    <option value="100">預設 (100%)</option>
-                    <option value="110">大 (110%)</option>
-                    <option value="120">特大 (120%)</option>
-                </select>
+                <span class="font-bold text-slate-700">全域介面縮放</span>
+                <div class="flex items-center gap-1">
+                    <input type="number" id="input-zoom" class="w-20 bg-slate-50 px-3 py-2 rounded-lg font-bold text-brand-navy text-center border border-gray-200 outline-none focus:border-brand-navy" value="100" min="50" max="300" step="5" onchange="updateSettings()">
+                    <span class="text-slate-400 font-bold">%</span>
+                </div>
             </div>
 
             <h2 class="text-lg font-black text-brand-navy pt-4">資料管理</h2>
@@ -226,13 +225,13 @@
             <span class="material-symbols-outlined text-[24px]">account_balance_wallet</span>
             <span class="text-[10px] font-bold">資產</span>
         </button>
-        <button onclick="switchTab('rebalance')" class="nav-item flex flex-col items-center gap-1 p-2 text-slate-400 transition-colors" id="tab-btn-rebalance">
-            <span class="material-symbols-outlined text-[24px]">swap_vert</span>
-            <span class="text-[10px] font-bold">再平衡</span>
-        </button>
         <button onclick="switchTab('targets')" class="nav-item flex flex-col items-center gap-1 p-2 text-slate-400 transition-colors" id="tab-btn-targets">
             <span class="material-symbols-outlined text-[24px]">flag</span>
             <span class="text-[10px] font-bold">目標配置</span>
+        </button>
+        <button onclick="switchTab('rebalance')" class="nav-item flex flex-col items-center gap-1 p-2 text-slate-400 transition-colors" id="tab-btn-rebalance">
+            <span class="material-symbols-outlined text-[24px]">swap_vert</span>
+            <span class="text-[10px] font-bold">再平衡</span>
         </button>
         <button onclick="switchTab('settings')" class="nav-item flex flex-col items-center gap-1 p-2 text-slate-400 transition-colors" id="tab-btn-settings">
             <span class="material-symbols-outlined text-[24px]">settings</span>
@@ -313,18 +312,15 @@
         /* ==================== 狀態與核心資料 ==================== */
         const STORAGE_KEY = 'ark_rebalancer_v2_lite';
         
-        // 系統啟動時的預設資料 (供第一次開啟展示用)
+        // 【修復】徹底移除所有 Demo 展示資料，確保預設狀態為絕對淨空的 0 股票、0 現金
         let state = {
-            assets: [
-                { id: '1', name: '元大台灣50正2', ticker: '00631L', shares: 1000, price: 61.04, avgCost: 55.0, previousClose: 60.5, targetWeight: 30 },
-                { id: '2', name: '群益臺灣加權正2', ticker: '00685L', shares: 400, price: 303.0, avgCost: 310.0, previousClose: 305.0, targetWeight: 30 }
-            ],
-            cash: 200000,
-            cashTargetWeight: 40,
+            assets: [],
+            cash: 0,
+            cashTargetWeight: 100, // 股票為空時，現金配比必須為 100% 防呆
             threshold: 5,
             newFunds: 0,
             fugleKey: '',
-            zoomLevel: 100, // 全域縮放預設值
+            zoomLevel: 100,
             lastUpdate: '--:--'
         };
 
@@ -393,7 +389,7 @@
         function switchTab(tabId) {
             currentTab = tabId;
             
-            ['assets', 'rebalance', 'targets', 'settings'].forEach(id => {
+            ['assets', 'targets', 'rebalance', 'settings'].forEach(id => {
                 const btn = document.getElementById(`tab-btn-${id}`);
                 const view = document.getElementById(`view-${id}`);
                 if (btn && view) {
@@ -409,13 +405,13 @@
                 }
             });
 
-            const titleMap = { 'assets': '資產總覽', 'rebalance': '再平衡', 'targets': '目標配置', 'settings': '設定' };
+            const titleMap = { 'assets': '資產總覽', 'targets': '目標配置', 'rebalance': '再平衡', 'settings': '設定' };
             const headerTitle = document.getElementById('header-title');
             if (headerTitle) headerTitle.innerText = titleMap[tabId];
 
             if (tabId === 'assets') renderAssets();
-            if (tabId === 'rebalance') renderRebalance();
             if (tabId === 'targets') renderTargets();
+            if (tabId === 'rebalance') renderRebalance();
         }
 
         function showToast(msg, type = 'info') {
@@ -565,121 +561,7 @@
             });
         }
 
-        // --- TAB 2: 再平衡 ---
-        function renderRebalance() {
-            const totalCurrent = calculateTotal();
-            const totalTargetPool = totalCurrent + state.newFunds;
-            
-            const rebalanceSimTotal = document.getElementById('rebalance-sim-total');
-            if (rebalanceSimTotal) rebalanceSimTotal.innerText = `NT$ ${Math.round(totalTargetPool).toLocaleString()}`;
-            
-            const actionsContainer = document.getElementById('rebalance-actions-container');
-            const safetyContainer = document.getElementById('rebalance-safety-container');
-            const alertBox = document.getElementById('rebalance-alert');
-            
-            let isImbalanced = false;
-            let actionsHtml = '';
-
-            let calcs = [];
-            let totalSellAmount = 0;
-            let totalBuyAmount = 0;
-            
-            state.assets.forEach(a => {
-                const currentVal = a.shares * a.price;
-                const currentPct = totalCurrent > 0 ? (currentVal / totalCurrent) * 100 : 0;
-                const targetVal = totalTargetPool * (a.targetWeight / 100);
-                
-                const diffVal = targetVal - currentVal;
-                let actionShares = a.price > 0 ? Math.round(diffVal / a.price) : 0;
-                
-                const pctDiff = a.targetWeight - currentPct;
-                const outOfBounds = Math.abs(pctDiff) > state.threshold;
-                if(outOfBounds) isImbalanced = true;
-
-                calcs.push({
-                    name: a.ticker || a.name,
-                    type: actionShares > 0 ? 'BUY' : (actionShares < 0 ? 'SELL' : 'HOLD'),
-                    actionValue: Math.abs(actionShares * a.price),
-                    actionShares: Math.abs(actionShares),
-                    currentPct: currentPct,
-                    targetPct: a.targetWeight,
-                    pctDiff: pctDiff,
-                    outOfBounds: outOfBounds
-                });
-            });
-
-            // 強制排程順序：賣出第一
-            const orderScore = { 'SELL': 1, 'HOLD': 2, 'BUY': 3 };
-            calcs.sort((a, b) => {
-                if (orderScore[a.type] !== orderScore[b.type]) return orderScore[a.type] - orderScore[b.type];
-                return b.actionValue - a.actionValue;
-            });
-
-            calcs.forEach(c => {
-                if (c.type === 'SELL') totalSellAmount += c.actionValue;
-                if (c.type === 'BUY') totalBuyAmount += c.actionValue;
-
-                const isBuy = c.type === 'BUY';
-                const badgeColor = isBuy ? 'bg-brand-green text-white' : (c.type === 'SELL' ? 'bg-brand-navy text-white' : 'bg-gray-200 text-slate-500');
-                const badgeText = isBuy ? '★ 買入' : (c.type === 'SELL' ? '★ 賣出' : '持平');
-                const diffColor = c.pctDiff > 0 ? 'text-brand-green' : 'text-brand-red';
-                const showStar = c.outOfBounds ? '★ ' : '';
-                
-                actionsHtml += `
-                <div class="bg-white p-4 rounded-2xl shadow-sm border ${c.outOfBounds ? 'border-brand-orange/50' : 'border-gray-100'}">
-                    <div class="flex justify-between items-center mb-2">
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold text-brand-navy">${c.name}</span>
-                            <span class="text-[10px] font-bold px-2 py-0.5 rounded ${badgeColor}">${c.type==='HOLD'?'符合目標':badgeText}</span>
-                        </div>
-                        <div class="text-right">
-                            <div class="font-black text-sm text-brand-navy ${c.type==='HOLD'?'opacity-30':''}">${c.type==='HOLD'?'無須操作':`NT$${Math.round(c.actionValue).toLocaleString()}`}</div>
-                            ${c.type!=='HOLD' ? `<div class="text-[10px] text-slate-500 font-mono font-bold">(${c.actionShares}股)</div>` : ''}
-                        </div>
-                    </div>
-                    <div class="flex justify-between items-center text-xs">
-                        <span class="font-bold text-slate-500">${c.currentPct.toFixed(1)}% ➔ ${c.targetPct}%</span>
-                        <span class="font-mono font-bold ${diffColor}">${showStar}${c.pctDiff > 0 ? '+' : ''}${c.pctDiff.toFixed(1)}%</span>
-                    </div>
-                </div>`;
-            });
-
-            if (actionsContainer) {
-                actionsContainer.innerHTML = actionsHtml || '<div class="text-center text-slate-400 text-sm py-4">目前無需調整</div>';
-            }
-            
-            // 安全防呆餘額試算
-            let finalEstimatedCash = state.cash + state.newFunds + totalSellAmount - totalBuyAmount;
-            let cashWarningHtml = finalEstimatedCash < 0 
-                ? `<p class="text-[11px] text-brand-red mt-2 font-bold leading-relaxed">⚠️ 警告：預估執行後現金不足，恐有違約交割風險！請先補足資金或調低股票目標佔比。</p>` 
-                : `<p class="text-[11px] text-slate-400 mt-2 font-medium">預估現金充足，可安心依照順序執行操作。</p>`;
-                
-            if (safetyContainer) {
-                safetyContainer.innerHTML = `
-                    <div class="mt-2 p-4 bg-slate-50 border ${finalEstimatedCash < 0 ? 'border-brand-red/30 bg-red-50/50' : 'border-gray-200'} rounded-2xl">
-                        <h4 class="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-1">
-                            <span class="material-symbols-outlined text-[14px]">shield</span> 交割安全防呆評估
-                        </h4>
-                        <div class="flex justify-between items-center text-sm border-b border-gray-200 pb-2">
-                            <span class="font-bold text-slate-700">預估執行後剩餘現金</span>
-                            <span class="font-black font-mono text-base ${finalEstimatedCash < 0 ? 'text-brand-red' : 'text-brand-green'}">
-                                NT$ ${Math.round(finalEstimatedCash).toLocaleString()}
-                            </span>
-                        </div>
-                        ${cashWarningHtml}
-                    </div>
-                `;
-            }
-
-            const alertThreshold = document.getElementById('rebalance-alert-threshold');
-            if (alertThreshold) alertThreshold.innerText = `${state.threshold}%`;
-            
-            if (alertBox) {
-                if (isImbalanced) { alertBox.classList.remove('hidden'); } else { alertBox.classList.add('hidden'); }
-            }
-        }
-
-        // --- TAB 3: 目標配置 ---
+        // --- TAB 3: 目標配置 (已移至第二個分頁) ---
         function renderTargets() {
             const listContainer = document.getElementById('target-config-list');
             const presetsContainer = document.getElementById('target-presets-container');
@@ -743,7 +625,7 @@
             if (listContainer) listContainer.innerHTML = html;
         }
 
-        // 快速配置演算法 (包含除不盡餘數處理)
+        // 快速配置演算法
         function applyTargetPreset(presetType) {
             const stockCount = state.assets.length;
             if (stockCount === 0) return showToast('目前沒有股票資產可配置');
@@ -802,7 +684,6 @@
                 asset.targetWeight = newVal; 
                 state.cashTargetWeight = 100 - (otherTotal + newVal);
                 
-                // 動態無縫更新
                 const targetPctText = document.getElementById(`target-pct-${id}`);
                 if (targetPctText) targetPctText.innerText = `${newVal}%`;
                 
@@ -822,6 +703,120 @@
             }
         }
 
+        // --- TAB 2: 再平衡 ---
+        function renderRebalance() {
+            const totalCurrent = calculateTotal();
+            const totalTargetPool = totalCurrent + state.newFunds;
+            
+            const rebalanceSimTotal = document.getElementById('rebalance-sim-total');
+            if (rebalanceSimTotal) rebalanceSimTotal.innerText = `NT$ ${Math.round(totalTargetPool).toLocaleString()}`;
+            
+            const actionsContainer = document.getElementById('rebalance-actions-container');
+            const safetyContainer = document.getElementById('rebalance-safety-container');
+            const alertBox = document.getElementById('rebalance-alert');
+            
+            let isImbalanced = false;
+            let actionsHtml = '';
+
+            let calcs = [];
+            let totalSellAmount = 0;
+            let totalBuyAmount = 0;
+            
+            state.assets.forEach(a => {
+                const currentVal = a.shares * a.price;
+                const currentPct = totalCurrent > 0 ? (currentVal / totalCurrent) * 100 : 0;
+                const targetVal = totalTargetPool * (a.targetWeight / 100);
+                
+                const diffVal = targetVal - currentVal;
+                let actionShares = a.price > 0 ? Math.round(diffVal / a.price) : 0;
+                
+                const pctDiff = a.targetWeight - currentPct;
+                const outOfBounds = Math.abs(pctDiff) > state.threshold;
+                if(outOfBounds) isImbalanced = true;
+
+                calcs.push({
+                    name: a.ticker || a.name,
+                    type: actionShares > 0 ? 'BUY' : (actionShares < 0 ? 'SELL' : 'HOLD'),
+                    actionValue: Math.abs(actionShares * a.price),
+                    actionShares: Math.abs(actionShares),
+                    currentPct: currentPct,
+                    targetPct: a.targetWeight,
+                    pctDiff: pctDiff,
+                    outOfBounds: outOfBounds
+                });
+            });
+
+            const orderScore = { 'SELL': 1, 'HOLD': 2, 'BUY': 3 };
+            calcs.sort((a, b) => {
+                if (orderScore[a.type] !== orderScore[b.type]) return orderScore[a.type] - orderScore[b.type];
+                return b.actionValue - a.actionValue;
+            });
+
+            calcs.forEach(c => {
+                if (c.type === 'SELL') totalSellAmount += c.actionValue;
+                if (c.type === 'BUY') totalBuyAmount += c.actionValue;
+
+                const isBuy = c.type === 'BUY';
+                const badgeColor = isBuy ? 'bg-brand-green text-white' : (c.type === 'SELL' ? 'bg-brand-navy text-white' : 'bg-gray-200 text-slate-500');
+                const badgeText = isBuy ? '★ 買入' : (c.type === 'SELL' ? '★ 賣出' : '持平');
+                const diffColor = c.pctDiff > 0 ? 'text-brand-green' : 'text-brand-red';
+                const showStar = c.outOfBounds ? '★ ' : '';
+                
+                actionsHtml += `
+                <div class="bg-white p-4 rounded-2xl shadow-sm border ${c.outOfBounds ? 'border-brand-orange/50' : 'border-gray-100'}">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-brand-navy">${c.name}</span>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded ${badgeColor}">${c.type==='HOLD'?'符合目標':badgeText}</span>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-black text-sm text-brand-navy ${c.type==='HOLD'?'opacity-30':''}">${c.type==='HOLD'?'無須操作':`NT$${Math.round(c.actionValue).toLocaleString()}`}</div>
+                            ${c.type!=='HOLD' ? `<div class="text-[10px] text-slate-500 font-mono font-bold">(${c.actionShares}股)</div>` : ''}
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-bold text-slate-500">${c.currentPct.toFixed(1)}% ➔ ${c.targetPct}%</span>
+                        <span class="font-mono font-bold ${diffColor}">${showStar}${c.pctDiff > 0 ? '+' : ''}${c.pctDiff.toFixed(1)}%</span>
+                    </div>
+                </div>`;
+            });
+
+            if (actionsContainer) {
+                actionsContainer.innerHTML = actionsHtml || '<div class="text-center text-slate-400 text-sm py-4">目前無需調整</div>';
+            }
+            
+            let finalEstimatedCash = state.cash + state.newFunds + totalSellAmount - totalBuyAmount;
+            let cashWarningHtml = finalEstimatedCash < 0 
+                ? `<p class="text-[11px] text-brand-red mt-2 font-bold leading-relaxed">⚠️ 警告：預估執行後現金不足，恐有違約交割風險！請先補足資金或調低股票目標佔比。</p>` 
+                : `<p class="text-[11px] text-slate-400 mt-2 font-medium">預估現金充足，可安心依照順序執行操作。</p>`;
+                
+            if (safetyContainer) {
+                safetyContainer.innerHTML = `
+                    <div class="mt-2 p-4 bg-slate-50 border ${finalEstimatedCash < 0 ? 'border-brand-red/30 bg-red-50/50' : 'border-gray-200'} rounded-2xl">
+                        <h4 class="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[14px]">shield</span> 交割安全防呆評估
+                        </h4>
+                        <div class="flex justify-between items-center text-sm border-b border-gray-200 pb-2">
+                            <span class="font-bold text-slate-700">預估執行後剩餘現金</span>
+                            <span class="font-black font-mono text-base ${finalEstimatedCash < 0 ? 'text-brand-red' : 'text-brand-green'}">
+                                NT$ ${Math.round(finalEstimatedCash).toLocaleString()}
+                            </span>
+                        </div>
+                        ${cashWarningHtml}
+                    </div>
+                `;
+            }
+
+            const alertThreshold = document.getElementById('rebalance-alert-threshold');
+            if (alertThreshold) alertThreshold.innerText = `${state.threshold}%`;
+            
+            if (alertBox) {
+                if (isImbalanced) { alertBox.classList.remove('hidden'); } else { alertBox.classList.add('hidden'); }
+            }
+        }
+
+        function triggerRecalculate() { renderRebalance(); }
+
         // --- TAB 4: 設定 ---
         function updateSettings() {
             const apiKeyInput = document.getElementById('input-api-key');
@@ -830,8 +825,15 @@
             const thresholdInput = document.getElementById('input-threshold');
             if (thresholdInput) state.threshold = parseFloat(thresholdInput.value) || 5;
 
+            // 自訂字型縮放防呆：限制在 50% 到 300% 之間
             const zoomInput = document.getElementById('input-zoom');
-            if (zoomInput) state.zoomLevel = parseInt(zoomInput.value) || 100;
+            if (zoomInput) {
+                let zoomValue = parseInt(zoomInput.value);
+                if (isNaN(zoomValue) || zoomValue < 50) zoomValue = 50;
+                if (zoomValue > 300) zoomValue = 300;
+                zoomInput.value = zoomValue; // 如果超出範圍，將 input 校正回來
+                state.zoomLevel = zoomValue;
+            }
             
             applyZoom();
             saveData();
@@ -926,17 +928,14 @@
             saveData(); renderAssets(); closeCashModal();
         }
 
-        /* ==================== PWA 支援 (單檔動態注入) ==================== */
+        /* ==================== PWA 支援 ==================== */
         function initPWA() {
-            // 1. 動態生成 App Manifest 與 Apple Touch Icon (高質感 SVG 圖示)
             const iconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%230b1120' rx='22'/%3E%3Cpath d='M30 55 L50 35 L70 55 M50 35 L50 75' stroke='%2384cc16' stroke-width='8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
             const manifest = {
                 name: "極簡再平衡", short_name: "再平衡", start_url: location.href,
                 display: "standalone", background_color: "#f8fafc", theme_color: "#ffffff",
                 icons: [{ src: iconSvg, sizes: "512x512", type: "image/svg+xml" }]
             };
-            
-            // 改用 Data URI 取代 Blob，徹底避免跨域 iframe 阻擋 blob: 協定的安全報錯
             const manifestUrl = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
             document.head.insertAdjacentHTML('beforeend', `<link rel="manifest" href="${manifestUrl}">`);
             document.head.insertAdjacentHTML('beforeend', `<link rel="apple-touch-icon" href="${iconSvg}">`);
@@ -1012,7 +1011,6 @@
                         saveData();
                         showToast('資料還原成功！', 'success');
                         
-                        // 使用前端覆寫取代 Reload 避免沙盒攔截
                         const zoomInput = document.getElementById('input-zoom');
                         if (zoomInput) zoomInput.value = state.zoomLevel || 100;
                         const thresholdInput = document.getElementById('input-threshold');
@@ -1032,7 +1030,7 @@
             e.target.value = '';
         }
 
-        /* ==================== 券商 CSV 解析與匯入 ==================== */
+        /* ==================== 券商 CSV 解析 ==================== */
         function parseCsvLine(text) {
             let ret = [], inQuote = false, value = '';
             for (let ch of text) {
@@ -1058,7 +1056,7 @@
                 let priceIdx = headers.indexOf('市價');
 
                 if (nameIdx === -1 || sharesIdx === -1) {
-                    return showToast('找不到必要的欄位 (需包含：股票名稱, 股數)', 'error');
+                    return showToast('找不到必要的欄位', 'error');
                 }
 
                 let isClear = confirm("您想要【清除】現有的股票再匯入嗎？\n\n[確定] = 清空現有股票並以 CSV 取代\n[取消] = 將 CSV 股票附加至現有清單下方");
@@ -1099,9 +1097,9 @@
                     renderTargets();
                     renderRebalance();
                     
-                    showToast(`匯入 ${newAssets.length} 檔資產！請補上代號以利同步報價。`, 'success');
+                    showToast(`成功匯入庫存！請補上代號以便報價。`, 'success');
                 } else {
-                    showToast('未能從檔案中解析出任何有效庫存', 'error');
+                    showToast('未解析出任何有效庫存', 'error');
                 }
             };
             
@@ -1109,18 +1107,17 @@
             e.target.value = '';
         }
         
-        /* ==================== 原廠設定與純前端記憶體重置 ==================== */
+        /* ==================== 原廠設定淨空 ==================== */
         function factoryReset() {
             if (confirm("⚠️ 警告：這將會清除所有股票與設定資料，確定要恢復原廠設定嗎？")) {
                 try {
-                    // 1. 清除 LocalStorage 緩存
                     localStorage.removeItem(STORAGE_KEY);
                     
-                    // 2. 真正「完全淨空」的初始記憶體狀態
+                    // 確保底層不再有任何展示資料
                     state = {
-                        assets: [],               // 清空所有持股
-                        cash: 0,                  // 現金歸零
-                        cashTargetWeight: 100,    // 股票清空，目標配置必須100%退回現金，避免跑版
+                        assets: [],
+                        cash: 0,
+                        cashTargetWeight: 100, // 強制退回 100% 現金以防版面出錯
                         threshold: 5,             
                         newFunds: 0,              
                         fugleKey: '',
@@ -1128,10 +1125,8 @@
                         lastUpdate: '--:--'
                     };
                     
-                    // 3. 儲存新初始狀態
                     saveData();
                     
-                    // 4. 更新設定面頁中的實體 UI 欄位，確保資料一致
                     const zoomInput = document.getElementById('input-zoom');
                     if (zoomInput) zoomInput.value = 100;
                     
@@ -1144,21 +1139,24 @@
                     const newFundsInput = document.getElementById('input-new-funds');
                     if (newFundsInput) newFundsInput.value = 0;
                     
-                    // 5. 強制套用與重新渲染全部組件
                     applyZoom();
+                    switchTab('assets');
+                    
+                    // 因為 switchTab 內部會依照當前 Tab 渲染，為求萬無一失，額外呼叫重繪全部
                     renderAssets();
                     renderTargets();
                     renderRebalance();
                     
-                    // 6. 安全切換至首頁
-                    switchTab('assets');
                     showToast('資料已完全淨空', 'success');
                 } catch (err) {
-                    console.error("Factory Reset Error: ", err);
-                    showToast('重置過程中發生錯誤', 'error');
+                    console.error("Reset Error: ", err);
+                    showToast('重置發生錯誤', 'error');
                 }
             }
         }
     </script>
 </body>
 </html>
+
+
+``
