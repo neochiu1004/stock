@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -30,7 +31,7 @@
     <!-- 全域 Toast 提示框 -->
     <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-md text-sm font-bold opacity-0 pointer-events-none transition-opacity duration-300 z-[60]"></div>
 
-    <!-- 通用 Confirm 彈窗 -->
+    <!-- 通用 Confirm 彈窗 (支援動態 Callback) -->
     <div id="confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] hidden">
         <div class="bg-white p-6 rounded-xl shadow-lg max-w-sm w-full mx-4">
             <p id="confirm-msg" class="font-bold mb-4"></p>
@@ -307,7 +308,7 @@
             </div>
             
             <div class="text-xs text-gray-400 text-center mt-6">
-                Minimal Change Engineer (MCE) Build v2.6<br>
+                Minimal Change Engineer (MCE) Build v2.7<br>
                 資料皆儲存於本地 LocalStorage
             </div>
         </section>
@@ -342,11 +343,10 @@
         function getTaxRate(symbol, name) {
             const s = (symbol || '').toUpperCase();
             const n = name || '';
-            // 判斷是否為 ETF (如 0050、00631L等 00開頭或L/D結尾、或名稱含ETF/正2)
             if (s.endsWith('L') || s.endsWith('D') || s.startsWith('00') || n.includes('正2') || n.includes('反1') || n.includes('ETF')) {
-                return 0.001; // ETF 賣出交易稅 0.1%
+                return 0.001; 
             }
-            return 0.003; // 普通股票賣出交易稅 0.3%
+            return 0.003; 
         }
 
         // --- 核心共用：通用 Confirm Modal 邏輯 ---
@@ -382,7 +382,6 @@
             const cp = stock.costPrice !== undefined ? stock.costPrice : (stock.price || 0);
             document.getElementById('edit-cost-price').value = cp;
             
-            // 四捨五入計算預設付出成本
             const buyValue = Math.round(stock.shares * cp);
             const defaultPc = buyValue + Math.max(1, Math.round(buyValue * 0.001425 * 0.28));
             const pc = stock.paidCost !== undefined ? stock.paidCost : defaultPc;
@@ -398,7 +397,6 @@
             editingIndex = -1;
         }
 
-        // 編輯彈窗中的欄位連動：修改股數或均價時，自動推算付出成本
         function bindEditModalEvents() {
             const sharesInput = document.getElementById('edit-shares');
             const costPriceInput = document.getElementById('edit-cost-price');
@@ -407,7 +405,6 @@
             function updateCalculatedPaidCost() {
                 const s = parseFloat(sharesInput.value) || 0;
                 const p = parseFloat(costPriceInput.value) || 0;
-                // 先四捨五入買入市值，再算手續費四捨五入，最後相加
                 const buyValue = Math.round(s * p);
                 const buyFee = Math.max(1, Math.round(buyValue * 0.001425 * 0.28));
                 paidCostInput.value = buyValue + buyFee;
@@ -453,7 +450,6 @@
             inputEl.focus();
         }
 
-        // 設定分頁的現金輸入框公式追加
         function appendSettingsCashInput(char) {
             const inputEl = document.getElementById('cash-input');
             inputEl.value += char;
@@ -475,7 +471,7 @@
                 
                 state.cash = result; 
                 localStorage.setItem('mce_cash', state.cash);
-                document.getElementById('cash-input').value = state.cash; // 同步設定頁面
+                document.getElementById('cash-input').value = state.cash; 
                 
                 updateAllData();
                 closeCashEditModal();
@@ -485,7 +481,6 @@
             }
         }
 
-        // 儲存設定頁的現金餘額 (同時支援公式解析)
         function saveCash() {
             let valStr = document.getElementById('cash-input').value;
             valStr = valStr.replace(/×/g, '*').replace(/÷/g, '/');
@@ -507,7 +502,6 @@
             }
         }
 
-        // 刪除股票的封裝
         function promptRemoveStock(index) {
             showConfirm(`確定要移除 ${state.stocks[index].name} 嗎？`, () => {
                 state.stocks.splice(index, 1);
@@ -518,7 +512,6 @@
             });
         }
 
-        // UI 提示工具
         function showToast(msg) {
             const t = document.getElementById('toast');
             t.innerText = msg;
@@ -526,7 +519,6 @@
             setTimeout(() => t.style.opacity = '0', 2000);
         }
 
-        // MCE: 全域狀態與極簡邏輯
         const state = {
             cash: parseFloat(localStorage.getItem('mce_cash')) || 0,
             targetStockRatio: parseFloat(localStorage.getItem('mce_target_stock')) || 50,
@@ -637,7 +629,6 @@
             showToast('API Key 已儲存');
         }
 
-        // 執行合併或寫入資料 (邏輯強化，分離均價與付出成本)
         function executeMergeOrAdd(newStock) {
             let existing = state.stocks.find(s => s.symbol && s.symbol === newStock.symbol);
 
@@ -646,7 +637,6 @@
                 const newShares = newStock.shares;
                 const totalShares = oldShares + newShares;
                 
-                // 1. 累加「付出成本」
                 let oldPaidCost = existing.paidCost;
                 if (oldPaidCost === undefined) {
                     const oldBuyVal = Math.round(oldShares * (existing.costPrice || existing.price));
@@ -654,7 +644,6 @@
                 }
                 existing.paidCost = oldPaidCost + newStock.paidCost;
                 
-                // 2. 重新計算純粹的「成交均價」(不含手續費，加權平均)
                 if (totalShares > 0) {
                     const oldCostPrice = existing.costPrice || existing.price || 0;
                     existing.costPrice = ((oldShares * oldCostPrice) + (newShares * newStock.costPrice)) / totalShares;
@@ -720,7 +709,6 @@
                 return;
             }
 
-            // 手動新增時，各自四捨五入後相加
             const buyValue = Math.round(shares * costPrice);
             const buyFee = Math.max(1, Math.round(buyValue * 0.001425 * 0.28));
             const paidCost = buyValue + buyFee;
@@ -757,7 +745,6 @@
         const fmt = (num) => new Intl.NumberFormat('en-US').format(Math.round(num));
         const fmtCurrency = (num) => `NT$${fmt(num)}`;
 
-        // CSV 解析 (優先使用付出成本，無則四捨五入計算)
         function handleCSVUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -769,7 +756,6 @@
                 
                 if (lines.length < 2) return;
 
-                // 智慧識別 CSV 標頭位置
                 const headers = lines[0].trim().split(',').map(h => h.replace(/^"|"$/g, '').trim());
                 const idxName = headers.indexOf('股票名稱');
                 const idxShares = headers.indexOf('股數');
@@ -796,10 +782,8 @@
                     const costPrice = parseFloat(clean[avgPriceIdx]);
                     const currentPrice = parseFloat(clean[priceIdx]) || costPrice;
                     
-                    // 優先取得 CSV 中的付出成本
                     let paidCost = parseFloat(clean[paidCostIdx]);
                     
-                    // 若無付出成本則自動計算 (嚴格四捨五入)
                     if (isNaN(paidCost)) {
                         const buyValue = Math.round(shares * costPrice);
                         const buyFee = Math.max(1, Math.round(buyValue * 0.001425 * 0.28));
@@ -819,7 +803,6 @@
                             beta 
                         };
                         
-                        // 疊加式合併
                         let existing = state.stocks.find(s => s.name === newStock.name);
                         if (existing) {
                             const oldShares = existing.shares;
@@ -832,7 +815,6 @@
                             }
                             existing.paidCost = oldPaidCost + paidCost;
                             
-                            // 更新純均價 (不含手續費)
                             if (totalShares > 0) {
                                 const oldCostPrice = existing.costPrice || existing.price || 0;
                                 existing.costPrice = ((oldShares * oldCostPrice) + (shares * costPrice)) / totalShares;
@@ -857,7 +839,6 @@
             reader.readAsText(file);
         }
 
-        // 手動更新股價
         async function manualRefresh(btnElement) {
             btnElement.querySelector('svg').classList.add('animate-spin');
             await fetchLatestPrices();
@@ -868,7 +849,6 @@
             }, 500);
         }
 
-        // 批次取得富果報價
         async function fetchLatestPrices() {
             if (!state.apiKey || state.stocks.length === 0) return;
             
@@ -884,7 +864,7 @@
                     if (res.ok) {
                         const data = await res.json();
                         stock.price = data.closePrice || data.lastPrice || stock.price;
-                        stock.changePercent = data.changePercent || 0; // 取得今日漲跌幅
+                        stock.changePercent = data.changePercent || 0; 
                         updated = true;
                     }
                 } catch (err) {
@@ -901,17 +881,15 @@
             }
         }
 
-        // 核心：雙軌資金池計算與更新 UI
         function updateAllData() {
-            let totalDisplayStockValue = 0; // 展示池: 所有持股
-            let activeStockValue = 0;       // 操作池: 目標權重 > 0 的持股
+            let totalDisplayStockValue = 0; 
+            let activeStockValue = 0;       
             let weightedBetaSum = 0;
             let totalTargetWeight = 0;
 
-            // 1. 分流計算兩套資金池
             state.stocks.forEach(s => {
                 const currentPrice = s.price || 0;
-                const val = Math.round(s.shares * currentPrice); // 市值精確四捨五入
+                const val = Math.round(s.shares * currentPrice); 
                 totalDisplayStockValue += val; 
 
                 const weight = parseFloat(s.targetWeight) || 0;
@@ -922,14 +900,13 @@
                 }
             });
             
-            // --- 展示池 (Display) 邏輯 ---
             const displayTotal = totalDisplayStockValue + state.cash;
             const displayCashRatio = displayTotal > 0 ? (state.cash / displayTotal) * 100 : 0;
             
-            // 組合Beta (基於參與操作池的部位)
-            const portfolioBeta = activeStockValue > 0 ? (weightedBetaSum / activeStockValue) : 0;
+            // --- 修改點：計算 Beta 使用 總操做部位資金 (股票+現金) 進行加權稀釋 ---
+            const activeTotal = activeStockValue + state.cash;
+            const portfolioBeta = activeTotal > 0 ? (weightedBetaSum / activeTotal) : 0;
             
-            // 更新資產總覽 UI
             document.getElementById('total-asset-value').innerText = fmt(displayTotal);
             document.getElementById('total-stock-value').innerText = fmt(totalDisplayStockValue);
             document.getElementById('cash-value-display').innerText = fmt(state.cash);
@@ -937,20 +914,17 @@
             document.getElementById('cash-ratio-badge').innerText = `${Math.round(displayCashRatio)}%`;
             document.getElementById('portfolio-beta').innerText = portfolioBeta.toFixed(2);
 
-            // 更新股票列表 (豐富化資訊)
             const stockListEl = document.getElementById('stock-list');
             stockListEl.innerHTML = state.stocks.length === 0 ? '<div class="text-gray-400 text-sm text-center py-2">尚無股票資料，請至設定匯入或新增</div>' : state.stocks.map((s, index) => {
                 const currentPrice = s.price || 0;
-                const currentValue = Math.round(s.shares * currentPrice); // 現值(總市值)先四捨五入
+                const currentValue = Math.round(s.shares * currentPrice); 
                 const ratio = displayTotal > 0 ? (currentValue / displayTotal) * 100 : 0;
                 const displayName = s.symbol ? `${s.symbol}.TW (${s.name})` : s.name;
                 
-                // 判斷是否被排除
                 const isExcluded = (parseFloat(s.targetWeight) || 0) <= 0;
                 const opacityClass = isExcluded ? 'opacity-50 grayscale' : '';
                 const excludeTag = isExcluded ? '<span class="text-[10px] bg-gray-200 text-gray-500 px-1 py-0.5 rounded ml-1 font-bold">不參與</span>' : '';
 
-                // 28折手續費與證交稅計算 (嚴格四捨五入後相加)
                 const costPrice = s.costPrice !== undefined ? s.costPrice : currentPrice;
                 let paidCost = s.paidCost;
                 if (paidCost === undefined) {
@@ -959,17 +933,16 @@
                 }
                 
                 const taxRate = getTaxRate(s.symbol, s.name);
-                const sellFee = Math.max(1, Math.round(currentValue * 0.001425 * 0.28)); // 賣出費 (最低1元)
-                const sellTax = Math.round(currentValue * taxRate);                       // 賣出稅
-                const netSellValue = currentValue - sellFee - sellTax;                    // 預計淨現值
+                const sellFee = Math.max(1, Math.round(currentValue * 0.001425 * 0.28)); 
+                const sellTax = Math.round(currentValue * taxRate);                       
+                const netSellValue = currentValue - sellFee - sellTax;                    
                 
-                const grossPnL = currentValue - paidCost;   // 未扣稅費帳面盈虧
-                const netPnL = netSellValue - paidCost;       // 扣除手續費與交易稅後的預計淨盈虧
+                const grossPnL = currentValue - paidCost;   
+                const netPnL = netSellValue - paidCost;       
                 
                 const grossPnLPercent = paidCost > 0 ? (grossPnL / paidCost) * 100 : 0;
                 const netPnLPercent = paidCost > 0 ? (netPnL / paidCost) * 100 : 0;
 
-                // 漲跌幅 (今日)
                 let dailyChangeHTML = '';
                 if (s.changePercent !== undefined) {
                     const cp = parseFloat(s.changePercent) || 0;
@@ -984,7 +957,6 @@
                     dailyChangeHTML = `<span class="text-xs font-bold text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">今日 --</span>`;
                 }
 
-                // 盈虧配色 (台灣：紅字為盈，綠字為虧)
                 const grossColorClass = grossPnL >= 0 ? 'text-red-500 bg-red-50' : 'text-green-600 bg-green-50';
                 const netColorClass = netPnL >= 0 ? 'text-red-500 bg-red-50' : 'text-green-600 bg-green-50';
                 const grossSign = grossPnL >= 0 ? '+' : '';
@@ -992,7 +964,6 @@
 
                 return `
                 <div class="bg-gray-50 p-3 rounded-lg border border-gray-100 ${opacityClass} transition-all space-y-2">
-                    <!-- 首列: 名稱、佔比與按鈕 -->
                     <div class="flex justify-between items-start">
                         <div class="flex items-center gap-1.5 min-w-0">
                             <span class="bg-gray-200 text-xs px-2 py-1 rounded font-bold shrink-0">${Math.round(ratio)}%</span>
@@ -1012,7 +983,6 @@
                         </div>
                     </div>
 
-                    <!-- 帳務細節資訊 -->
                     <div class="grid grid-cols-2 text-xs text-gray-500 border-b border-dashed border-gray-200 pb-1.5 gap-y-0.5">
                         <div>持有股數: <span class="font-semibold text-gray-700">${fmt(s.shares)} 股</span></div>
                         <div>成交均價: <span class="font-semibold text-gray-700">@${costPrice.toFixed(2)}</span></div>
@@ -1020,7 +990,6 @@
                         <div>目前市值: <span class="font-semibold text-gray-700">${fmtCurrency(currentValue)}</span></div>
                     </div>
 
-                    <!-- 今日漲跌與預估盈虧指標 -->
                     <div class="flex flex-wrap items-center gap-1.5 pt-1">
                         ${dailyChangeHTML}
                         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${grossColorClass}" title="未實現帳面盈虧">
@@ -1036,18 +1005,15 @@
             renderChart(totalDisplayStockValue, state.cash);
 
             // --- 操作池 (Active) 與再平衡計算引擎 ---
-            const activeTotal = activeStockValue + state.cash;
             const activeStockRatio = activeTotal > 0 ? (activeStockValue / activeTotal) * 100 : 0;
             const activeCashRatio = activeTotal > 0 ? (state.cash / activeTotal) * 100 : 0;
 
             const projectedActiveTotal = activeTotal + state.newFunds;
             document.getElementById('projected-total-value').innerText = fmtCurrency(projectedActiveTotal);
             
-            // 第一層：基於操作池的宏觀目標金額
             const targetStockPoolValue = projectedActiveTotal * (state.targetStockRatio / 100);
             const targetCashValue = projectedActiveTotal * ((100 - state.targetStockRatio) / 100);
             
-            // 判斷宏觀是否偏離 (對比操作池佔比與目標設定)
             const isDeviated = Math.abs(activeStockRatio - state.targetStockRatio) > state.deviation;
             const warnEl = document.getElementById('rebalance-warning');
             if (isDeviated) {
@@ -1059,7 +1025,6 @@
             const actionList = document.getElementById('action-list');
             let actionsHTML = '';
 
-            // 第二層：單檔股票目標金額分配
             if (state.stocks.length > 0) {
                 if (totalTargetWeight <= 0 && state.targetStockRatio > 0) {
                     actionsHTML += `<div class="bg-red-50 text-red-500 p-4 rounded-xl shadow-sm border border-red-100 font-bold text-sm text-center">⚠ 請至目標配置設定，至少設定一檔股票的比重 > 0 以進行再平衡。</div>`;
@@ -1072,7 +1037,7 @@
                         const individualTargetValue = targetStockPoolValue * normalizedRatio;
                         
                         const currentPrice = s.price || 0;
-                        const currentValue = Math.round(s.shares * currentPrice); // 操作池的計算也基於四捨五入的市值
+                        const currentValue = Math.round(s.shares * currentPrice); 
                         const diffStock = individualTargetValue - currentValue;
                         
                         const suggestShares = currentPrice > 0 ? Math.abs(diffStock) / currentPrice : 0;
@@ -1163,3 +1128,4 @@
     </script>
 </body>
 </html>
+
