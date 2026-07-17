@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="再平衡">
-    <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23F97316'><circle cx='50' cy='50' r='45'/><text x='50' y='60' font-size='35' text-anchor='middle' fill='white' font-weight='bold'>平</text></svg>">
+    <link class="apple-touch-icon" rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23F97316'><circle cx='50' cy='50' r='45'/><text x='50' y='60' font-size='35' text-anchor='middle' fill='white' font-weight='bold'>平</text></svg>">
     
     <title>資產再平衡系統</title>
     
@@ -56,19 +56,23 @@
                         <input type="text" id="edit-name" readonly class="w-full bg-gray-100 border border-gray-200 rounded-md py-1.5 px-2 font-bold text-gray-500 cursor-not-allowed outline-none">
                     </div>
                 </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">持有股數</label>
+                    <input type="number" id="edit-shares" min="0" step="1" required class="w-full border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none focus:border-blue-500">
+                </div>
                 <div class="flex gap-2">
-                    <div class="w-1/3">
-                        <label class="block text-xs text-gray-500 mb-1">股數</label>
-                        <input type="number" id="edit-shares" min="0" step="1" required class="w-full border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none focus:border-blue-500">
+                    <div class="w-1/2">
+                        <label class="block text-xs text-gray-500 mb-1">成交均價</label>
+                        <input type="number" id="edit-cost-price" step="any" required class="w-full border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none focus:border-blue-500">
                     </div>
-                    <div class="w-1/3">
-                        <label class="block text-xs text-gray-500 mb-1">價格/成本</label>
-                        <input type="number" id="edit-price" min="0" step="any" required class="w-full border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none focus:border-blue-500">
+                    <div class="w-1/2">
+                        <label class="block text-xs text-gray-500 mb-1">付出成本 (可自訂)</label>
+                        <input type="number" id="edit-paid-cost" step="any" required class="w-full border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none focus:border-blue-500">
                     </div>
-                    <div class="w-1/3">
-                        <label class="block text-xs text-gray-500 mb-1">Beta</label>
-                        <input type="number" id="edit-beta" min="0" step="0.1" required class="w-full border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none focus:border-blue-500">
-                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Beta 參數</label>
+                    <input type="number" id="edit-beta" min="0" step="0.1" required class="w-full border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none focus:border-blue-500">
                 </div>
                 <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
                     <button type="button" onclick="closeEditModal()" class="px-4 py-2 bg-gray-200 rounded-md font-bold text-sm">取消</button>
@@ -87,7 +91,7 @@
                     <label class="block text-xs text-gray-500 mb-1">現金金額 (支援直接輸入數學算式)</label>
                     <input type="text" inputmode="decimal" id="edit-cash-val" required class="w-full border border-gray-200 rounded-md py-2 px-3 font-bold text-lg tracking-wider focus:outline-none focus:border-blue-500" placeholder="如: 10000+5000">
                 </div>
-                <!-- 計算機符號面板 (彌補手機數字鍵盤無符號的問題) -->
+                <!-- 計算機符號面板 -->
                 <div class="grid grid-cols-4 gap-2 mt-2">
                     <button type="button" onclick="appendCashInput('+')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-2 rounded-md font-bold text-lg transition-colors">+</button>
                     <button type="button" onclick="appendCashInput('-')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-2 rounded-md font-bold text-lg transition-colors">-</button>
@@ -244,7 +248,7 @@
             <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
                 <span class="font-bold">絕對偏離目標</span>
                 <div class="flex items-center gap-2">
-                    <input type="number" id="deviation-input" value="5" class="w-16 text-right border border-gray-200 rounded-md py-1 px-2 font-bold focus:outline-none">
+                    <input type="number" id="deviation-input" value="5" class="w-16 text-right border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none">
                     <span class="text-gray-500 font-bold">%</span>
                 </div>
             </div>
@@ -254,14 +258,22 @@
         <section id="view-settings" class="view-section hidden">
             <h1 class="text-xl font-bold mb-6 text-center">設定與資料匯入</h1>
             
-            <!-- 現金設定 (保留以相容舊流程) -->
+            <!-- 現金設定 (加入計算機與支援式子輸入) -->
             <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
                 <h2 class="font-bold mb-2">現金帳戶餘額 (TWD)</h2>
-                <input type="number" id="cash-input" class="w-full border border-gray-200 rounded-md py-2 px-3 font-bold focus:outline-none mb-2">
+                <p class="text-xs text-gray-500 mb-2">支援直接輸入數學算式，例如 50000+12000-500</p>
+                <input type="text" inputmode="decimal" id="cash-input" class="w-full border border-gray-200 rounded-md py-2 px-3 font-bold focus:outline-none mb-2" placeholder="0">
+                <!-- 計算機符號面板 -->
+                <div class="grid grid-cols-4 gap-2 mb-2">
+                    <button type="button" onclick="appendSettingsCashInput('+')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-1.5 rounded font-bold text-sm transition-colors">+</button>
+                    <button type="button" onclick="appendSettingsCashInput('-')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-1.5 rounded font-bold text-sm transition-colors">-</button>
+                    <button type="button" onclick="appendSettingsCashInput('*')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-1.5 rounded font-bold text-sm transition-colors">×</button>
+                    <button type="button" onclick="appendSettingsCashInput('/')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-1.5 rounded font-bold text-sm transition-colors">÷</button>
+                </div>
                 <button onclick="saveCash()" class="w-full bg-black text-white rounded-md py-2 font-bold">儲存現金</button>
             </div>
 
-            <!-- 手動新增股票 (極簡表單) -->
+            <!-- 手動新增股票 -->
             <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
                 <h2 class="font-bold mb-2">手動新增持股</h2>
                 <p class="text-xs text-gray-500 mb-3">輸入代號與股數即可。名稱與價格將透過 API 自動取得。</p>
@@ -282,7 +294,7 @@
             <!-- CSV 匯入 -->
             <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
                 <h2 class="font-bold mb-2">匯入證券未實現彙總 (CSV)</h2>
-                <p class="text-xs text-gray-500 mb-3">上傳券商匯出的 CSV 檔案。若已有相同持股，系統會自動疊加並計算加權平均成本。</p>
+                <p class="text-xs text-gray-500 mb-3">上傳券商匯出的 CSV 檔案。若已有相同持股，系統會自動疊加並計算加權平均成本與付出成本。</p>
                 <input type="file" id="csv-upload" accept=".csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-bold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200">
             </div>
 
@@ -295,7 +307,7 @@
             </div>
             
             <div class="text-xs text-gray-400 text-center mt-6">
-                Minimal Change Engineer (MCE) Build v2.1<br>
+                Minimal Change Engineer (MCE) Build v2.6<br>
                 資料皆儲存於本地 LocalStorage
             </div>
         </section>
@@ -326,6 +338,17 @@
     <style> .pb-safe { padding-bottom: env(safe-area-inset-bottom); } </style>
 
     <script>
+        // --- 智慧稅率判斷輔助 (台灣市場) ---
+        function getTaxRate(symbol, name) {
+            const s = (symbol || '').toUpperCase();
+            const n = name || '';
+            // 判斷是否為 ETF (如 0050、00631L等 00開頭或L/D結尾、或名稱含ETF/正2)
+            if (s.endsWith('L') || s.endsWith('D') || s.startsWith('00') || n.includes('正2') || n.includes('反1') || n.includes('ETF')) {
+                return 0.001; // ETF 賣出交易稅 0.1%
+            }
+            return 0.003; // 普通股票賣出交易稅 0.3%
+        }
+
         // --- 核心共用：通用 Confirm Modal 邏輯 ---
         let confirmCallback = null;
         function showConfirm(msg, callback) {
@@ -355,7 +378,16 @@
             document.getElementById('edit-symbol').value = stock.symbol || '';
             document.getElementById('edit-name').value = stock.name || '';
             document.getElementById('edit-shares').value = stock.shares;
-            document.getElementById('edit-price').value = stock.price;
+            
+            const cp = stock.costPrice !== undefined ? stock.costPrice : (stock.price || 0);
+            document.getElementById('edit-cost-price').value = cp;
+            
+            // 四捨五入計算預設付出成本
+            const buyValue = Math.round(stock.shares * cp);
+            const defaultPc = buyValue + Math.max(1, Math.round(buyValue * 0.001425 * 0.28));
+            const pc = stock.paidCost !== undefined ? stock.paidCost : defaultPc;
+            document.getElementById('edit-paid-cost').value = pc;
+            
             document.getElementById('edit-beta').value = stock.beta || 1;
             
             document.getElementById('edit-modal').classList.remove('hidden');
@@ -366,16 +398,37 @@
             editingIndex = -1;
         }
 
+        // 編輯彈窗中的欄位連動：修改股數或均價時，自動推算付出成本
+        function bindEditModalEvents() {
+            const sharesInput = document.getElementById('edit-shares');
+            const costPriceInput = document.getElementById('edit-cost-price');
+            const paidCostInput = document.getElementById('edit-paid-cost');
+
+            function updateCalculatedPaidCost() {
+                const s = parseFloat(sharesInput.value) || 0;
+                const p = parseFloat(costPriceInput.value) || 0;
+                // 先四捨五入買入市值，再算手續費四捨五入，最後相加
+                const buyValue = Math.round(s * p);
+                const buyFee = Math.max(1, Math.round(buyValue * 0.001425 * 0.28));
+                paidCostInput.value = buyValue + buyFee;
+            }
+
+            sharesInput.addEventListener('input', updateCalculatedPaidCost);
+            costPriceInput.addEventListener('input', updateCalculatedPaidCost);
+        }
+
         function saveEditStock(e) {
             e.preventDefault();
             if (editingIndex === -1) return;
 
             const shares = parseFloat(document.getElementById('edit-shares').value);
-            const price = parseFloat(document.getElementById('edit-price').value);
+            const costPrice = parseFloat(document.getElementById('edit-cost-price').value);
+            const paidCost = parseFloat(document.getElementById('edit-paid-cost').value);
             const beta = parseFloat(document.getElementById('edit-beta').value) || 1;
 
             state.stocks[editingIndex].shares = shares;
-            state.stocks[editingIndex].price = price;
+            state.stocks[editingIndex].costPrice = costPrice;
+            state.stocks[editingIndex].paidCost = paidCost;
             state.stocks[editingIndex].beta = beta;
 
             localStorage.setItem('mce_stocks', JSON.stringify(state.stocks));
@@ -396,7 +449,13 @@
 
         function appendCashInput(char) {
             const inputEl = document.getElementById('edit-cash-val');
-            // 將乘除號換回標準數學符號供視覺顯示 (計算時再轉回來)
+            inputEl.value += char;
+            inputEl.focus();
+        }
+
+        // 設定分頁的現金輸入框公式追加
+        function appendSettingsCashInput(char) {
+            const inputEl = document.getElementById('cash-input');
             inputEl.value += char;
             inputEl.focus();
         }
@@ -404,28 +463,44 @@
         function saveEditCash(e) {
             e.preventDefault();
             let valStr = document.getElementById('edit-cash-val').value;
-            
-            // 將畫面的運算符轉回 JavaScript 可讀的符號
             valStr = valStr.replace(/×/g, '*').replace(/÷/g, '/');
-            
-            // 安全過濾：只允許數字、加減乘除、小數點及括號，防堵所有 XSS 與亂碼
             const sanitized = valStr.replace(/[^0-9+\-*/().]/g, '');
 
             try {
                 let result = 0;
                 if (sanitized) {
-                    // 安全計算字串數學式
                     result = new Function('return ' + sanitized)();
                 }
-                
                 if (isNaN(result) || !isFinite(result)) throw new Error("無效算式");
                 
-                state.cash = result; // 支援負數現金(如融資/借貸情境)
+                state.cash = result; 
                 localStorage.setItem('mce_cash', state.cash);
-                document.getElementById('cash-input').value = state.cash; // 同步設定頁
+                document.getElementById('cash-input').value = state.cash; // 同步設定頁面
                 
                 updateAllData();
                 closeCashEditModal();
+                showToast('現金已更新');
+            } catch (err) {
+                showToast('計算式錯誤，請檢查');
+            }
+        }
+
+        // 儲存設定頁的現金餘額 (同時支援公式解析)
+        function saveCash() {
+            let valStr = document.getElementById('cash-input').value;
+            valStr = valStr.replace(/×/g, '*').replace(/÷/g, '/');
+            const sanitized = valStr.replace(/[^0-9+\-*/().]/g, '');
+
+            try {
+                let result = 0;
+                if (sanitized) {
+                    result = new Function('return ' + sanitized)();
+                }
+                if (isNaN(result) || !isFinite(result)) throw new Error("無效算式");
+                
+                state.cash = result;
+                localStorage.setItem('mce_cash', state.cash);
+                updateAllData();
                 showToast('現金已更新');
             } catch (err) {
                 showToast('計算式錯誤，請檢查');
@@ -556,20 +631,13 @@
             updateAllData();
         }
 
-        // (保留舊方法以備後續擴充相容)
-        function saveCash() {
-            state.cash = parseFloat(document.getElementById('cash-input').value) || 0;
-            localStorage.setItem('mce_cash', state.cash);
-            updateAllData();
-            showToast('現金已更新');
-        }
-
         function saveApiKey() {
             state.apiKey = document.getElementById('api-key-input').value.trim();
             localStorage.setItem('mce_apikey', state.apiKey);
             showToast('API Key 已儲存');
         }
 
+        // 執行合併或寫入資料 (邏輯強化，分離均價與付出成本)
         function executeMergeOrAdd(newStock) {
             let existing = state.stocks.find(s => s.symbol && s.symbol === newStock.symbol);
 
@@ -577,10 +645,21 @@
                 const oldShares = existing.shares;
                 const newShares = newStock.shares;
                 const totalShares = oldShares + newShares;
-                if (totalShares > 0) {
-                    const totalCost = (oldShares * existing.price) + (newShares * newStock.price);
-                    existing.price = totalCost / totalShares;
+                
+                // 1. 累加「付出成本」
+                let oldPaidCost = existing.paidCost;
+                if (oldPaidCost === undefined) {
+                    const oldBuyVal = Math.round(oldShares * (existing.costPrice || existing.price));
+                    oldPaidCost = oldBuyVal + Math.max(1, Math.round(oldBuyVal * 0.001425 * 0.28));
                 }
+                existing.paidCost = oldPaidCost + newStock.paidCost;
+                
+                // 2. 重新計算純粹的「成交均價」(不含手續費，加權平均)
+                if (totalShares > 0) {
+                    const oldCostPrice = existing.costPrice || existing.price || 0;
+                    existing.costPrice = ((oldShares * oldCostPrice) + (newShares * newStock.costPrice)) / totalShares;
+                }
+                
                 existing.shares = totalShares;
                 if (!existing.name && newStock.name) existing.name = newStock.name;
             } else {
@@ -603,10 +682,13 @@
             const symbol = document.getElementById('add-symbol').value.trim();
             const shares = parseFloat(document.getElementById('add-shares').value);
             let name = document.getElementById('add-name').value.trim();
-            let price = document.getElementById('add-price').value;
+            let priceInput = document.getElementById('add-price').value; 
             let beta = document.getElementById('add-beta').value;
 
-            if ((!name || !price) && state.apiKey) {
+            let costPrice = parseFloat(priceInput) || 0;
+            let currentPrice = costPrice;
+
+            if ((!name || !priceInput) && state.apiKey) {
                 try {
                     const [metaRes, quoteRes] = await Promise.all([
                         fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/meta/${symbol}`, { headers: { 'X-API-KEY': state.apiKey } }),
@@ -617,24 +699,33 @@
                         const meta = await metaRes.json();
                         const quote = await quoteRes.json();
                         if (!name) name = meta.nameZhTw || symbol;
-                        if (!price) price = quote.closePrice || quote.lastPrice || 0;
+                        if (!priceInput) {
+                            currentPrice = quote.closePrice || quote.lastPrice || 0;
+                            costPrice = currentPrice; 
+                        }
                     }
                 } catch (err) {
                     console.log("API Fetch Error:", err);
                 }
             }
 
-            price = parseFloat(price) || 0;
+            costPrice = parseFloat(costPrice) || 0;
+            currentPrice = parseFloat(currentPrice) || costPrice;
             beta = parseFloat(beta) || (name.includes('正2') ? 2 : 1);
             if (!name) name = symbol;
 
-            if (!price && !state.apiKey) {
+            if (!costPrice && !state.apiKey) {
                 showToast('無 API Key，請手動輸入價格');
                 resetBtn();
                 return;
             }
 
-            const newStock = { name, symbol, shares, price, beta };
+            // 手動新增時，各自四捨五入後相加
+            const buyValue = Math.round(shares * costPrice);
+            const buyFee = Math.max(1, Math.round(buyValue * 0.001425 * 0.28));
+            const paidCost = buyValue + buyFee;
+
+            const newStock = { name, symbol, shares, price: currentPrice, costPrice, paidCost, beta };
             const isExist = state.stocks.some(s => s.symbol === symbol);
 
             if (isExist) {
@@ -666,6 +757,7 @@
         const fmt = (num) => new Intl.NumberFormat('en-US').format(Math.round(num));
         const fmtCurrency = (num) => `NT$${fmt(num)}`;
 
+        // CSV 解析 (優先使用付出成本，無則四捨五入計算)
         function handleCSVUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -675,27 +767,75 @@
                 const lines = text.trim().split('\n');
                 let processCount = 0;
                 
+                if (lines.length < 2) return;
+
+                // 智慧識別 CSV 標頭位置
+                const headers = lines[0].trim().split(',').map(h => h.replace(/^"|"$/g, '').trim());
+                const idxName = headers.indexOf('股票名稱');
+                const idxShares = headers.indexOf('股數');
+                const idxAvgPrice = headers.indexOf('成交均價');
+                const idxPrice = headers.indexOf('市價');
+                const idxPaidCost = headers.indexOf('付出成本');
+
+                const nameIdx = idxName !== -1 ? idxName : 0;
+                const sharesIdx = idxShares !== -1 ? idxShares : 1;
+                const avgPriceIdx = idxAvgPrice !== -1 ? idxAvgPrice : 4;
+                const priceIdx = idxPrice !== -1 ? idxPrice : 5;
+                const paidCostIdx = idxPaidCost !== -1 ? idxPaidCost : 7;
+
                 for (let i = 1; i < lines.length; i++) {
                     const line = lines[i].trim();
                     if (!line || line.includes('總預估') || line.includes('總融資')) continue;
                     
                     const row = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-                    if (!row || row.length < 7) continue;
+                    if (!row || row.length < Math.max(nameIdx, sharesIdx, avgPriceIdx, priceIdx, paidCostIdx)) continue;
                     
                     const clean = row.map(v => v.replace(/^"|"$/g, '').replace(/,/g, ''));
-                    const name = clean[0];
-                    const shares = parseFloat(clean[1]);
-                    const price = parseFloat(clean[5]);
+                    const name = clean[nameIdx];
+                    const shares = parseFloat(clean[sharesIdx]);
+                    const costPrice = parseFloat(clean[avgPriceIdx]);
+                    const currentPrice = parseFloat(clean[priceIdx]) || costPrice;
+                    
+                    // 優先取得 CSV 中的付出成本
+                    let paidCost = parseFloat(clean[paidCostIdx]);
+                    
+                    // 若無付出成本則自動計算 (嚴格四捨五入)
+                    if (isNaN(paidCost)) {
+                        const buyValue = Math.round(shares * costPrice);
+                        const buyFee = Math.max(1, Math.round(buyValue * 0.001425 * 0.28));
+                        paidCost = buyValue + buyFee;
+                    }
+
                     const beta = name.includes('正2') ? 2 : 1; 
                     
-                    if (name && !isNaN(shares) && !isNaN(price)) {
-                        const newStock = { name, shares, price, symbol: symbolMap[name] || '', beta };
+                    if (name && !isNaN(shares) && !isNaN(costPrice)) {
+                        const newStock = { 
+                            name, 
+                            shares, 
+                            price: currentPrice, 
+                            costPrice, 
+                            paidCost, 
+                            symbol: symbolMap[name] || '', 
+                            beta 
+                        };
+                        
+                        // 疊加式合併
                         let existing = state.stocks.find(s => s.name === newStock.name);
                         if (existing) {
                             const oldShares = existing.shares;
                             const totalShares = oldShares + shares;
+                            
+                            let oldPaidCost = existing.paidCost;
+                            if (oldPaidCost === undefined) {
+                                const oldBuyVal = Math.round(oldShares * (existing.costPrice || existing.price));
+                                oldPaidCost = oldBuyVal + Math.max(1, Math.round(oldBuyVal * 0.001425 * 0.28));
+                            }
+                            existing.paidCost = oldPaidCost + paidCost;
+                            
+                            // 更新純均價 (不含手續費)
                             if (totalShares > 0) {
-                                existing.price = ((oldShares * existing.price) + (shares * price)) / totalShares;
+                                const oldCostPrice = existing.costPrice || existing.price || 0;
+                                existing.costPrice = ((oldShares * oldCostPrice) + (shares * costPrice)) / totalShares;
                             }
                             existing.shares = totalShares;
                         } else {
@@ -708,7 +848,7 @@
                 
                 localStorage.setItem('mce_stocks', JSON.stringify(state.stocks));
                 renderTargetStockWeights();
-                showToast(`成功處理匯入 ${processCount} 筆資料`);
+                showToast(`成功處理匯入 ${processCount} 檔股票`);
                 await fetchLatestPrices();
                 updateAllData();
                 
@@ -717,6 +857,7 @@
             reader.readAsText(file);
         }
 
+        // 手動更新股價
         async function manualRefresh(btnElement) {
             btnElement.querySelector('svg').classList.add('animate-spin');
             await fetchLatestPrices();
@@ -727,6 +868,7 @@
             }, 500);
         }
 
+        // 批次取得富果報價
         async function fetchLatestPrices() {
             if (!state.apiKey || state.stocks.length === 0) return;
             
@@ -742,7 +884,7 @@
                     if (res.ok) {
                         const data = await res.json();
                         stock.price = data.closePrice || data.lastPrice || stock.price;
-                        stock.changePercent = data.changePercent || 0;
+                        stock.changePercent = data.changePercent || 0; // 取得今日漲跌幅
                         updated = true;
                     }
                 } catch (err) {
@@ -759,14 +901,17 @@
             }
         }
 
+        // 核心：雙軌資金池計算與更新 UI
         function updateAllData() {
-            let totalDisplayStockValue = 0; 
-            let activeStockValue = 0;       
+            let totalDisplayStockValue = 0; // 展示池: 所有持股
+            let activeStockValue = 0;       // 操作池: 目標權重 > 0 的持股
             let weightedBetaSum = 0;
             let totalTargetWeight = 0;
 
+            // 1. 分流計算兩套資金池
             state.stocks.forEach(s => {
-                const val = s.shares * s.price;
+                const currentPrice = s.price || 0;
+                const val = Math.round(s.shares * currentPrice); // 市值精確四捨五入
                 totalDisplayStockValue += val; 
 
                 const weight = parseFloat(s.targetWeight) || 0;
@@ -777,11 +922,14 @@
                 }
             });
             
+            // --- 展示池 (Display) 邏輯 ---
             const displayTotal = totalDisplayStockValue + state.cash;
             const displayCashRatio = displayTotal > 0 ? (state.cash / displayTotal) * 100 : 0;
             
+            // 組合Beta (基於參與操作池的部位)
             const portfolioBeta = activeStockValue > 0 ? (weightedBetaSum / activeStockValue) : 0;
             
+            // 更新資產總覽 UI
             document.getElementById('total-asset-value').innerText = fmt(displayTotal);
             document.getElementById('total-stock-value').innerText = fmt(totalDisplayStockValue);
             document.getElementById('cash-value-display').innerText = fmt(state.cash);
@@ -789,38 +937,105 @@
             document.getElementById('cash-ratio-badge').innerText = `${Math.round(displayCashRatio)}%`;
             document.getElementById('portfolio-beta').innerText = portfolioBeta.toFixed(2);
 
+            // 更新股票列表 (豐富化資訊)
             const stockListEl = document.getElementById('stock-list');
             stockListEl.innerHTML = state.stocks.length === 0 ? '<div class="text-gray-400 text-sm text-center py-2">尚無股票資料，請至設定匯入或新增</div>' : state.stocks.map((s, index) => {
-                const ratio = displayTotal > 0 ? (s.shares * s.price / displayTotal) * 100 : 0;
+                const currentPrice = s.price || 0;
+                const currentValue = Math.round(s.shares * currentPrice); // 現值(總市值)先四捨五入
+                const ratio = displayTotal > 0 ? (currentValue / displayTotal) * 100 : 0;
                 const displayName = s.symbol ? `${s.symbol}.TW (${s.name})` : s.name;
                 
+                // 判斷是否被排除
                 const isExcluded = (parseFloat(s.targetWeight) || 0) <= 0;
                 const opacityClass = isExcluded ? 'opacity-50 grayscale' : '';
                 const excludeTag = isExcluded ? '<span class="text-[10px] bg-gray-200 text-gray-500 px-1 py-0.5 rounded ml-1 font-bold">不參與</span>' : '';
 
+                // 28折手續費與證交稅計算 (嚴格四捨五入後相加)
+                const costPrice = s.costPrice !== undefined ? s.costPrice : currentPrice;
+                let paidCost = s.paidCost;
+                if (paidCost === undefined) {
+                    const buyValue = Math.round(s.shares * costPrice);
+                    paidCost = buyValue + Math.max(1, Math.round(buyValue * 0.001425 * 0.28));
+                }
+                
+                const taxRate = getTaxRate(s.symbol, s.name);
+                const sellFee = Math.max(1, Math.round(currentValue * 0.001425 * 0.28)); // 賣出費 (最低1元)
+                const sellTax = Math.round(currentValue * taxRate);                       // 賣出稅
+                const netSellValue = currentValue - sellFee - sellTax;                    // 預計淨現值
+                
+                const grossPnL = currentValue - paidCost;   // 未扣稅費帳面盈虧
+                const netPnL = netSellValue - paidCost;       // 扣除手續費與交易稅後的預計淨盈虧
+                
+                const grossPnLPercent = paidCost > 0 ? (grossPnL / paidCost) * 100 : 0;
+                const netPnLPercent = paidCost > 0 ? (netPnL / paidCost) * 100 : 0;
+
+                // 漲跌幅 (今日)
+                let dailyChangeHTML = '';
+                if (s.changePercent !== undefined) {
+                    const cp = parseFloat(s.changePercent) || 0;
+                    if (cp > 0) {
+                        dailyChangeHTML = `<span class="text-xs font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded">今日 ▲${cp.toFixed(2)}%</span>`;
+                    } else if (cp < 0) {
+                        dailyChangeHTML = `<span class="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded">今日 ▼${Math.abs(cp).toFixed(2)}%</span>`;
+                    } else {
+                        dailyChangeHTML = `<span class="text-xs font-bold text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">今日 0.00%</span>`;
+                    }
+                } else {
+                    dailyChangeHTML = `<span class="text-xs font-bold text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">今日 --</span>`;
+                }
+
+                // 盈虧配色 (台灣：紅字為盈，綠字為虧)
+                const grossColorClass = grossPnL >= 0 ? 'text-red-500 bg-red-50' : 'text-green-600 bg-green-50';
+                const netColorClass = netPnL >= 0 ? 'text-red-500 bg-red-50' : 'text-green-600 bg-green-50';
+                const grossSign = grossPnL >= 0 ? '+' : '';
+                const netSign = netPnL >= 0 ? '+' : '';
+
                 return `
-                <div class="flex justify-between items-center bg-gray-50 p-2 rounded-lg ${opacityClass} transition-all">
-                    <div class="flex items-center gap-2">
-                        <span class="bg-gray-200 text-xs px-2 py-1 rounded font-bold">${Math.round(ratio)}%</span>
-                        <div>
-                            <div class="font-bold text-sm flex items-center">${displayName} <span class="text-xs text-gray-500 font-normal ml-1">β=${s.beta || 1}</span>${excludeTag}</div>
-                            <div class="text-xs text-gray-500">持有 ${fmt(s.shares)} 股 @${s.price.toFixed(2)}</div>
+                <div class="bg-gray-50 p-3 rounded-lg border border-gray-100 ${opacityClass} transition-all space-y-2">
+                    <!-- 首列: 名稱、佔比與按鈕 -->
+                    <div class="flex justify-between items-start">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <span class="bg-gray-200 text-xs px-2 py-1 rounded font-bold shrink-0">${Math.round(ratio)}%</span>
+                            <div class="font-bold text-sm truncate flex items-center min-w-0">
+                                <span class="truncate">${displayName}</span>
+                                <span class="text-xs text-gray-500 font-normal ml-1 shrink-0">β=${s.beta || 1}</span>
+                                ${excludeTag}
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                            <button onclick="openEditModal(${index})" class="text-blue-500 hover:text-blue-700 p-1" title="編輯">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                            </button>
+                            <button onclick="promptRemoveStock(${index})" class="text-red-400 hover:text-red-600 p-1" title="刪除">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <div class="text-right font-bold mr-1">${fmt(s.shares * s.price)}</div>
-                        <button onclick="openEditModal(${index})" class="text-blue-400 hover:text-blue-600 px-1" title="編輯">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                        </button>
-                        <button onclick="promptRemoveStock(${index})" class="text-red-400 hover:text-red-600 px-1" title="刪除">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>
+
+                    <!-- 帳務細節資訊 -->
+                    <div class="grid grid-cols-2 text-xs text-gray-500 border-b border-dashed border-gray-200 pb-1.5 gap-y-0.5">
+                        <div>持有股數: <span class="font-semibold text-gray-700">${fmt(s.shares)} 股</span></div>
+                        <div>成交均價: <span class="font-semibold text-gray-700">@${costPrice.toFixed(2)}</span></div>
+                        <div>付出成本: <span class="font-semibold text-gray-700">${fmtCurrency(paidCost)}</span></div>
+                        <div>目前市值: <span class="font-semibold text-gray-700">${fmtCurrency(currentValue)}</span></div>
+                    </div>
+
+                    <!-- 今日漲跌與預估盈虧指標 -->
+                    <div class="flex flex-wrap items-center gap-1.5 pt-1">
+                        ${dailyChangeHTML}
+                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${grossColorClass}" title="未實現帳面盈虧">
+                            帳面: ${grossSign}${fmt(grossPnL)} (${grossSign}${grossPnLPercent.toFixed(2)}%)
+                        </span>
+                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${netColorClass}" title="預計實拿淨盈虧 (已扣估算手續費 ${sellFee} 元與證交稅 ${sellTax} 元)">
+                            淨預計: ${netSign}${fmt(netPnL)} (${netSign}${netPnLPercent.toFixed(2)}%)
+                        </span>
                     </div>
                 </div>`;
             }).join('');
 
             renderChart(totalDisplayStockValue, state.cash);
 
+            // --- 操作池 (Active) 與再平衡計算引擎 ---
             const activeTotal = activeStockValue + state.cash;
             const activeStockRatio = activeTotal > 0 ? (activeStockValue / activeTotal) * 100 : 0;
             const activeCashRatio = activeTotal > 0 ? (state.cash / activeTotal) * 100 : 0;
@@ -828,9 +1043,11 @@
             const projectedActiveTotal = activeTotal + state.newFunds;
             document.getElementById('projected-total-value').innerText = fmtCurrency(projectedActiveTotal);
             
+            // 第一層：基於操作池的宏觀目標金額
             const targetStockPoolValue = projectedActiveTotal * (state.targetStockRatio / 100);
             const targetCashValue = projectedActiveTotal * ((100 - state.targetStockRatio) / 100);
             
+            // 判斷宏觀是否偏離 (對比操作池佔比與目標設定)
             const isDeviated = Math.abs(activeStockRatio - state.targetStockRatio) > state.deviation;
             const warnEl = document.getElementById('rebalance-warning');
             if (isDeviated) {
@@ -842,6 +1059,7 @@
             const actionList = document.getElementById('action-list');
             let actionsHTML = '';
 
+            // 第二層：單檔股票目標金額分配
             if (state.stocks.length > 0) {
                 if (totalTargetWeight <= 0 && state.targetStockRatio > 0) {
                     actionsHTML += `<div class="bg-red-50 text-red-500 p-4 rounded-xl shadow-sm border border-red-100 font-bold text-sm text-center">⚠ 請至目標配置設定，至少設定一檔股票的比重 > 0 以進行再平衡。</div>`;
@@ -852,14 +1070,16 @@
                         
                         const normalizedRatio = weight / totalTargetWeight;
                         const individualTargetValue = targetStockPoolValue * normalizedRatio;
-                        const currentStockValue = s.shares * s.price;
-                        const diffStock = individualTargetValue - currentStockValue;
                         
-                        const suggestShares = s.price > 0 ? Math.abs(diffStock) / s.price : 0;
+                        const currentPrice = s.price || 0;
+                        const currentValue = Math.round(s.shares * currentPrice); // 操作池的計算也基於四捨五入的市值
+                        const diffStock = individualTargetValue - currentValue;
+                        
+                        const suggestShares = currentPrice > 0 ? Math.abs(diffStock) / currentPrice : 0;
                         const actionText = diffStock >= 0 ? '買入' : '賣出';
                         const actionColor = diffStock >= 0 ? 'bg-green-500' : 'bg-red-500';
                         
-                        const currentInternalRatio = activeStockValue > 0 ? (currentStockValue / activeStockValue) * 100 : 0;
+                        const currentInternalRatio = activeStockValue > 0 ? (currentValue / activeStockValue) * 100 : 0;
                         const targetInternalRatio = normalizedRatio * 100;
 
                         actionsHTML += `
@@ -935,6 +1155,7 @@
         // 啟動
         window.onload = () => {
             init();
+            bindEditModalEvents();
             if (state.apiKey && state.stocks.length > 0) {
                 fetchLatestPrices().then(updateAllData);
             }
