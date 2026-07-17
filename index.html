@@ -243,6 +243,15 @@
                 </div>
             </div>
 
+            <h2 class="text-lg font-bold mb-3">再平衡策略</h2>
+            <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-6 flex justify-between items-center">
+                <span class="font-bold text-sm">平衡模式</span>
+                <select id="rebalance-mode-select" class="border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none bg-gray-50 text-sm">
+                    <option value="global">僅看股票總值 (等比縮放)</option>
+                    <option value="individual">個股獨立配重 (精確目標)</option>
+                </select>
+            </div>
+
             <div class="flex justify-between font-bold mb-3">
                 <span>股票內部權重配置</span>
                 <span class="text-xs text-gray-500 font-normal self-end">自動計算相對比例 (設0為排除)</span>
@@ -316,7 +325,7 @@
             </div>
             
             <div class="text-xs text-gray-400 text-center mt-6">
-                Minimal Change Engineer (MCE) Build v2.9<br>
+                Minimal Change Engineer (MCE) Build v3.0<br>
                 資料皆儲存於本地 LocalStorage
             </div>
         </section>
@@ -539,7 +548,8 @@
             deviation: parseFloat(localStorage.getItem('mce_deviation')) || 5,
             stocks: JSON.parse(localStorage.getItem('mce_stocks')) || [],
             apiKey: localStorage.getItem('mce_apikey') || '',
-            newFunds: 0
+            newFunds: 0,
+            rebalanceMode: localStorage.getItem('mce_rebalance_mode') || 'global'
         };
 
         const symbolMap = {
@@ -556,6 +566,7 @@
             document.getElementById('target-stock-slider').value = state.targetStockRatio;
             document.getElementById('deviation-input').value = state.deviation;
             document.getElementById('api-key-input').value = state.apiKey;
+            document.getElementById('rebalance-mode-select').value = state.rebalanceMode;
             
             // 防呆：確保舊資料擁有 targetWeight 屬性
             state.stocks.forEach(s => {
@@ -586,6 +597,7 @@
             const devInput = document.getElementById('deviation-input');
             const newFundsInput = document.getElementById('new-funds');
             const csvUpload = document.getElementById('csv-upload');
+            const modeSelect = document.getElementById('rebalance-mode-select');
 
             stockSlider.addEventListener('input', (e) => {
                 state.targetStockRatio = parseFloat(e.target.value);
@@ -604,6 +616,13 @@
             newFundsInput.addEventListener('input', (e) => {
                 state.newFunds = parseFloat(e.target.value) || 0;
                 updateAllData();
+            });
+
+            modeSelect.addEventListener('change', (e) => {
+                state.rebalanceMode = e.target.value;
+                localStorage.setItem('mce_rebalance_mode', state.rebalanceMode);
+                updateAllData();
+                showToast(state.rebalanceMode === 'global' ? '已切換為：僅看股票總值' : '已切換為：個股獨立配重');
             });
 
             csvUpload.addEventListener('change', handleCSVUpload);
@@ -1071,23 +1090,38 @@
                 if (totalTargetWeight <= 0 && state.targetStockRatio > 0) {
                     actionsHTML += `<div class="bg-red-50 text-red-500 p-4 rounded-xl shadow-sm border border-red-100 font-bold text-sm text-center">⚠ 請至目標配置設定，至少設定一檔股票的比重 > 0 以進行再平衡。</div>`;
                 } else {
+                    // MCE 核心邏輯修改：判斷是否啟用「等比例縮放」模式
+                    const useGlobalEqually = (state.rebalanceMode === 'global' && activeStockValue > 0);
+                    const globalDiffStock = targetStockPoolValue - activeStockValue;
+
                     state.stocks.forEach((s) => {
                         const weight = parseFloat(s.targetWeight) || 0;
                         if (weight <= 0) return; 
                         
-                        const normalizedRatio = weight / totalTargetWeight;
-                        const individualTargetValue = targetStockPoolValue * normalizedRatio;
-                        
                         const currentPrice = s.price || 0;
                         const currentValue = Math.round(s.shares * currentPrice); 
-                        const diffStock = individualTargetValue - currentValue;
+                        
+                        let diffStock = 0;
+                        let targetInternalRatio = 0;
+
+                        if (useGlobalEqually) {
+                            // 模式 B：等比例縮放 (佔現有活躍股票總值的比例)
+                            const currentProportion = currentValue / activeStockValue;
+                            diffStock = globalDiffStock * currentProportion;
+                            targetInternalRatio = currentProportion * 100;
+                        } else {
+                            // 模式 A：個股獨立配重 (佔設定的目標總權重比例)
+                            const normalizedRatio = weight / totalTargetWeight;
+                            const individualTargetValue = targetStockPoolValue * normalizedRatio;
+                            diffStock = individualTargetValue - currentValue;
+                            targetInternalRatio = normalizedRatio * 100;
+                        }
                         
                         const suggestShares = currentPrice > 0 ? Math.abs(diffStock) / currentPrice : 0;
                         const actionText = diffStock >= 0 ? '買入' : '賣出';
                         const actionColor = diffStock >= 0 ? 'bg-green-500' : 'bg-red-500';
                         
                         const currentInternalRatio = activeStockValue > 0 ? (currentValue / activeStockValue) * 100 : 0;
-                        const targetInternalRatio = normalizedRatio * 100;
 
                         actionsHTML += `
                         <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
