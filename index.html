@@ -19,88 +19,92 @@
     <style>
         /* MCE: 極簡修飾，隱藏滾動條以貼近原生 App 體驗 */
         ::-webkit-scrollbar { display: none; }
-        body { -ms-overflow-style: none; scrollbar-width: none; background-color: #F9FAFB; user-select: none; -webkit-user-select: none; }
+        body { -ms-overflow-style: none; scrollbar-width: none; background-color: #F3F4F6; user-select: none; -webkit-user-select: none; }
         .tab-active { color: #111827; font-weight: bold; }
-        .tab-inactive { color: #9CA3AF; }
+        .tab-inactive { color: #6B7280; }
         input[type=range] { accent-color: #111827; }
     </style>
 </head>
-<body class="text-gray-900 font-sans antialiased pb-20">
+<body class="text-gray-900 font-sans antialiased pb-24">
 
     <!-- 全域 Toast 提示框 -->
-    <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-md text-sm font-bold opacity-0 pointer-events-none transition-opacity duration-300 z-[60]"></div>
+    <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-5 py-3 rounded-lg text-sm font-bold opacity-0 pointer-events-none transition-opacity duration-300 z-[60] shadow-xl"></div>
 
     <!-- 通用 Confirm 彈窗 (支援動態 Callback) -->
-    <div id="confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] hidden">
-        <div class="bg-white p-6 rounded-xl shadow-lg max-w-sm w-full mx-4">
-            <p id="confirm-msg" class="font-bold mb-4"></p>
-            <div class="flex justify-end gap-2">
-                <button onclick="closeConfirm()" class="px-4 py-2 bg-gray-200 rounded-md font-bold text-sm">取消</button>
-                <button id="confirm-yes" class="px-4 py-2 bg-black text-white rounded-md font-bold text-sm">確定</button>
+    <div id="confirm-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] hidden">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full mx-4 border border-gray-100">
+            <p id="confirm-msg" class="font-bold text-lg mb-6 text-gray-800"></p>
+            <div class="flex justify-end gap-3">
+                <button onclick="closeConfirm()" class="px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-bold text-sm transition-colors">取消</button>
+                <button id="confirm-yes" class="px-5 py-3 bg-gray-900 hover:bg-black text-white rounded-lg font-bold text-sm transition-colors">確定</button>
             </div>
         </div>
     </div>
 
     <!-- 編輯持股彈窗 (Edit Modal) -->
-    <div id="edit-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] hidden">
-        <div class="bg-white p-6 rounded-xl shadow-lg max-w-sm w-full mx-4">
-            <h2 class="font-bold text-lg mb-4">編輯持股</h2>
-            <form id="edit-stock-form" onsubmit="saveEditStock(event)" class="space-y-3 text-sm">
-                <div class="flex gap-2">
+    <div id="edit-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] hidden">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full mx-4">
+            <h2 class="font-extrabold text-xl mb-5 text-gray-900">編輯持股</h2>
+            <form id="edit-stock-form" onsubmit="saveEditStock(event)" class="space-y-4 text-sm">
+                <div class="flex gap-3">
                     <div class="w-1/2">
-                        <label class="block text-xs text-gray-500 mb-1">代號 (不可改)</label>
-                        <input type="text" id="edit-symbol" readonly class="w-full bg-gray-100 border border-gray-200 rounded-md py-1.5 px-2 font-bold text-gray-500 cursor-not-allowed outline-none">
+                        <label class="block text-sm text-gray-600 font-bold mb-1.5">代號 (不可改)</label>
+                        <input type="text" id="edit-symbol" readonly class="w-full bg-gray-100 border border-gray-200 rounded-lg py-2.5 px-3 font-bold text-gray-500 cursor-not-allowed outline-none">
                     </div>
                     <div class="w-1/2">
-                        <label class="block text-xs text-gray-500 mb-1">名稱 (不可改)</label>
-                        <input type="text" id="edit-name" readonly class="w-full bg-gray-100 border border-gray-200 rounded-md py-1.5 px-2 font-bold text-gray-500 cursor-not-allowed outline-none">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">持有股數</label>
-                    <input type="number" id="edit-shares" min="0" step="1" required class="w-full border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none focus:border-blue-500">
-                </div>
-                <div class="flex gap-2">
-                    <div class="w-1/2">
-                        <label class="block text-xs text-gray-500 mb-1">成交均價</label>
-                        <input type="number" id="edit-cost-price" step="any" required class="w-full border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none focus:border-blue-500">
-                    </div>
-                    <div class="w-1/2">
-                        <label class="block text-xs text-gray-500 mb-1">付出成本 (可自訂)</label>
-                        <input type="number" id="edit-paid-cost" step="any" required class="w-full border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none focus:border-blue-500">
+                        <label class="block text-sm text-gray-600 font-bold mb-1.5">名稱 (不可改)</label>
+                        <input type="text" id="edit-name" readonly class="w-full bg-gray-100 border border-gray-200 rounded-lg py-2.5 px-3 font-bold text-gray-500 cursor-not-allowed outline-none">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 mb-1">Beta 參數</label>
-                    <input type="number" id="edit-beta" min="0" step="0.1" required class="w-full border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none focus:border-blue-500">
+                    <label class="block text-sm text-gray-600 font-bold mb-1.5">持有股數</label>
+                    <input type="number" id="edit-shares" min="0" step="1" required class="w-full border border-gray-300 rounded-lg py-2.5 px-3 font-bold text-lg focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600">
                 </div>
-                <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
-                    <button type="button" onclick="closeEditModal()" class="px-4 py-2 bg-gray-200 rounded-md font-bold text-sm">取消</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md font-bold text-sm">儲存修改</button>
+                <div class="flex gap-3">
+                    <div class="w-1/2">
+                        <label class="block text-sm text-gray-600 font-bold mb-1.5">成交均價</label>
+                        <input type="number" id="edit-cost-price" step="any" required class="w-full border border-gray-300 rounded-lg py-2.5 px-3 font-bold text-lg focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600">
+                    </div>
+                    <div class="w-1/2">
+                        <label class="block text-sm text-gray-600 font-bold mb-1.5">付出成本 (可自訂)</label>
+                        <input type="number" id="edit-paid-cost" step="any" required class="w-full border border-gray-300 rounded-lg py-2.5 px-3 font-bold text-lg focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 font-bold mb-1.5">Beta 參數</label>
+                    <input type="number" id="edit-beta" min="0" step="0.1" required class="w-full border border-gray-300 rounded-lg py-2.5 px-3 font-bold text-lg focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600">
+                </div>
+                <div class="flex justify-end gap-3 mt-6 pt-5 border-t border-gray-100">
+                    <button type="button" onclick="closeEditModal()" class="px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-bold text-sm transition-colors">取消</button>
+                    <button type="submit" class="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm transition-colors shadow-md">儲存修改</button>
                 </div>
             </form>
         </div>
     </div>
 
     <!-- 編輯現金彈窗 (Cash Edit Modal + Calculator) -->
-    <div id="cash-edit-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] hidden">
-        <div class="bg-white p-6 rounded-xl shadow-lg max-w-sm w-full mx-4">
-            <h2 class="font-bold text-lg mb-4">編輯現金</h2>
-            <form id="edit-cash-form" onsubmit="saveEditCash(event)" class="space-y-3 text-sm">
+    <div id="cash-edit-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] hidden">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full mx-4">
+            <h2 class="font-extrabold text-xl mb-5 text-gray-900">編輯現金</h2>
+            <form id="edit-cash-form" onsubmit="saveEditCash(event)" class="space-y-2 text-sm">
                 <div>
-                    <label class="block text-xs text-gray-500 mb-1">現金金額 (支援直接輸入數學算式)</label>
-                    <input type="text" inputmode="decimal" id="edit-cash-val" required class="w-full border border-gray-200 rounded-md py-2 px-3 font-bold text-lg tracking-wider focus:outline-none focus:border-blue-500" placeholder="如: 10000+5000">
+                    <label class="block text-sm text-gray-600 font-bold mb-1.5">現金金額 (支援直接輸入數學算式)</label>
+                    <input type="text" inputmode="none" id="edit-cash-val" required class="w-full border border-gray-300 rounded-lg py-3 px-4 font-bold text-xl tracking-wider focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" placeholder="如: 10000+5000" oninput="previewCalc('edit-cash-val', 'edit-cash-preview')">
+                    <!-- 即時試算預覽 -->
+                    <div id="edit-cash-preview" class="text-right text-base text-blue-600 font-extrabold h-6 mt-1.5 px-1"></div>
                 </div>
-                <!-- 計算機符號面板 -->
-                <div class="grid grid-cols-4 gap-2 mt-2">
-                    <button type="button" onclick="appendCashInput('+')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-2 rounded-md font-bold text-lg transition-colors">+</button>
-                    <button type="button" onclick="appendCashInput('-')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-2 rounded-md font-bold text-lg transition-colors">-</button>
-                    <button type="button" onclick="appendCashInput('*')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-2 rounded-md font-bold text-lg transition-colors">×</button>
-                    <button type="button" onclick="appendCashInput('/')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-2 rounded-md font-bold text-lg transition-colors">÷</button>
+                <!-- 觸控加大版計算機符號面板 -->
+                <div class="grid grid-cols-4 gap-2.5 mt-2">
+                    <button type="button" onclick="appendCashInput('+')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-3.5 rounded-xl font-bold text-xl transition-colors">+</button>
+                    <button type="button" onclick="appendCashInput('-')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-3.5 rounded-xl font-bold text-xl transition-colors">-</button>
+                    <button type="button" onclick="appendCashInput('*')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-3.5 rounded-xl font-bold text-xl transition-colors">×</button>
+                    <button type="button" onclick="appendCashInput('/')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-3.5 rounded-xl font-bold text-xl transition-colors">÷</button>
+                    <button type="button" onclick="appendCashInput('AC')" class="bg-rose-50 text-rose-600 hover:bg-rose-100 active:bg-rose-200 py-3.5 rounded-xl font-bold text-lg transition-colors col-span-2 shadow-sm">AC 全清</button>
+                    <button type="button" onclick="appendCashInput('BACK')" class="bg-gray-200 text-gray-800 hover:bg-gray-300 active:bg-gray-400 py-3.5 rounded-xl font-bold text-lg transition-colors col-span-2 shadow-sm">⌫ 退格</button>
                 </div>
-                <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
-                    <button type="button" onclick="closeCashEditModal()" class="px-4 py-2 bg-gray-200 rounded-md font-bold text-sm">取消</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md font-bold text-sm">儲存計算結果</button>
+                <div class="flex justify-end gap-3 mt-6 pt-5 border-t border-gray-100">
+                    <button type="button" onclick="closeCashEditModal()" class="px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-bold text-sm transition-colors">取消</button>
+                    <button type="submit" class="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm transition-colors shadow-md">確認計算</button>
                 </div>
             </form>
         </div>
@@ -111,37 +115,37 @@
         
         <!-- ================= [View: 資產總覽] ================= -->
         <section id="view-assets" class="view-section">
-            <div class="flex justify-between items-center mb-4">
-                <h1 class="text-xl font-bold flex items-center gap-2">
+            <div class="flex justify-between items-center mb-5">
+                <h1 class="text-xl font-extrabold flex items-center gap-2 text-gray-900">
                     總資產價值 (TWD) 
-                    <span class="text-xs font-normal text-gray-500" id="last-update"></span>
+                    <span class="text-xs font-semibold text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full" id="last-update"></span>
                 </h1>
                 <!-- 隨時更新按鈕 -->
-                <button onclick="manualRefresh(this)" class="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors" title="更新股價">
-                    <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                <button onclick="manualRefresh(this)" class="p-2 rounded-full bg-white shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors" title="更新股價">
+                    <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                 </button>
             </div>
-            <div class="text-4xl font-extrabold mb-6" id="total-asset-value">0</div>
+            <div class="text-5xl font-black mb-8 tracking-tight text-gray-900" id="total-asset-value">0</div>
             
-            <div class="relative w-48 h-48 mx-auto mb-6">
+            <div class="relative w-56 h-56 mx-auto mb-8">
                 <canvas id="assetChart"></canvas>
                 <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <span class="text-sm font-bold bg-gray-800 text-white px-2 py-1 rounded-md" id="chart-center-text">現金 0%</span>
+                    <span class="text-base font-extrabold bg-gray-900 text-white px-3 py-1.5 rounded-lg shadow-lg" id="chart-center-text">現金 0%</span>
                 </div>
             </div>
 
             <div class="space-y-4">
                 <!-- 股票區塊 -->
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <div class="flex justify-between items-center mb-3">
-                        <h2 class="text-lg font-bold flex items-center gap-2">
-                            股票 
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-extrabold flex items-center gap-2 text-gray-900">
+                            股票部位
                             <!-- 顯示平衡前後雙向 Beta -->
-                            <span class="text-[10px] font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
-                                組合 Beta: <span id="portfolio-beta" class="font-bold">1.00</span> ➔ <span id="target-portfolio-beta" class="font-bold">1.00</span>
+                            <span class="text-xs font-bold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-md border border-gray-200">
+                                Beta: <span id="portfolio-beta" class="font-black text-gray-900">1.00</span> ➔ <span id="target-portfolio-beta" class="font-black text-blue-700">1.00</span>
                             </span>
                         </h2>
-                        <span class="text-lg font-bold" id="total-stock-value">0</span>
+                        <span class="text-xl font-black text-gray-900" id="total-stock-value">0</span>
                     </div>
                     <div id="stock-list" class="space-y-3">
                         <!-- 動態生成股票列表 -->
@@ -149,20 +153,20 @@
                 </div>
 
                 <!-- 現金區塊 -->
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <div class="flex justify-between items-center mb-1">
-                        <h2 class="text-lg font-bold flex items-center gap-2">
-                            現金
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-lg font-extrabold flex items-center gap-2 text-gray-900">
+                            現金部位
                             <!-- 現金編輯按鈕 -->
-                            <button onclick="openCashEditModal()" class="text-blue-400 hover:text-blue-600 p-1" title="編輯現金">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                            <button onclick="openCashEditModal()" class="text-blue-600 hover:text-blue-800 p-1.5 bg-blue-50 rounded-lg transition-colors" title="編輯現金">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                             </button>
                         </h2>
-                        <span class="text-lg font-bold" id="cash-value-display">0</span>
+                        <span class="text-xl font-black text-gray-900" id="cash-value-display">0</span>
                     </div>
-                    <div class="flex justify-between text-sm text-gray-500">
-                        <span class="bg-gray-100 px-2 py-0.5 rounded-md" id="cash-ratio-badge">0%</span>
-                        <span>現金帳戶</span>
+                    <div class="flex justify-between text-sm font-bold text-gray-600">
+                        <span class="bg-gray-100 px-2.5 py-1 rounded-md border border-gray-200" id="cash-ratio-badge">0%</span>
+                        <span>交割帳戶餘額</span>
                     </div>
                 </div>
             </div>
@@ -170,39 +174,39 @@
 
         <!-- ================= [View: 再平衡] ================= -->
         <section id="view-rebalance" class="view-section hidden">
-            <h1 class="text-xl font-bold mb-4 text-center">再平衡</h1>
+            <h1 class="text-2xl font-extrabold mb-6 text-center text-gray-900">資產再平衡</h1>
             
-            <!-- 警告提示 -->
-            <div id="rebalance-warning" class="hidden bg-orange-500 text-white p-4 rounded-xl mb-6 shadow-sm flex items-start gap-3">
-                <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            <!-- 警告提示 (高對比強化) -->
+            <div id="rebalance-warning" class="hidden bg-rose-50 border border-rose-200 text-rose-800 p-5 rounded-2xl mb-6 shadow-sm flex items-start gap-4">
+                <svg class="w-7 h-7 flex-shrink-0 text-rose-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                 <div>
-                    <div class="font-bold">建議進行再平衡</div>
-                    <div class="text-sm opacity-90">參與配置之資產已超出容許偏差 <span id="deviation-text">5</span>%</div>
+                    <div class="font-extrabold text-base mb-1">強烈建議執行再平衡</div>
+                    <div class="text-sm font-medium opacity-90">參與配置之資產已超出容許偏差值 <span id="deviation-text" class="font-black text-rose-600 text-base">5</span>%</div>
                 </div>
             </div>
 
             <!-- 新資金輸入 -->
-            <div class="mb-6">
-                <h2 class="text-lg font-bold mb-2">投入新資金</h2>
+            <div class="mb-8">
+                <h2 class="text-lg font-extrabold mb-3 text-gray-900">投入新資金</h2>
                 <div class="flex gap-2">
                     <div class="relative flex-1">
-                        <span class="absolute left-3 top-3 text-gray-400">NT$</span>
-                        <input type="number" id="new-funds" value="0" class="w-full bg-white border border-gray-200 rounded-lg py-3 pl-12 pr-4 font-bold text-lg focus:outline-none focus:border-blue-500" placeholder="0">
+                        <span class="absolute left-4 top-3.5 text-gray-500 font-bold">NT$</span>
+                        <input type="number" id="new-funds" value="0" class="w-full bg-white border border-gray-300 rounded-xl py-3.5 pl-14 pr-4 font-black text-xl focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-sm" placeholder="0">
                     </div>
                 </div>
-                <div class="text-xs text-gray-500 mt-2">※ 新資金將根據目標配置比例自動分配給參與資產</div>
-                <div class="bg-gray-100 p-3 rounded-lg mt-3 flex justify-between items-center font-bold">
-                    <span>參與操作資金池總額 + 新資金</span>
-                    <span id="projected-total-value">0</span>
+                <div class="text-xs font-bold text-gray-500 mt-3">※ 系統將自動根據目標配置比例，將新資金分配至各資產池</div>
+                <div class="bg-gray-900 text-white p-4 rounded-xl mt-4 flex justify-between items-center shadow-md">
+                    <span class="font-bold text-sm text-gray-200">操作資金池總額 + 新資金</span>
+                    <span id="projected-total-value" class="font-black text-xl">0</span>
                 </div>
             </div>
 
             <!-- 建議動作區塊 -->
-            <div class="flex justify-between items-center mb-3">
-                <h2 class="text-lg font-bold">當前操作池配置 → 目標配置</h2>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-extrabold text-gray-900">建議交易動作</h2>
                 <!-- 顯示再平衡前後 Beta 流向 -->
-                <span class="text-xs font-semibold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-md shrink-0">
-                    Beta 變動: <span id="rebalance-beta-flow">1.00 ➔ 1.00</span>
+                <span class="text-xs font-bold text-gray-600 bg-gray-100 border border-gray-200 px-3 py-1.5 rounded-lg shrink-0 shadow-sm">
+                    Beta 變動: <span id="rebalance-beta-flow" class="text-blue-700 font-black">1.00 ➔ 1.00</span>
                 </span>
             </div>
             <div id="action-list" class="space-y-4">
@@ -212,143 +216,147 @@
 
         <!-- ================= [View: 目標配置] ================= -->
         <section id="view-target" class="view-section hidden">
-            <h1 class="text-xl font-bold mb-6 text-center">目標配置</h1>
+            <h1 class="text-2xl font-extrabold mb-6 text-center text-gray-900">目標配置參數</h1>
             
-            <div class="flex justify-between font-bold mb-4">
+            <div class="flex justify-between font-extrabold text-gray-900 mb-4 px-1">
                 <span>整體宏觀配置</span>
                 <span>100%</span>
             </div>
 
-            <div class="space-y-6 bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-6">
+            <div class="space-y-6 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm mb-8">
                 <!-- 股票滑桿 -->
                 <div>
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="font-bold">股票 (操作池總額)</span>
-                        <div class="bg-gray-50 border border-gray-200 rounded-md px-3 py-1 font-bold">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="font-extrabold text-gray-900">股票 (操作池總額)</span>
+                        <div class="bg-gray-100 border border-gray-200 rounded-lg px-3 py-1.5 font-black text-blue-700">
                             <span id="target-stock-text">50</span>%
                         </div>
                     </div>
-                    <input type="range" id="target-stock-slider" min="0" max="100" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    <input type="range" id="target-stock-slider" min="0" max="100" value="50" class="w-full h-3 bg-gray-200 rounded-full appearance-none cursor-pointer">
                 </div>
 
                 <!-- 現金滑桿 (連動) -->
                 <div>
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="font-bold">現金</span>
-                        <div class="bg-gray-50 border border-gray-200 rounded-md px-3 py-1 font-bold">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="font-extrabold text-gray-900">現金</span>
+                        <div class="bg-gray-100 border border-gray-200 rounded-lg px-3 py-1.5 font-black text-gray-700">
                             <span id="target-cash-text">50</span>%
                         </div>
                     </div>
-                    <input type="range" id="target-cash-slider" min="0" max="100" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer opacity-50 pointer-events-none">
+                    <input type="range" id="target-cash-slider" min="0" max="100" value="50" class="w-full h-3 bg-gray-200 rounded-full appearance-none cursor-not-allowed opacity-40 pointer-events-none">
                 </div>
             </div>
 
-            <h2 class="text-lg font-bold mb-3">再平衡策略</h2>
-            <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-6 flex justify-between items-center">
-                <span class="font-bold text-sm">平衡模式</span>
-                <select id="rebalance-mode-select" class="border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none bg-gray-50 text-sm">
+            <h2 class="text-lg font-extrabold mb-4 text-gray-900 px-1">再平衡策略模式</h2>
+            <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm mb-8 flex justify-between items-center">
+                <span class="font-bold text-sm text-gray-700">平衡模式</span>
+                <select id="rebalance-mode-select" class="border border-gray-300 rounded-lg py-2 px-3 font-bold text-gray-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 bg-gray-50 text-sm shadow-sm">
                     <option value="global">僅看股票總值 (等比縮放)</option>
                     <option value="individual">個股獨立配重 (精確目標)</option>
                 </select>
             </div>
 
-            <div class="flex justify-between font-bold mb-3">
-                <span>股票內部權重配置</span>
-                <span class="text-xs text-gray-500 font-normal self-end">自動計算相對比例 (設0為排除)</span>
+            <div class="flex justify-between items-end mb-4 px-1">
+                <span class="font-extrabold text-gray-900">股票內部權重配置</span>
+                <span class="text-xs text-gray-500 font-bold">自動計算相對比例 (設0為排除)</span>
             </div>
             
             <!-- 單檔股票權重設定區 -->
-            <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-6" id="target-stock-weights-container">
+            <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm mb-8" id="target-stock-weights-container">
                 <!-- 動態生成單檔權重輸入框 -->
             </div>
 
-            <h2 class="text-lg font-bold mb-3">再平衡設定</h2>
-            <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
-                <span class="font-bold">絕對偏離目標</span>
+            <h2 class="text-lg font-extrabold mb-4 text-gray-900 px-1">再平衡觸發設定</h2>
+            <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex justify-between items-center mb-4">
+                <span class="font-bold text-gray-900">絕對偏離目標 (容許誤差)</span>
                 <div class="flex items-center gap-2">
-                    <input type="number" id="deviation-input" value="5" class="w-16 text-right border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none">
-                    <span class="text-gray-500 font-bold">%</span>
+                    <input type="number" id="deviation-input" value="5" class="w-20 text-center border border-gray-300 rounded-lg py-2 px-3 font-black text-lg focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-sm">
+                    <span class="text-gray-600 font-bold">%</span>
                 </div>
             </div>
         </section>
 
         <!-- ================= [View: 設定] ================= -->
         <section id="view-settings" class="view-section hidden">
-            <h1 class="text-xl font-bold mb-6 text-center">設定與資料匯入</h1>
+            <h1 class="text-2xl font-extrabold mb-6 text-center text-gray-900">設定與資料匯入</h1>
             
             <!-- 現金設定 (加入計算機與支援式子輸入) -->
-            <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
-                <h2 class="font-bold mb-2">現金帳戶餘額 (TWD)</h2>
-                <p class="text-xs text-gray-500 mb-2">支援直接輸入數學算式，例如 50000+12000-500</p>
-                <input type="text" inputmode="decimal" id="cash-input" class="w-full border border-gray-200 rounded-md py-2 px-3 font-bold focus:outline-none mb-2" placeholder="0">
-                <!-- 計算機符號面板 -->
-                <div class="grid grid-cols-4 gap-2 mb-2">
-                    <button type="button" onclick="appendSettingsCashInput('+')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-1.5 rounded font-bold text-sm transition-colors">+</button>
-                    <button type="button" onclick="appendSettingsCashInput('-')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-1.5 rounded font-bold text-sm transition-colors">-</button>
-                    <button type="button" onclick="appendSettingsCashInput('*')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-1.5 rounded font-bold text-sm transition-colors">×</button>
-                    <button type="button" onclick="appendSettingsCashInput('/')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-1.5 rounded font-bold text-sm transition-colors">÷</button>
+            <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm mb-5">
+                <h2 class="font-extrabold text-gray-900 mb-2">現金帳戶餘額 (TWD)</h2>
+                <p class="text-xs font-bold text-gray-500 mb-4">支援直接輸入數學算式，例如 50000+12000</p>
+                <input type="text" inputmode="none" id="cash-input" class="w-full border border-gray-300 rounded-lg py-3 px-4 font-bold text-xl focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 mb-1" placeholder="0" oninput="previewCalc('cash-input', 'settings-cash-preview')">
+                <div id="settings-cash-preview" class="text-right text-base text-blue-600 font-extrabold h-6 mb-3 px-1"></div>
+                <!-- 計算機符號面板 (加大觸控面積) -->
+                <div class="grid grid-cols-4 gap-2.5 mb-4">
+                    <button type="button" onclick="appendSettingsCashInput('+')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-3 rounded-xl font-bold text-lg transition-colors">+</button>
+                    <button type="button" onclick="appendSettingsCashInput('-')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-3 rounded-xl font-bold text-lg transition-colors">-</button>
+                    <button type="button" onclick="appendSettingsCashInput('*')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-3 rounded-xl font-bold text-lg transition-colors">×</button>
+                    <button type="button" onclick="appendSettingsCashInput('/')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 py-3 rounded-xl font-bold text-lg transition-colors">÷</button>
+                    <button type="button" onclick="appendSettingsCashInput('AC')" class="bg-rose-50 text-rose-600 hover:bg-rose-100 active:bg-rose-200 py-3 rounded-xl font-bold text-sm transition-colors col-span-2">AC</button>
+                    <button type="button" onclick="appendSettingsCashInput('BACK')" class="bg-gray-200 text-gray-800 hover:bg-gray-300 active:bg-gray-400 py-3 rounded-xl font-bold text-sm transition-colors col-span-2">⌫ 退格</button>
                 </div>
-                <button onclick="saveCash()" class="w-full bg-black text-white rounded-md py-2 font-bold">儲存現金</button>
+                <button onclick="saveCash()" class="w-full bg-gray-900 hover:bg-black text-white rounded-xl py-3.5 font-bold shadow-md transition-colors">儲存現金</button>
             </div>
 
             <!-- 手動新增股票 -->
-            <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
-                <h2 class="font-bold mb-2">手動新增持股</h2>
-                <p class="text-xs text-gray-500 mb-3">輸入代號與股數即可。名稱與價格將透過 API 自動取得。<br>※普通個股預設不參與再平衡(比重0)</p>
-                <form id="add-stock-form" onsubmit="addStockSubmit(event)" class="space-y-2 text-sm">
-                    <div class="flex gap-2">
-                        <input type="text" id="add-symbol" placeholder="代號 (如: 0050)" required class="w-1/2 border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none">
-                        <input type="number" id="add-shares" placeholder="股數" min="0" step="1" required class="w-1/2 border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none">
+            <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm mb-5">
+                <h2 class="font-extrabold text-gray-900 mb-2">手動新增持股</h2>
+                <p class="text-xs font-bold text-gray-500 mb-4 leading-relaxed">輸入代號與股數即可。名稱與價格將透過 API 自動取得。<br><span class="text-rose-600">※普通個股預設不參與再平衡(比重0)</span></p>
+                <form id="add-stock-form" onsubmit="addStockSubmit(event)" class="space-y-3 text-sm">
+                    <div class="flex gap-3">
+                        <input type="text" id="add-symbol" placeholder="代號 (如: 0050)" required class="w-1/2 border border-gray-300 rounded-lg py-3 px-3 font-bold focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-sm">
+                        <input type="number" id="add-shares" placeholder="股數" min="0" step="1" required class="w-1/2 border border-gray-300 rounded-lg py-3 px-3 font-bold focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-sm">
                     </div>
-                    <div class="flex gap-2">
-                        <input type="text" id="add-name" placeholder="名稱 (選填)" class="w-1/3 border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none">
-                        <input type="number" id="add-price" placeholder="價格 (選填)" min="0" step="any" class="w-1/3 border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none">
-                        <input type="number" id="add-beta" placeholder="Beta (選填)" min="0" step="0.1" class="w-1/3 border border-gray-200 rounded-md py-1.5 px-2 font-bold focus:outline-none">
+                    <div class="flex gap-3">
+                        <input type="text" id="add-name" placeholder="名稱 (選填)" class="w-1/3 border border-gray-300 rounded-lg py-3 px-3 font-bold focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-sm">
+                        <input type="number" id="add-price" placeholder="價格 (選填)" min="0" step="any" class="w-1/3 border border-gray-300 rounded-lg py-3 px-3 font-bold focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-sm">
+                        <input type="number" id="add-beta" placeholder="Beta (選填)" min="0" step="0.1" class="w-1/3 border border-gray-300 rounded-lg py-3 px-3 font-bold focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-sm">
                     </div>
-                    <button type="submit" id="add-submit-btn" class="w-full bg-green-600 text-white rounded-md py-2 font-bold mt-2 transition-opacity">新增股票</button>
+                    <button type="submit" id="add-submit-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-3.5 font-bold mt-2 shadow-md transition-all">新增股票</button>
                 </form>
             </div>
 
             <!-- CSV 匯入 -->
-            <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
-                <h2 class="font-bold mb-2">匯入證券未實現彙總 (CSV)</h2>
-                <p class="text-xs text-gray-500 mb-3">上傳券商匯出的 CSV 檔案。若已有相同持股，系統會自動疊加並計算加權平均成本與付出成本。<br>※普通個股匯入預設不參與再平衡(比重0)</p>
-                <input type="file" id="csv-upload" accept=".csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-bold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200">
+            <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm mb-5">
+                <h2 class="font-extrabold text-gray-900 mb-2">匯入證券未實現彙總 (CSV)</h2>
+                <p class="text-xs font-bold text-gray-500 mb-4 leading-relaxed">上傳券商匯出的 CSV 檔案。若已有相同持股，系統會自動疊加並計算加權平均成本與付出成本。<br><span class="text-rose-600">※普通個股匯入預設不參與再平衡(比重0)</span></p>
+                <input type="file" id="csv-upload" accept=".csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-5 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-gray-100 file:text-gray-800 hover:file:bg-gray-200 file:cursor-pointer file:transition-colors">
             </div>
 
             <!-- API Key -->
-            <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
-                <h2 class="font-bold mb-2">Fugle (富果) API Key</h2>
-                <p class="text-xs text-gray-500 mb-2">用於取得即時股價。金鑰僅儲存於本機瀏覽器，不會外洩。</p>
-                <input type="password" id="api-key-input" placeholder="X-API-KEY" class="w-full border border-gray-200 rounded-md py-2 px-3 mb-2 focus:outline-none text-sm">
-                <button onclick="saveApiKey()" class="w-full bg-black text-white rounded-md py-2 font-bold">儲存金鑰</button>
+            <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm mb-5">
+                <h2 class="font-extrabold text-gray-900 mb-2">Fugle (富果) API Key</h2>
+                <p class="text-xs font-bold text-gray-500 mb-4">用於取得即時股價。金鑰僅儲存於本機瀏覽器，不會外洩。</p>
+                <input type="password" id="api-key-input" placeholder="X-API-KEY" class="w-full border border-gray-300 rounded-lg py-3 px-4 mb-3 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 text-sm font-bold shadow-sm">
+                <button onclick="saveApiKey()" class="w-full bg-gray-900 hover:bg-black text-white rounded-xl py-3.5 font-bold shadow-md transition-colors">儲存金鑰</button>
             </div>
             
-            <div class="text-xs text-gray-400 text-center mt-6">
-                Minimal Change Engineer (MCE) Build v3.0<br>
+            <div class="text-xs font-bold text-gray-400 text-center mt-8">
+                Minimal Change Engineer (MCE) Build v3.1<br>
+                High Legibility & Smart Calculator Edition<br>
                 資料皆儲存於本地 LocalStorage
             </div>
         </section>
 
     </main>
 
-    <!-- 底部導航欄 -->
-    <nav class="fixed bottom-0 w-full bg-white border-t border-gray-200 flex justify-around items-center pb-safe pt-2 px-2 z-50">
+    <!-- 底部導航欄 (高對比強化) -->
+    <nav class="fixed bottom-0 w-full bg-white border-t border-gray-200 flex justify-around items-center pb-safe pt-2 px-2 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
         <button onclick="switchTab('assets')" id="tab-assets" class="flex flex-col items-center p-2 tab-active flex-1">
-            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
-            <span class="text-[10px]">資產</span>
+            <svg class="w-6 h-6 mb-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+            <span class="text-[11px] font-bold">資產</span>
         </button>
         <button onclick="switchTab('rebalance')" id="tab-rebalance" class="flex flex-col items-center p-2 tab-inactive flex-1">
-            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
-            <span class="text-[10px]">再平衡</span>
+            <svg class="w-6 h-6 mb-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+            <span class="text-[11px] font-bold">再平衡</span>
         </button>
         <button onclick="switchTab('target')" id="tab-target" class="flex flex-col items-center p-2 tab-inactive flex-1">
-            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"></path></svg>
-            <span class="text-[10px]">目標配置</span>
+            <svg class="w-6 h-6 mb-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"></path></svg>
+            <span class="text-[11px] font-bold">目標配置</span>
         </button>
         <button onclick="switchTab('settings')" id="tab-settings" class="flex flex-col items-center p-2 tab-inactive flex-1">
-            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-            <span class="text-[10px]">設定</span>
+            <svg class="w-6 h-6 mb-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            <span class="text-[11px] font-bold">設定</span>
         </button>
     </nav>
 
@@ -356,6 +364,26 @@
     <style> .pb-safe { padding-bottom: env(safe-area-inset-bottom); } </style>
 
     <script>
+        // --- 即時預覽計算機邏輯 (MCE Surgical Insert) ---
+        const fmt = (num) => new Intl.NumberFormat('en-US').format(Math.round(num));
+        const fmtCurrency = (num) => `NT$${fmt(num)}`;
+
+        function previewCalc(inputId, previewId) {
+            let valStr = document.getElementById(inputId).value;
+            valStr = valStr.replace(/×/g, '*').replace(/÷/g, '/');
+            const sanitized = valStr.replace(/[^0-9+\-*/().]/g, '');
+            const previewEl = document.getElementById(previewId);
+            try {
+                if (!sanitized) { previewEl.innerText = ''; return; }
+                if (/[+\-*/]$/.test(sanitized) || /\($/.test(sanitized)) { previewEl.innerText = '...'; return; }
+                let result = new Function('return ' + sanitized)();
+                if (isNaN(result) || !isFinite(result)) throw new Error("");
+                previewEl.innerText = '= ' + fmt(result);
+            } catch (err) {
+                previewEl.innerText = '...';
+            }
+        }
+
         // --- 智慧稅率與屬性判斷輔助 (台灣市場) ---
         // 判斷是否為 ETF (如 0050、00631L等 00開頭或L/D結尾、或名稱含ETF/正2)
         function isETFOrLeveraged(symbol, name) {
@@ -460,6 +488,7 @@
         // --- 現金編輯與計算機邏輯 ---
         function openCashEditModal() {
             document.getElementById('edit-cash-val').value = state.cash;
+            previewCalc('edit-cash-val', 'edit-cash-preview'); // MCE Add
             document.getElementById('cash-edit-modal').classList.remove('hidden');
         }
 
@@ -469,13 +498,27 @@
 
         function appendCashInput(char) {
             const inputEl = document.getElementById('edit-cash-val');
-            inputEl.value += char;
+            if (char === 'AC') {
+                inputEl.value = '';
+            } else if (char === 'BACK') {
+                inputEl.value = inputEl.value.slice(0, -1);
+            } else {
+                inputEl.value += char;
+            }
+            previewCalc('edit-cash-val', 'edit-cash-preview');
             inputEl.focus();
         }
 
         function appendSettingsCashInput(char) {
             const inputEl = document.getElementById('cash-input');
-            inputEl.value += char;
+            if (char === 'AC') {
+                inputEl.value = '';
+            } else if (char === 'BACK') {
+                inputEl.value = inputEl.value.slice(0, -1);
+            } else {
+                inputEl.value += char;
+            }
+            previewCalc('cash-input', 'settings-cash-preview');
             inputEl.focus();
         }
 
@@ -495,6 +538,7 @@
                 state.cash = result; 
                 localStorage.setItem('mce_cash', state.cash);
                 document.getElementById('cash-input').value = state.cash; 
+                previewCalc('cash-input', 'settings-cash-preview');
                 
                 updateAllData();
                 closeCashEditModal();
@@ -563,6 +607,7 @@
 
         function init() {
             document.getElementById('cash-input').value = state.cash;
+            previewCalc('cash-input', 'settings-cash-preview');
             document.getElementById('target-stock-slider').value = state.targetStockRatio;
             document.getElementById('deviation-input').value = state.deviation;
             document.getElementById('api-key-input').value = state.apiKey;
@@ -590,6 +635,9 @@
             document.getElementById(`view-${tabId}`).classList.remove('hidden');
             document.getElementById(`tab-${tabId}`).classList.add('tab-active');
             document.getElementById(`tab-${tabId}`).classList.remove('tab-inactive');
+            // Animate Icon MCE
+            document.querySelector(`#tab-${tabId} svg`).classList.add('scale-110', 'text-blue-600');
+            setTimeout(() => document.querySelector(`#tab-${tabId} svg`).classList.remove('scale-110', 'text-blue-600'), 200);
         }
 
         function setupEventListeners() {
@@ -637,17 +685,17 @@
         function renderTargetStockWeights() {
             const container = document.getElementById('target-stock-weights-container');
             if (state.stocks.length === 0) {
-                container.innerHTML = '<div class="text-sm text-gray-400 text-center py-2">無股票資料，請先新增</div>';
+                container.innerHTML = '<div class="text-sm font-bold text-gray-500 text-center py-4 bg-gray-50 rounded-lg">無股票資料，請先新增</div>';
                 return;
             }
             container.innerHTML = state.stocks.map((s, idx) => `
-                <div class="flex justify-between items-center mb-3 last:mb-0">
-                    <span class="font-bold text-sm truncate pr-2">${s.symbol ? s.symbol : ''} ${s.name}</span>
+                <div class="flex justify-between items-center mb-4 last:mb-0">
+                    <span class="font-bold text-base text-gray-900 truncate pr-3">${s.symbol ? s.symbol : ''} ${s.name}</span>
                     <div class="flex items-center gap-2 shrink-0">
                         <input type="number" min="0" step="1" value="${s.targetWeight ?? (isETFOrLeveraged(s.symbol, s.name) ? 1 : 0)}" 
                                onchange="updateStockWeight(${idx}, this.value)" 
-                               class="w-20 text-right border border-gray-200 rounded-md py-1 px-2 font-bold focus:outline-none focus:border-blue-500">
-                        <span class="text-gray-500 text-xs font-bold">比重</span>
+                               class="w-20 text-center bg-gray-50 border border-gray-300 rounded-lg py-2 px-2 font-black text-lg focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-sm">
+                        <span class="text-gray-500 text-sm font-bold">比重</span>
                     </div>
                 </div>
             `).join('');
@@ -762,7 +810,7 @@
                     showToast(`已合併 ${name}`);
                     resetBtn();
                 });
-                const currentCancel = document.querySelector('#confirm-modal .bg-gray-200');
+                const currentCancel = document.querySelector('#confirm-modal button:first-child');
                 const newCancel = currentCancel.cloneNode(true);
                 currentCancel.parentNode.replaceChild(newCancel, currentCancel);
                 newCancel.addEventListener('click', () => {
@@ -781,9 +829,6 @@
                 btn.innerText = "新增股票";
             }
         }
-
-        const fmt = (num) => new Intl.NumberFormat('en-US').format(Math.round(num));
-        const fmtCurrency = (num) => `NT$${fmt(num)}`;
 
         // CSV 解析 (優先使用付出成本，無則四捨五入計算，並根據是否為普通股設定預設權重)
         function handleCSVUpload(e) {
@@ -976,15 +1021,15 @@
             document.getElementById('rebalance-beta-flow').innerText = `${portfolioBeta.toFixed(2)} ➔ ${targetBeta.toFixed(2)}`;
 
             const stockListEl = document.getElementById('stock-list');
-            stockListEl.innerHTML = state.stocks.length === 0 ? '<div class="text-gray-400 text-sm text-center py-2">尚無股票資料，請至設定匯入或新增</div>' : state.stocks.map((s, index) => {
+            stockListEl.innerHTML = state.stocks.length === 0 ? '<div class="text-gray-500 font-bold text-sm text-center py-4 bg-gray-50 rounded-xl">尚無股票資料，請至設定匯入或新增</div>' : state.stocks.map((s, index) => {
                 const currentPrice = s.price || 0;
                 const currentValue = Math.round(s.shares * currentPrice); 
                 const ratio = displayTotal > 0 ? (currentValue / displayTotal) * 100 : 0;
                 const displayName = s.symbol ? `${s.symbol}.TW (${s.name})` : s.name;
                 
                 const isExcluded = (parseFloat(s.targetWeight) || 0) <= 0;
-                const opacityClass = isExcluded ? 'opacity-50 grayscale' : '';
-                const excludeTag = isExcluded ? '<span class="text-[10px] bg-gray-200 text-gray-500 px-1 py-0.5 rounded ml-1 font-bold">不參與</span>' : '';
+                const opacityClass = isExcluded ? 'opacity-60 bg-gray-50' : 'bg-white';
+                const excludeTag = isExcluded ? '<span class="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded ml-1 font-bold">不參與</span>' : '';
 
                 const costPrice = s.costPrice !== undefined ? s.costPrice : currentPrice;
                 let paidCost = s.paidCost;
@@ -1008,55 +1053,55 @@
                 if (s.changePercent !== undefined) {
                     const cp = parseFloat(s.changePercent) || 0;
                     if (cp > 0) {
-                        dailyChangeHTML = `<span class="text-xs font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded">今日 ▲${cp.toFixed(2)}%</span>`;
+                        dailyChangeHTML = `<span class="text-[11px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">今日 ▲${cp.toFixed(2)}%</span>`;
                     } else if (cp < 0) {
-                        dailyChangeHTML = `<span class="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded">今日 ▼${Math.abs(cp).toFixed(2)}%</span>`;
+                        dailyChangeHTML = `<span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">今日 ▼${Math.abs(cp).toFixed(2)}%</span>`;
                     } else {
-                        dailyChangeHTML = `<span class="text-xs font-bold text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">今日 0.00%</span>`;
+                        dailyChangeHTML = `<span class="text-[11px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">今日 0.00%</span>`;
                     }
                 } else {
-                    dailyChangeHTML = `<span class="text-xs font-bold text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">今日 --</span>`;
+                    dailyChangeHTML = `<span class="text-[11px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">今日 --</span>`;
                 }
 
-                const grossColorClass = grossPnL >= 0 ? 'text-red-500 bg-red-50' : 'text-green-600 bg-green-50';
-                const netColorClass = netPnL >= 0 ? 'text-red-500 bg-red-50' : 'text-green-600 bg-green-50';
+                const grossColorClass = grossPnL >= 0 ? 'text-rose-700 bg-rose-50 border border-rose-100' : 'text-emerald-700 bg-emerald-50 border border-emerald-100';
+                const netColorClass = netPnL >= 0 ? 'text-rose-700 bg-rose-50 border border-rose-100' : 'text-emerald-700 bg-emerald-50 border border-emerald-100';
                 const grossSign = grossPnL >= 0 ? '+' : '';
                 const netSign = netPnL >= 0 ? '+' : '';
 
                 return `
-                <div class="bg-gray-50 p-3 rounded-lg border border-gray-100 ${opacityClass} transition-all space-y-2">
+                <div class="p-4 rounded-xl border border-gray-200 ${opacityClass} transition-all space-y-2.5 shadow-sm">
                     <div class="flex justify-between items-start">
-                        <div class="flex items-center gap-1.5 min-w-0">
-                            <span class="bg-gray-200 text-xs px-2 py-1 rounded font-bold shrink-0">${Math.round(ratio)}%</span>
-                            <div class="font-bold text-sm truncate flex items-center min-w-0">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="bg-gray-800 text-white text-xs px-2.5 py-1 rounded-md font-extrabold shrink-0">${Math.round(ratio)}%</span>
+                            <div class="font-extrabold text-sm truncate flex items-center min-w-0 text-gray-900">
                                 <span class="truncate">${displayName}</span>
-                                <span class="text-xs text-gray-500 font-normal ml-1 shrink-0">β=${s.beta || 1}</span>
+                                <span class="text-xs text-gray-500 font-bold ml-1.5 shrink-0 bg-gray-100 px-1.5 py-0.5 rounded">β=${s.beta || 1}</span>
                                 ${excludeTag}
                             </div>
                         </div>
-                        <div class="flex items-center gap-1 shrink-0">
-                            <button onclick="openEditModal(${index})" class="text-blue-500 hover:text-blue-700 p-1" title="編輯">
+                        <div class="flex items-center gap-1.5 shrink-0 ml-2">
+                            <button onclick="openEditModal(${index})" class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 p-1.5 rounded-md transition-colors" title="編輯">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                             </button>
-                            <button onclick="promptRemoveStock(${index})" class="text-red-400 hover:text-red-600 p-1" title="刪除">
+                            <button onclick="promptRemoveStock(${index})" class="text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 p-1.5 rounded-md transition-colors" title="刪除">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                             </button>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 text-xs text-gray-500 border-b border-dashed border-gray-200 pb-1.5 gap-y-0.5">
-                        <div>持有股數: <span class="font-semibold text-gray-700">${fmt(s.shares)} 股</span></div>
-                        <div>成交均價: <span class="font-semibold text-gray-700">@${costPrice.toFixed(2)}</span></div>
-                        <div>付出成本: <span class="font-semibold text-gray-700">${fmtCurrency(paidCost)}</span></div>
-                        <div>目前市值: <span class="font-semibold text-gray-700">${fmtCurrency(currentValue)}</span></div>
+                    <div class="grid grid-cols-2 text-xs font-medium text-gray-600 border-b border-dashed border-gray-200 pb-2 gap-y-1">
+                        <div>持有股數: <span class="font-extrabold text-gray-900">${fmt(s.shares)} 股</span></div>
+                        <div>成交均價: <span class="font-extrabold text-gray-900">@${costPrice.toFixed(2)}</span></div>
+                        <div>付出成本: <span class="font-extrabold text-gray-900">${fmtCurrency(paidCost)}</span></div>
+                        <div>目前市值: <span class="font-extrabold text-gray-900">${fmtCurrency(currentValue)}</span></div>
                     </div>
 
                     <div class="flex flex-wrap items-center gap-1.5 pt-1">
                         ${dailyChangeHTML}
-                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${grossColorClass}" title="未實現帳面盈虧">
+                        <span class="text-[11px] font-bold px-1.5 py-0.5 rounded ${grossColorClass}" title="未實現帳面盈虧">
                             帳面: ${grossSign}${fmt(grossPnL)} (${grossSign}${grossPnLPercent.toFixed(2)}%)
                         </span>
-                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${netColorClass}" title="預計實拿淨盈虧 (已扣估算手續費 ${sellFee} 元與證交稅 ${sellTax} 元)">
+                        <span class="text-[11px] font-bold px-1.5 py-0.5 rounded ${netColorClass}" title="預計實拿淨盈虧 (已扣估算手續費 ${sellFee} 元與證交稅 ${sellTax} 元)">
                             淨預計: ${netSign}${fmt(netPnL)} (${netSign}${netPnLPercent.toFixed(2)}%)
                         </span>
                     </div>
@@ -1088,11 +1133,14 @@
 
             if (state.stocks.length > 0) {
                 if (totalTargetWeight <= 0 && state.targetStockRatio > 0) {
-                    actionsHTML += `<div class="bg-red-50 text-red-500 p-4 rounded-xl shadow-sm border border-red-100 font-bold text-sm text-center">⚠ 請至目標配置設定，至少設定一檔股票的比重 > 0 以進行再平衡。</div>`;
+                    actionsHTML += `<div class="bg-rose-50 text-rose-600 p-4 rounded-xl shadow-sm border border-rose-200 font-bold text-sm text-center">⚠ 請至目標配置設定，至少設定一檔股票的比重 > 0 以進行再平衡。</div>`;
                 } else {
                     // MCE 核心邏輯修改：判斷是否啟用「等比例縮放」模式
                     const useGlobalEqually = (state.rebalanceMode === 'global' && activeStockValue > 0);
                     const globalDiffStock = targetStockPoolValue - activeStockValue;
+
+                    let totalStockDiff = 0;
+                    let subItemsHTML = '';
 
                     state.stocks.forEach((s) => {
                         const weight = parseFloat(s.targetWeight) || 0;
@@ -1117,45 +1165,66 @@
                             targetInternalRatio = normalizedRatio * 100;
                         }
                         
+                        totalStockDiff += diffStock;
                         const suggestShares = currentPrice > 0 ? Math.abs(diffStock) / currentPrice : 0;
-                        const actionText = diffStock >= 0 ? '買入' : '賣出';
-                        const actionColor = diffStock >= 0 ? 'bg-green-500' : 'bg-red-500';
                         
-                        const currentInternalRatio = activeStockValue > 0 ? (currentValue / activeStockValue) * 100 : 0;
+                        // MCE Surgical High Legibility Update (內部明細清單)
+                        const actionType = diffStock >= 0 ? '買入' : '賣出';
+                        const actionColorClass = diffStock >= 0 ? 'text-emerald-700' : 'text-rose-700';
 
-                        actionsHTML += `
-                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                            <div class="flex justify-between items-center mb-3 text-sm text-gray-500 font-bold">
-                                <span class="truncate pr-2">${s.symbol || s.name}</span>
-                                <span class="shrink-0">操作池內比重: ${Math.round(currentInternalRatio)}% → ${Math.round(targetInternalRatio)}%</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <div class="font-bold text-lg max-w-[50%] truncate">${s.name}</div>
-                                <div class="${actionColor} text-white px-3 py-1 rounded text-sm font-bold shadow-sm text-right shrink-0">
-                                    ★ ${actionText} ${fmtCurrency(Math.abs(diffStock))} <br>
-                                    <span class="text-xs font-normal opacity-90">(約 ${fmt(suggestShares)} 股)</span>
-                                </div>
+                        subItemsHTML += `
+                        <div class="flex justify-between items-center py-2.5 border-b border-gray-200/60 last:border-0">
+                            <div class="font-bold text-gray-800 text-sm truncate max-w-[50%]">${s.symbol || ''} ${s.name}</div>
+                            <div class="text-right shrink-0">
+                                <div class="font-black text-sm ${actionColorClass}">${actionType} ${fmtCurrency(Math.abs(diffStock))}</div>
+                                <div class="text-[11px] text-gray-500 font-bold">(約 ${fmt(suggestShares)} 股)</div>
                             </div>
                         </div>`;
                     });
+
+                    // Render aggregated card (聚合大卡片)
+                    if (subItemsHTML !== '') {
+                        const aggregateType = totalStockDiff >= 0 ? 'BUY 組合加碼' : 'SELL 組合減碼';
+                        const aggregateIcon = totalStockDiff >= 0 ? '▲' : '▼';
+                        const aggregateColorClass = totalStockDiff >= 0 ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white';
+
+                        actionsHTML += `
+                        <div class="bg-white p-4.5 rounded-2xl shadow-sm border border-gray-200">
+                            <div class="flex justify-between items-center mb-3 text-sm text-gray-600 font-bold border-b border-gray-100 pb-2.5">
+                                <span>📊 股票部位總結 (固定組合配方)</span>
+                            </div>
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="font-black text-xl text-gray-900">整體股票部位</div>
+                                <div class="${aggregateColorClass} px-3.5 py-2 rounded-xl text-right shrink-0 shadow-md">
+                                    <div class="text-xs font-bold opacity-90 mb-0.5 tracking-wider">${aggregateType} ${aggregateIcon}</div>
+                                    <div class="text-lg font-black">${fmtCurrency(Math.abs(totalStockDiff))}</div>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 rounded-xl p-3 border border-gray-200/60 shadow-inner">
+                                <div class="text-xs font-bold text-gray-500 mb-1.5 px-1">內部配方微調明細：</div>
+                                ${subItemsHTML}
+                            </div>
+                        </div>`;
+                    }
                 }
             }
 
             const diffCash = targetCashValue - state.cash;
-            const cashActionText = diffCash >= 0 ? '增加現金' : '減少現金';
-            const cashActionColor = 'bg-blue-500';
+            const cashActionType = diffCash >= 0 ? '加碼現金' : '挪出現金';
+            const cashActionIcon = diffCash >= 0 ? '▲' : '▼';
+            const cashActionColorClass = 'bg-blue-600 text-white';
             
             actionsHTML += `
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                <div class="flex justify-between items-center mb-3 text-sm text-gray-500 font-bold">
-                    <span>現金帳戶 (對比操作池)</span>
-                    <span>${Math.round(activeCashRatio)}% → ${100 - state.targetStockRatio}%</span>
+            <div class="bg-white p-4.5 rounded-2xl shadow-sm border border-gray-200">
+                <div class="flex justify-between items-center mb-3 text-sm text-gray-600 font-bold border-b border-gray-100 pb-2.5">
+                    <span>交割帳戶餘額 (對比操作池)</span>
+                    <span class="shrink-0 bg-gray-100 px-2.5 py-1 rounded-md text-gray-800">${Math.round(activeCashRatio)}% → <span class="text-blue-700">${100 - state.targetStockRatio}%</span></span>
                 </div>
                 <div class="flex justify-between items-center">
-                    <div class="font-bold text-lg">現金 TWD</div>
-                    <div class="${cashActionColor} text-white px-3 py-1 rounded text-sm font-bold shadow-sm text-right shrink-0">
-                        ★ ${cashActionText} <br>
-                        ${fmtCurrency(Math.abs(diffCash))}
+                    <div class="font-black text-xl text-gray-900">現金 (TWD)</div>
+                    <div class="${cashActionColorClass} px-3.5 py-2 rounded-xl text-right shrink-0 shadow-md">
+                        <div class="text-xs font-bold opacity-90 mb-0.5 tracking-wider">${cashActionType} ${cashActionIcon}</div>
+                        <div class="text-lg font-black">${fmtCurrency(Math.abs(diffCash))}</div>
                     </div>
                 </div>
             </div>`;
@@ -1176,7 +1245,7 @@
                     labels: ['現金', '股票'],
                     datasets: [{
                         data: [cashVal, stockVal],
-                        backgroundColor: ['#0F172A', '#84CC16'],
+                        backgroundColor: ['#111827', '#10B981'], // 更清晰的深灰與翡翠綠
                         borderWidth: 0,
                         hoverOffset: 4
                     }]
