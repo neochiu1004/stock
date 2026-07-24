@@ -175,7 +175,7 @@
         <!-- ================= [View: 資產總覽] ================= -->
         <section id="view-assets" class="view-section transition-opacity duration-300">
             <!-- Header 區塊 -->
-            <div class="flex justify-between items-start mb-6">
+            <div class="flex justify-between items-start mb-6 sticky top-0 z-30 bg-[#F8FAFC]/95 backdrop-blur-md py-3 -mx-4 px-4 sm:-mx-6 sm:px-6">
                 <div>
                     <h1 class="text-lg font-bold text-slate-800 mb-1">總資產價值 (TWD)</h1>
                     <div class="flex items-center gap-2 text-slate-500">
@@ -254,7 +254,7 @@
 
         <!-- ================= [View: 再平衡] ================= -->
         <section id="view-rebalance" class="view-section hidden transition-opacity duration-300">
-            <h1 class="text-2xl font-black mb-6 text-center text-slate-900">再平衡評估</h1>
+            <h1 class="text-2xl font-black mb-6 text-center text-slate-900 sticky top-0 z-30 bg-[#F8FAFC]/95 backdrop-blur-md py-3 -mx-4 sm:-mx-6">再平衡評估</h1>
             
             <!-- 警告提示 (高對比橘色) -->
             <div id="rebalance-warning" class="hidden bg-[#F97316] text-white p-5 rounded-2xl mb-8 shadow-md flex items-start gap-4">
@@ -283,7 +283,7 @@
 
         <!-- ================= [View: 目標配置] ================= -->
         <section id="view-target" class="view-section hidden transition-opacity duration-300">
-            <h1 class="text-2xl font-black mb-6 text-center text-slate-900">目標配置參數</h1>
+            <h1 class="text-2xl font-black mb-6 text-center text-slate-900 sticky top-0 z-30 bg-[#F8FAFC]/95 backdrop-blur-md py-3 -mx-4 sm:-mx-6">目標配置參數</h1>
             
             <div class="flex justify-between font-black text-sm text-slate-800 mb-4 px-1 uppercase tracking-wider">
                 <span>整體宏觀配置</span>
@@ -360,7 +360,7 @@
 
         <!-- ================= [View: 設定] ================= -->
         <section id="view-settings" class="view-section hidden transition-opacity duration-300">
-            <h1 class="text-2xl font-black mb-6 text-center text-slate-900">資料管理與設定</h1>
+            <h1 class="text-2xl font-black mb-6 text-center text-slate-900 sticky top-0 z-30 bg-[#F8FAFC]/95 backdrop-blur-md py-3 -mx-4 sm:-mx-6">資料管理與設定</h1>
             
             <!-- 快速現金設定 -->
             <div class="glass-card p-5 mb-6">
@@ -1261,6 +1261,25 @@
                     paidCost = buyValue + Math.max(1, Math.round(buyValue * 0.001425 * 0.28));
                 }
                 
+                const grossPnL = currentValue - paidCost;
+                const grossPnLPercent = paidCost > 0 ? (grossPnL / paidCost) * 100 : 0;
+                const pnlColorClass = grossPnL >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]';
+                const pnlSign = grossPnL >= 0 ? '+' : '';
+
+                let dailyChangeHTML = '';
+                if (s.changePercent !== undefined) {
+                    const cp = parseFloat(s.changePercent) || 0;
+                    if (cp > 0) {
+                        dailyChangeHTML = `<span class="text-[14px] sm:text-[15px] font-black text-[#22C55E] tracking-tight">▲${cp.toFixed(2)}%</span>`;
+                    } else if (cp < 0) {
+                        dailyChangeHTML = `<span class="text-[14px] sm:text-[15px] font-black text-[#EF4444] tracking-tight">▼${Math.abs(cp).toFixed(2)}%</span>`;
+                    } else {
+                        dailyChangeHTML = `<span class="text-[14px] sm:text-[15px] font-black text-slate-400 tracking-tight">0.00%</span>`;
+                    }
+                } else {
+                    dailyChangeHTML = `<span class="text-[14px] sm:text-[15px] font-black text-slate-300 tracking-tight">--</span>`;
+                }
+                
                 // 完全依照截圖的精美卡片結構
                 return `
                 <div class="glass-card p-4 transition-all hover:border-slate-300 relative overflow-hidden ${opacityClass}">
@@ -1281,21 +1300,26 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3 mb-4">
-                        <div class="price-badge-gray p-3 rounded-xl flex flex-col justify-center">
-                            <span class="text-[11px] font-bold text-slate-500 mb-1">當前現價</span>
-                            <span class="text-2xl font-black text-slate-900 tracking-tight">@${currentPrice.toFixed(2)}</span>
+                    <div class="grid grid-cols-3 gap-2 mb-4">
+                        <div class="price-badge-gray p-2 rounded-xl flex flex-col justify-center items-center text-center">
+                            <span class="text-[10px] font-bold text-slate-500 mb-0.5">當前現價</span>
+                            <span class="text-[15px] sm:text-lg font-black text-slate-900 tracking-tight">@${currentPrice.toFixed(2)}</span>
                         </div>
-                        <div class="price-badge-blue p-3 rounded-xl flex flex-col justify-center">
-                            <span class="text-[11px] font-bold text-blue-600 mb-1">成交均價</span>
-                            <span class="text-lg font-black text-blue-700 tracking-tight">@${costPrice.toFixed(2)}</span>
+                        <div class="bg-slate-50 border border-slate-100 p-2 rounded-xl flex flex-col justify-center items-center text-center shadow-inner">
+                            <span class="text-[10px] font-bold text-slate-500 mb-0.5">本日漲跌</span>
+                            ${dailyChangeHTML}
+                        </div>
+                        <div class="price-badge-blue p-2 rounded-xl flex flex-col justify-center items-center text-center">
+                            <span class="text-[10px] font-bold text-blue-600 mb-0.5">成交均價</span>
+                            <span class="text-[15px] sm:text-lg font-black text-blue-700 tracking-tight">@${costPrice.toFixed(2)}</span>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 text-[13px] text-slate-500 gap-y-1.5">
+                    <div class="grid grid-cols-2 text-[12px] text-slate-500 gap-y-2">
                         <div class="flex items-center gap-1">持有股數: <span class="font-bold text-slate-800">${fmt(s.shares)} 股</span></div>
+                        <div class="flex items-center gap-1">目前盈虧: <span class="font-bold ${pnlColorClass}">${pnlSign}NT$${fmt(Math.abs(grossPnL))} (${pnlSign}${Math.abs(grossPnLPercent).toFixed(2)}%)</span></div>
+                        <div class="flex items-center gap-1">目前市值: <span class="font-bold text-slate-800">NT$${fmt(currentValue)}</span></div>
                         <div class="flex items-center gap-1">付出成本: <span class="font-bold text-slate-800">NT$${fmt(paidCost)}</span></div>
-                        <div class="col-span-2 flex items-center gap-1">目前市值: <span class="font-bold text-slate-800">NT$${fmt(currentValue)}</span></div>
                     </div>
                 </div>`;
             }).join('');
