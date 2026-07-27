@@ -432,6 +432,9 @@
                     <h2 class="font-bold text-slate-800">手動單筆新增</h2>
                 </div>
                 <form id="add-stock-form" onsubmit="addStockSubmit(event)" class="space-y-3">
+                    <select id="quick-select-stock" onchange="quickSelectStock(this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 font-semibold text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100">
+                        <option value="">-- 自現有持股帶入 --</option>
+                    </select>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-[10px] font-bold text-slate-400 mb-1 ml-1 uppercase">台股代號</label>
@@ -456,6 +459,10 @@
                             <input type="number" id="add-beta" placeholder="預設 1" min="0" step="0.1" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-2 font-semibold text-xs focus:outline-none focus:ring-1 focus:ring-blue-100">
                         </div>
                     </div>
+                    <label class="flex items-center gap-2 mt-1 px-1 cursor-pointer">
+                        <input type="checkbox" id="deduct-cash-check" class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
+                        <span class="text-[11px] font-bold text-slate-600">自交割帳戶扣除此筆總成本</span>
+                    </label>
                     <button type="submit" id="add-submit-btn" class="w-full bg-[#84CC16] hover:bg-[#65A30D] text-white rounded-xl py-3 font-bold mt-2 transition-all shadow-md flex justify-center items-center gap-2 active:scale-[0.98]">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                         新增此持股
@@ -959,6 +966,27 @@
             showToast('Fugle API Key 已儲存並套用');
         }
 
+        // MCE: 新增快速選擇下拉選單邏輯
+        function populateQuickSelect() {
+            const select = document.getElementById('quick-select-stock');
+            if (!select) return;
+            let html = '<option value="">-- 自現有持股帶入 --</option>';
+            state.stocks.forEach((s, idx) => {
+                html += `<option value="${idx}">${formatStockName(s)}</option>`;
+            });
+            select.innerHTML = html;
+        }
+
+        function quickSelectStock(indexStr) {
+            if (indexStr === '') return;
+            const stock = state.stocks[parseInt(indexStr)];
+            if (stock) {
+                document.getElementById('add-symbol').value = stock.symbol || '';
+                document.getElementById('add-name').value = stock.name || '';
+                document.getElementById('add-beta').value = stock.beta || '';
+            }
+        }
+
         function executeMergeOrAdd(newStock) {
             let existing = state.stocks.find(s => s.symbol && s.symbol === newStock.symbol);
 
@@ -1046,12 +1074,32 @@
             const buyFee = Math.max(1, Math.round(buyValue * 0.001425 * 0.28));
             const paidCost = buyValue + buyFee;
 
+            // MCE: 加入扣除現金的檢查與處理邏輯
+            const deductCash = document.getElementById('deduct-cash-check').checked;
+            if (deductCash && state.cash < paidCost) {
+                showToast('交割帳戶餘額不足，無法新增');
+                resetBtn();
+                return;
+            }
+
+            const commitAddition = () => {
+                if (deductCash) {
+                    state.cash -= paidCost;
+                    localStorage.setItem('mce_cash', state.cash);
+                    document.getElementById('settings-original-cash').innerText = fmt(state.cash);
+                    if (!cashModeIsAdd['settings']) {
+                        document.getElementById('cash-input').value = state.cash;
+                    }
+                }
+                executeMergeOrAdd(newStock);
+            };
+
             const newStock = { name, symbol, shares, price: currentPrice, costPrice, paidCost, beta };
             const isExist = state.stocks.some(s => s.symbol === symbol);
 
             if (isExist) {
                 showConfirm(`發現相同代號 <span class="font-bold">${symbol}</span>\n是否與現有持股合併加權計算？\n(取消則放棄新增)`, () => {
-                    executeMergeOrAdd(newStock);
+                    commitAddition();
                     showToast(`已成功合併 ${name}`);
                     resetBtn();
                 });
@@ -1067,7 +1115,7 @@
                     resetBtn();
                 });
             } else {
-                executeMergeOrAdd(newStock);
+                commitAddition();
                 showToast(`已成功新增 ${name}`);
                 resetBtn();
             }
@@ -1248,8 +1296,9 @@
                 const currentValue = Math.round(s.shares * currentPrice); 
                 const ratio = displayTotal > 0 ? (currentValue / displayTotal) * 100 : 0;
                 
-                // 名稱處理，依照截圖為 100% 0050.TW β=1 格式
-                const symbolFormat = s.symbol ? `${s.symbol}.TW` : (s.name || 'Unknown');
+                // MCE: 名稱處理，名稱為主，代號及 Beta 移至右側
+                const nameDisplay = s.name || s.symbol || 'Unknown';
+                const symbolDisplay = s.symbol ? `${s.symbol}.TW` : '';
                 
                 const isExcluded = (parseFloat(s.targetWeight) || 0) <= 0;
                 const opacityClass = isExcluded ? 'opacity-40 grayscale pointer-events-none' : '';
@@ -1288,7 +1337,7 @@
                     <div class="flex justify-between items-center mb-3 pb-3 border-b border-slate-100">
                         <div class="flex items-center gap-2">
                             <span class="bg-slate-200 text-slate-700 text-xs px-2 py-1 rounded-md font-black shrink-0 shadow-inner">${Math.round(ratio)}%</span>
-                            <div class="font-bold text-slate-900 text-base tracking-wide">${symbolFormat} <span class="text-slate-400 text-xs font-medium ml-1">β=${s.beta || 1}</span></div>
+                            <div class="font-bold text-slate-900 text-base tracking-wide">${nameDisplay} <span class="text-slate-400 text-xs font-medium ml-1">${symbolDisplay} β=${s.beta || 1}</span></div>
                         </div>
                         <div class="flex items-center gap-1.5 shrink-0 relative z-20">
                             <button onclick="openEditModal(${index})" class="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-1.5 rounded-full transition-colors" title="編輯參數">
@@ -1443,6 +1492,7 @@
             const cashActionIcon = isCashBuy ? '▲' : '▼';
             const cashActionColorClass = isCashBuy ? 'bg-[#3B82F6] text-white' : 'bg-slate-800 text-white';
             
+            // MCE: 為現金區塊補上現值與目標 UI
             actionsHTML += `
             <div class="glass-card p-5 relative overflow-hidden">
                 <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
@@ -1450,6 +1500,12 @@
                     <span class="shrink-0 bg-slate-100 px-2 py-1 rounded-md text-slate-500 text-xs font-bold">${Math.round(activeCashRatio)}% <span class="text-slate-300 mx-0.5">→</span> <span class="text-blue-600">${100 - state.targetStockRatio}%</span></span>
                 </div>
                 
+                <div class="flex items-center gap-3 mb-6 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <span class="text-sm font-semibold text-slate-500">現值: <span class="text-slate-900 font-black">NT$${fmt(state.cash)}</span></span>
+                    <span class="text-slate-300 font-black">➔</span>
+                    <span class="text-sm font-semibold text-slate-500">目標: <span class="text-blue-600 font-black">NT$${fmt(targetCashValue)}</span></span>
+                </div>
+
                 <div class="flex justify-between items-center">
                     <div class="font-black text-lg text-slate-900">差額</div>
                     <div class="${cashActionColorClass} px-3.5 py-2 rounded-xl text-right shrink-0 shadow-sm flex flex-col items-end">
@@ -1460,6 +1516,9 @@
             </div>`;
             
             actionList.innerHTML = actionsHTML;
+
+            // MCE: 更新快速選擇下拉選單
+            if (typeof populateQuickSelect === 'function') populateQuickSelect();
         }
 
         function renderChart(stockVal, cashVal) {
