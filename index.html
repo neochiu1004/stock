@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -1740,6 +1739,7 @@
             </div>`;
             
             actionList.innerHTML = actionsHTML;
+            if (typeof populateQuickSelect === 'function') populateQuickSelect();
         }
 
         function renderChart(stockVal, cashVal) {
@@ -1897,5 +1897,3 @@
     </script>
 </body>
 </html>
-
-
