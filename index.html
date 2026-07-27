@@ -334,14 +334,15 @@
                 </div>
             </div>
 
+            <!-- MCE: 股票內部權重重構區塊 -->
             <div class="flex justify-between items-end mb-3 px-1">
                 <span class="text-sm font-black text-slate-800 uppercase tracking-wider">股票內部權重</span>
-                <span class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">設為 0 即排除計算</span>
+                <span class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">總和 100%</span>
             </div>
             
-            <!-- 單檔股票權重設定區 -->
-            <div class="glass-card p-2 mb-8" id="target-stock-weights-container">
-                <!-- 動態生成單檔權重輸入框 -->
+            <!-- 動態分區權重容器 -->
+            <div class="glass-card overflow-hidden mb-8" id="target-stock-weights-container">
+                <!-- 內容由 JS 產生 -->
             </div>
 
             <h2 class="text-sm font-black mb-3 px-1 text-slate-800 uppercase tracking-wider">觸發門檻設定</h2>
@@ -361,6 +362,33 @@
         <!-- ================= [View: 設定] ================= -->
         <section id="view-settings" class="view-section hidden transition-opacity duration-300">
             <h1 class="text-2xl font-black mb-6 text-center text-slate-900 sticky top-0 z-30 bg-[#F8FAFC]/95 backdrop-blur-md py-3 -mx-4 sm:-mx-6">資料管理與設定</h1>
+
+            <!-- 數據備份與還原 -->
+            <div class="glass-card p-5 mb-6 border-l-4 border-l-blue-500">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="p-1.5 bg-blue-100 text-blue-600 rounded-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                    </div>
+                    <h2 class="font-bold text-slate-800">資料備份與還原 (JSON)</h2>
+                </div>
+                <p class="text-[11px] font-medium text-slate-500 mb-4 bg-slate-50 p-2 rounded-lg leading-relaxed">
+                    系統資料僅儲存於本機，建議定期匯出備份。<br>
+                    <span class="text-red-500 font-bold">還原注意：</span>匯入將會完全覆蓋當前所有資料。
+                </p>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="exportBackup()" class="w-full bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 font-bold py-3 px-2 rounded-xl inline-flex items-center justify-center gap-1 transition-colors text-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        匯出備份
+                    </button>
+                    <div class="relative overflow-hidden inline-block w-full">
+                        <button class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-2 rounded-xl inline-flex items-center justify-center gap-1 transition-colors text-sm shadow-md">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                            匯入還原
+                        </button>
+                        <input type="file" id="json-upload" accept=".json" onchange="importBackup(event)" class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer">
+                    </div>
+                </div>
+            </div>
             
             <!-- 快速現金設定 -->
             <div class="glass-card p-5 mb-6">
@@ -412,7 +440,7 @@
                 <p class="text-[11px] font-medium text-slate-500 mb-4 bg-slate-50 p-2 rounded-lg leading-relaxed">
                     請上傳券商「未實現損益」匯出之 CSV 檔。<br>
                     <span class="text-amber-600 font-bold">自動疊加機制：</span>若已有相同股票，將自動合併股數並計算加權平均成本。<br>
-                    <span class="text-blue-600 font-bold">自動歸類：</span>普通個股預設排除再平衡(權重0)；ETF預設納入(權重1)。
+                    <span class="text-blue-600 font-bold">自動歸類：</span>普通個股預設排除再平衡(鎖定0%)；ETF預設納入自動均分。
                 </p>
                 <div class="relative overflow-hidden inline-block w-full">
                     <button class="w-full bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-xl inline-flex items-center justify-center gap-2 transition-colors">
@@ -489,7 +517,7 @@
             </div>
             
             <div class="text-[10px] font-semibold text-slate-300 text-center mt-8 pb-4 space-y-1">
-                <p>Minimal Change Engineer (MCE) Build v5.0 - Pro UI</p>
+                <p>Minimal Change Engineer (MCE) Build v7.0 - Auto Balancing Sliders</p>
                 <p>Data stored completely offline via LocalStorage.</p>
             </div>
         </section>
@@ -523,6 +551,82 @@
     <style> .pb-safe { padding-bottom: env(safe-area-inset-bottom); padding-bottom: max(env(safe-area-inset-bottom), 0.5rem); } </style>
 
     <script>
+        // --- 核心狀態管理與持久化 ---
+        const state = {
+            cash: parseFloat(localStorage.getItem('mce_cash')) || 0,
+            targetStockRatio: parseFloat(localStorage.getItem('mce_target_stock')) || 50,
+            deviation: parseFloat(localStorage.getItem('mce_deviation')) || 5,
+            stocks: JSON.parse(localStorage.getItem('mce_stocks')) || [],
+            apiKey: localStorage.getItem('mce_apikey') || '',
+            rebalanceMode: localStorage.getItem('mce_rebalance_mode') || 'global'
+        };
+
+        function saveState() {
+            localStorage.setItem('mce_cash', state.cash);
+            localStorage.setItem('mce_target_stock', state.targetStockRatio);
+            localStorage.setItem('mce_deviation', state.deviation);
+            localStorage.setItem('mce_rebalance_mode', state.rebalanceMode);
+            localStorage.setItem('mce_apikey', state.apiKey);
+            localStorage.setItem('mce_stocks', JSON.stringify(state.stocks));
+        }
+
+        // --- JSON 備份與還原邏輯 ---
+        function exportBackup() {
+            const data = {
+                version: "7.0",
+                exportAt: new Date().toISOString(),
+                ...state
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const dateStr = new Date().toISOString().split('T')[0];
+            a.download = `rebalance_backup_${dateStr}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('備份檔已開始下載');
+        }
+
+        function importBackup(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if (!Array.isArray(data.stocks) || typeof data.cash !== 'number') {
+                        throw new Error("格式不符");
+                    }
+                    showConfirm("確定要完全覆蓋當前所有資料嗎？\n此操作無法復原。", () => {
+                        state.cash = data.cash || 0;
+                        state.targetStockRatio = data.targetStockRatio !== undefined ? data.targetStockRatio : 50;
+                        state.deviation = data.deviation !== undefined ? data.deviation : 5;
+                        state.rebalanceMode = data.rebalanceMode || 'global';
+                        state.apiKey = data.apiKey || '';
+                        
+                        state.stocks = data.stocks.map(s => ({
+                            ...s,
+                            beta: s.beta !== undefined ? s.beta : 1,
+                            targetWeight: s.targetWeight !== undefined ? s.targetWeight : (isETFOrLeveraged(s.symbol, s.name) ? 1 : 0),
+                            isLocked: s.isLocked !== undefined ? s.isLocked : (s.targetWeight === 0)
+                        }));
+                        
+                        balanceWeights();
+                        saveState();
+                        initUI(); 
+                        updateAllData();
+                        showToast('資料已成功還原');
+                    });
+                } catch (err) {
+                    showToast('備份檔格式不符，請確認檔案內容');
+                }
+                e.target.value = ''; 
+            };
+            reader.readAsText(file);
+        }
+
         // --- 智慧去重名稱邏輯 ---
         const formatStockName = (s) => (!s.name || s.name === s.symbol) ? (s.symbol || '') : `${s.symbol || ''} ${s.name}`;
 
@@ -533,13 +637,6 @@
             return s.endsWith('L') || s.endsWith('D') || s.startsWith('00') || n.includes('正2') || n.includes('反1') || n.includes('ETF');
         }
 
-        function getTaxRate(symbol, name) {
-            if (isETFOrLeveraged(symbol, name)) {
-                return 0.001; // ETF 賣出交易稅 0.1%
-            }
-            return 0.003; // 普通股票賣出交易稅 0.3%
-        }
-
         // --- 核心共用：通用 Confirm Modal 邏輯 ---
         let confirmCallback = null;
         function showConfirm(msg, callback) {
@@ -548,7 +645,6 @@
             const content = document.getElementById('confirm-modal-content');
             
             modal.classList.remove('hidden');
-            // 觸發重繪以播放動畫
             void modal.offsetWidth; 
             modal.classList.remove('opacity-0');
             content.classList.remove('scale-95');
@@ -563,6 +659,7 @@
                 closeConfirm();
             });
         }
+        
         function closeConfirm() {
             const modal = document.getElementById('confirm-modal');
             const content = document.getElementById('confirm-modal-content');
@@ -649,18 +746,14 @@
             state.stocks[editingIndex].paidCost = paidCost;
             state.stocks[editingIndex].beta = beta;
 
-            localStorage.setItem('mce_stocks', JSON.stringify(state.stocks));
+            saveState();
             updateAllData();
             closeEditModal();
             showToast('持股參數已更新');
         }
 
         // --- 現金編輯與計算機邏輯 ---
-        // 新增變數記錄目前的模式 (false: 覆蓋, true: 累加)
-        let cashModeIsAdd = {
-            modal: false,
-            settings: false
-        };
+        let cashModeIsAdd = { modal: false, settings: false };
 
         function toggleCashMode(context) {
             const toggleEl = document.getElementById(`${context}-cash-mode-toggle`);
@@ -672,13 +765,11 @@
             if (cashModeIsAdd[context]) {
                 textEl.innerText = "模式：累加至原餘額";
                 textEl.classList.replace('text-slate-700', 'text-green-600');
-                // 切換到累加模式時，清空輸入框，方便直接輸入要增加的數字
                 inputEl.value = '';
                 inputEl.placeholder = "輸入要增減的金額";
             } else {
                 textEl.innerText = "模式：直接覆蓋";
                 textEl.classList.replace('text-green-600', 'text-slate-700');
-                // 切換回覆蓋模式時，帶入原本的餘額
                 inputEl.value = state.cash;
                 inputEl.placeholder = "0";
             }
@@ -708,10 +799,9 @@
         }
 
         function openCashEditModal() {
-            // 重置彈窗狀態為覆蓋模式
             const toggleEl = document.getElementById('modal-cash-mode-toggle');
             toggleEl.checked = false;
-            toggleCashMode('modal'); // 初始化 UI 狀態
+            toggleCashMode('modal'); 
             
             document.getElementById('edit-cash-val').value = state.cash;
             document.getElementById('modal-original-cash').innerText = fmt(state.cash);
@@ -754,18 +844,13 @@
 
             try {
                 let calcResult = calculateExpression(inputVal);
-                
-                // 如果是累加模式，則加上原始餘額
-                if (cashModeIsAdd['modal']) {
-                    calcResult = state.cash + calcResult;
-                }
+                if (cashModeIsAdd['modal']) calcResult = state.cash + calcResult;
                 
                 state.cash = calcResult; 
-                localStorage.setItem('mce_cash', state.cash);
+                saveState();
                 
-                // 同步更新設定頁面的顯示與狀態
                 document.getElementById('settings-original-cash').innerText = fmt(state.cash);
-                if(!cashModeIsAdd['settings']){
+                if(!cashModeIsAdd['settings']) {
                      document.getElementById('cash-input').value = state.cash; 
                 }
                 
@@ -782,19 +867,13 @@
 
             try {
                 let calcResult = calculateExpression(inputVal);
-
-                // 如果是累加模式，則加上原始餘額
-                if (cashModeIsAdd['settings']) {
-                    calcResult = state.cash + calcResult;
-                }
+                if (cashModeIsAdd['settings']) calcResult = state.cash + calcResult;
                 
                 state.cash = calcResult;
-                localStorage.setItem('mce_cash', state.cash);
+                saveState();
                 
-                // 更新 UI 顯示的原始餘額
                 document.getElementById('settings-original-cash').innerText = fmt(state.cash);
                 
-                // 儲存後如果是累加模式，清空輸入框準備下一次輸入；如果是覆蓋模式，顯示新餘額
                 if (cashModeIsAdd['settings']) {
                     document.getElementById('cash-input').value = '';
                 } else {
@@ -812,7 +891,8 @@
             const stockName = formatStockName(state.stocks[index]);
             showConfirm(`<span class="font-bold text-slate-900">${stockName}</span><br>確定要從清單中移除此檔股票嗎？`, () => {
                 state.stocks.splice(index, 1);
-                localStorage.setItem('mce_stocks', JSON.stringify(state.stocks));
+                balanceWeights(); // 移除後自動重新均分
+                saveState();
                 renderTargetStockWeights();
                 updateAllData();
                 showToast('已刪除股票');
@@ -830,15 +910,6 @@
             }, 2500);
         }
 
-        const state = {
-            cash: parseFloat(localStorage.getItem('mce_cash')) || 0,
-            targetStockRatio: parseFloat(localStorage.getItem('mce_target_stock')) || 50,
-            deviation: parseFloat(localStorage.getItem('mce_deviation')) || 5,
-            stocks: JSON.parse(localStorage.getItem('mce_stocks')) || [],
-            apiKey: localStorage.getItem('mce_apikey') || '',
-            rebalanceMode: localStorage.getItem('mce_rebalance_mode') || 'global'
-        };
-
         const symbolMap = {
             '元大台灣50正2': '00631L',
             '群益臺灣加權正2': '00685L',
@@ -847,26 +918,106 @@
         };
 
         let assetChart = null;
+        const fmtPct = (num) => (num % 1 === 0 ? num : num.toFixed(1));
 
-        function init() {
+        // MCE: 自動補償與均分演算法
+        function balanceWeights() {
+            let lockedSum = state.stocks.filter(s => s.isLocked).reduce((sum, s) => sum + parseFloat(s.targetWeight || 0), 0);
+            let remainder = Math.max(0, 100 - lockedSum);
+            let unlocked = state.stocks.filter(s => !s.isLocked);
+            
+            if (unlocked.length > 0) {
+                let autoVal = remainder / unlocked.length;
+                unlocked.forEach(s => { s.targetWeight = autoVal; });
+            }
+        }
+
+        // MCE: 處理拖曳拉桿 (UI 即時防抖與鎖定)
+        function handleSliderDrag(index, val) {
+            let stock = state.stocks[index];
+            stock.isLocked = true; // 拖曳動作即代表手動指定
+
+            let numVal = parseFloat(val) || 0;
+            let otherLockedSum = state.stocks.reduce((sum, s, i) => (s.isLocked && i !== index) ? sum + parseFloat(s.targetWeight || 0) : sum, 0);
+
+            // 防護：不可超過剩餘額度
+            let allowedVal = Math.min(numVal, 100 - otherLockedSum);
+            allowedVal = Math.max(0, allowedVal); 
+            stock.targetWeight = allowedVal;
+
+            balanceWeights();
+            syncWeightUI(); // 僅更新文字與屬性，不破壞 DOM 避免脫手
+        }
+
+        // MCE: 拖曳放開後正式重構與儲存
+        function handleSliderRelease() {
+            saveState();
+            renderTargetStockWeights(); // 重繪 DOM 以搬移卡片至已鎖定區塊
+            updateAllData();
+        }
+
+        // MCE: UI 同步函式
+        function syncWeightUI() {
+            let lockedSum = 0;
+            state.stocks.forEach((s, i) => {
+                const slider = document.getElementById(`weight-slider-${i}`);
+                const txt = document.getElementById(`weight-text-${i}`);
+                if (slider && txt) {
+                    slider.value = s.targetWeight;
+                    txt.innerText = fmtPct(s.targetWeight) + '%';
+                }
+                if (s.isLocked) lockedSum += parseFloat(s.targetWeight || 0);
+            });
+
+            const sumTxt = document.getElementById('locked-sum-text');
+            if (sumTxt) sumTxt.innerText = fmtPct(lockedSum);
+
+            const remainTxt = document.getElementById('auto-remain-text');
+            if (remainTxt) remainTxt.innerText = fmtPct(Math.max(0, 100 - lockedSum));
+        }
+
+        // MCE: 切換鎖定/自動狀態
+        function toggleLock(index) {
+            let stock = state.stocks[index];
+            stock.isLocked = !stock.isLocked;
+            balanceWeights();
+            saveState();
+            renderTargetStockWeights();
+            updateAllData();
+        }
+
+        function initUI() {
             document.getElementById('settings-original-cash').innerText = fmt(state.cash);
-            // 初始化設定頁的模式開關狀態
-            document.getElementById('settings-cash-mode-toggle').checked = false;
-            toggleCashMode('settings'); 
-
+            if(!cashModeIsAdd['settings']) {
+                document.getElementById('cash-input').value = state.cash;
+            }
             document.getElementById('target-stock-slider').value = state.targetStockRatio;
             document.getElementById('deviation-input').value = state.deviation;
+            document.getElementById('deviation-text').innerText = state.deviation;
             document.getElementById('api-key-input').value = state.apiKey;
             document.getElementById('rebalance-mode-select').value = state.rebalanceMode;
             
+            updateTargetUI();
+            renderTargetStockWeights();
+        }
+
+        function init() {
+            document.getElementById('settings-cash-mode-toggle').checked = false;
+            toggleCashMode('settings'); 
+            
+            // 資料相容性修復與轉移
             state.stocks.forEach(s => {
                 if (s.targetWeight === undefined) {
                     s.targetWeight = isETFOrLeveraged(s.symbol, s.name) ? 1 : 0;
                 }
+                if (s.isLocked === undefined) {
+                    // 若原本的權重為 0，則直接歸入已指定 (鎖定)，不參與均分
+                    s.isLocked = (s.targetWeight === 0);
+                }
             });
+            balanceWeights(); // 開局初始化確保權重正確均分為 100% 內
 
-            updateTargetUI();
-            renderTargetStockWeights();
+            initUI();
             setupEventListeners();
             updateAllData(); 
         }
@@ -884,7 +1035,6 @@
             
             const targetView = document.getElementById(`view-${tabId}`);
             targetView.classList.remove('hidden');
-            // 延遲一點點時間來觸發 opacity transition
             setTimeout(() => {
                 targetView.classList.remove('opacity-0');
                 targetView.classList.add('opacity-100');
@@ -902,21 +1052,21 @@
 
             stockSlider.addEventListener('input', (e) => {
                 state.targetStockRatio = parseFloat(e.target.value);
-                localStorage.setItem('mce_target_stock', state.targetStockRatio);
+                saveState();
                 updateTargetUI();
                 updateAllData();
             });
 
             devInput.addEventListener('change', (e) => {
                 state.deviation = parseFloat(e.target.value) || 5;
-                localStorage.setItem('mce_deviation', state.deviation);
+                saveState();
                 document.getElementById('deviation-text').innerText = state.deviation;
                 updateAllData();
             });
 
             modeSelect.addEventListener('change', (e) => {
                 state.rebalanceMode = e.target.value;
-                localStorage.setItem('mce_rebalance_mode', state.rebalanceMode);
+                saveState();
                 updateAllData();
                 showToast(state.rebalanceMode === 'global' ? '模式：看總市值 (等比縮放)' : '模式：看個股 (獨立精確)');
             });
@@ -930,43 +1080,67 @@
             document.getElementById('target-cash-slider').value = 100 - state.targetStockRatio;
         }
 
+        // MCE: 全新雙分區卡片渲染邏輯
         function renderTargetStockWeights() {
             const container = document.getElementById('target-stock-weights-container');
             if (state.stocks.length === 0) {
-                container.innerHTML = '<div class="text-sm text-slate-400 text-center py-6 font-semibold bg-slate-50 rounded-xl border border-dashed border-slate-200">無持股資料，請先至設定頁新增</div>';
+                container.innerHTML = '<div class="text-sm text-slate-400 text-center py-6 font-semibold bg-slate-50 border border-dashed border-slate-200">無持股資料，請先至設定頁新增</div>';
                 return;
             }
-            container.innerHTML = state.stocks.map((s, idx) => {
-                const weight = s.targetWeight ?? (isETFOrLeveraged(s.symbol, s.name) ? 1 : 0);
-                const isExcluded = weight <= 0;
-                const opacityClass = isExcluded ? 'opacity-50' : '';
-                return `
-                <div class="flex justify-between items-center p-3 hover:bg-slate-50 rounded-xl transition-colors border-b border-slate-100 last:border-0 ${opacityClass}">
-                    <span class="font-bold text-sm truncate pr-3 text-slate-800">${formatStockName(s)}</span>
-                    <div class="flex items-center gap-2 shrink-0">
-                        <input type="number" min="0" step="1" value="${weight}" 
-                               onchange="updateStockWeight(${idx}, this.value)" 
-                               class="w-20 text-center bg-white border border-slate-200 rounded-lg py-1.5 px-2 font-black text-slate-900 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all shadow-sm">
-                        <span class="text-slate-400 text-xs font-bold w-6">比重</span>
-                    </div>
-                </div>
-            `}).join('');
-        }
 
-        function updateStockWeight(index, val) {
-            state.stocks[index].targetWeight = parseFloat(val) || 0;
-            localStorage.setItem('mce_stocks', JSON.stringify(state.stocks));
-            renderTargetStockWeights(); // Re-render to update opacity
-            updateAllData();
+            const lockedStocks = [];
+            const autoStocks = [];
+
+            state.stocks.forEach((s, idx) => {
+                const isExcluded = (s.targetWeight === 0 && s.isLocked);
+                const html = `
+                <div class="flex flex-col p-3 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0 ${isExcluded ? 'opacity-50' : ''}">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-bold text-sm truncate pr-3 text-slate-800">${formatStockName(s)}</span>
+                        <button onclick="toggleLock(${idx})" class="text-[10px] font-bold px-2.5 py-1 rounded-md transition-all active:scale-95 border ${s.isLocked ? 'bg-slate-800 text-white border-slate-800 shadow-sm' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border-slate-200'}">
+                            ${s.isLocked ? '📌 已指定' : '🔓 自動分配'}
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <input type="range" id="weight-slider-${idx}" min="0" max="100" step="0.1" value="${s.targetWeight}"
+                               oninput="handleSliderDrag(${idx}, this.value)"
+                               onchange="handleSliderRelease()"
+                               class="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900">
+                        <span id="weight-text-${idx}" class="text-sm font-black ${s.isLocked ? 'text-blue-600' : 'text-slate-600'} w-12 text-right">${fmtPct(s.targetWeight)}%</span>
+                    </div>
+                </div>`;
+
+                if (s.isLocked) lockedStocks.push(html);
+                else autoStocks.push(html);
+            });
+
+            let lockedSum = state.stocks.filter(s => s.isLocked).reduce((sum, s) => sum + parseFloat(s.targetWeight||0), 0);
+            let remain = Math.max(0, 100 - lockedSum);
+
+            container.innerHTML = `
+                <div class="bg-white">
+                    <div class="flex justify-between items-end px-3 py-2.5 bg-slate-100/80 border-b border-slate-200/60">
+                        <span class="text-[11px] font-bold text-slate-600 tracking-wide flex items-center gap-1.5"><span class="text-sm">📌</span> 已指定比例</span>
+                        <span class="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded shadow-sm border border-slate-200">總和: <span id="locked-sum-text" class="text-slate-800">${fmtPct(lockedSum)}</span>%</span>
+                    </div>
+                    <div class="pb-1">${lockedStocks.length > 0 ? lockedStocks.join('') : '<div class="text-[11px] text-slate-400 font-semibold text-center py-4 bg-slate-50/50">尚無鎖定項目</div>'}</div>
+                </div>
+                <div class="border-t-2 border-slate-100/80">
+                    <div class="flex justify-between items-end px-3 py-2.5 bg-blue-50/50 border-b border-slate-100/80">
+                        <span class="text-[11px] font-bold text-blue-700 tracking-wide flex items-center gap-1.5"><span class="text-sm">🔓</span> 自動均分部位</span>
+                        <span class="text-[10px] font-bold text-blue-600 bg-white px-2 py-0.5 rounded shadow-sm border border-blue-100">剩餘: <span id="auto-remain-text" class="text-blue-800">${fmtPct(remain)}</span>%</span>
+                    </div>
+                    <div>${autoStocks.length > 0 ? autoStocks.join('') : '<div class="text-[11px] text-slate-400 font-semibold text-center py-4 bg-slate-50/50">項目已全部鎖定指定</div>'}</div>
+                </div>
+            `;
         }
 
         function saveApiKey() {
             state.apiKey = document.getElementById('api-key-input').value.trim();
-            localStorage.setItem('mce_apikey', state.apiKey);
+            saveState();
             showToast('Fugle API Key 已儲存並套用');
         }
 
-        // MCE: 新增快速選擇下拉選單邏輯
         function populateQuickSelect() {
             const select = document.getElementById('quick-select-stock');
             if (!select) return;
@@ -1011,12 +1185,15 @@
                 if (!existing.name && newStock.name) existing.name = newStock.name;
             } else {
                 if (newStock.targetWeight === undefined) {
-                    newStock.targetWeight = isETFOrLeveraged(newStock.symbol, newStock.name) ? 1 : 0;
+                    let isEtf = isETFOrLeveraged(newStock.symbol, newStock.name);
+                    newStock.targetWeight = isEtf ? 1 : 0;
+                    newStock.isLocked = !isEtf; // 非 ETF 預設排除 (權重0並鎖定)
                 }
                 state.stocks.push(newStock);
             }
 
-            localStorage.setItem('mce_stocks', JSON.stringify(state.stocks));
+            balanceWeights(); // 新增後重新平衡均分
+            saveState();
             renderTargetStockWeights();
             updateAllData();
             document.getElementById('add-stock-form').reset();
@@ -1074,7 +1251,6 @@
             const buyFee = Math.max(1, Math.round(buyValue * 0.001425 * 0.28));
             const paidCost = buyValue + buyFee;
 
-            // MCE: 加入扣除現金的檢查與處理邏輯
             const deductCash = document.getElementById('deduct-cash-check').checked;
             if (deductCash && state.cash < paidCost) {
                 showToast('交割帳戶餘額不足，無法新增');
@@ -1085,7 +1261,7 @@
             const commitAddition = () => {
                 if (deductCash) {
                     state.cash -= paidCost;
-                    localStorage.setItem('mce_cash', state.cash);
+                    saveState();
                     document.getElementById('settings-original-cash').innerText = fmt(state.cash);
                     if (!cashModeIsAdd['settings']) {
                         document.getElementById('cash-input').value = state.cash;
@@ -1104,7 +1280,6 @@
                     resetBtn();
                 });
                 
-                // Override cancel behavior for this specific confirm
                 const confirmModal = document.getElementById('confirm-modal');
                 const cancelBtn = confirmModal.querySelector('button.bg-slate-100');
                 const newCancel = cancelBtn.cloneNode(true);
@@ -1174,7 +1349,7 @@
             }
 
             if (updated) {
-                localStorage.setItem('mce_stocks', JSON.stringify(state.stocks));
+                saveState();
                 const now = new Date();
                 lastUpdateEl.innerText = `最新報價 ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
                 lastUpdateEl.previousElementSibling.classList.remove('bg-amber-500');
@@ -1189,7 +1364,6 @@
         async function manualRefreshFromChart() {
             const chartCenter = document.getElementById('chart-center-text');
             
-            // 動畫效果：中間文字變色並閃爍
             chartCenter.classList.replace('bg-slate-900', 'bg-blue-500');
             chartCenter.classList.add('animate-pulse');
 
@@ -1203,12 +1377,11 @@
             }, 500);
         }
 
-        function updateAllData() {
+        function calculatePortfolioState() {
             let totalDisplayStockValue = 0; 
             let activeStockValue = 0;       
             let weightedBetaSum = 0;
             let totalTargetWeight = 0;
-
             let totalGrossPnL = 0;
             let totalPaidCostSum = 0;
 
@@ -1217,7 +1390,6 @@
                 const val = Math.round(s.shares * currentPrice); 
                 totalDisplayStockValue += val; 
 
-                // 計算整體盈虧
                 const costPrice = s.costPrice !== undefined ? s.costPrice : currentPrice;
                 let paidCost = s.paidCost;
                 if (paidCost === undefined) {
@@ -1252,30 +1424,45 @@
                 });
             }
             const targetBeta = (state.targetStockRatio / 100) * targetWeightedBetaSum;
-            
-            // 更新上方總覽數字
-            document.getElementById('total-asset-value').innerText = fmt(displayTotal);
-            document.getElementById('total-stock-value').innerText = fmt(totalDisplayStockValue);
-            document.getElementById('cash-value-display').innerText = fmt(state.cash);
-            document.getElementById('chart-center-text').innerText = `現金 ${Math.round(displayCashRatio)}%`;
-            document.getElementById('cash-ratio-badge').innerText = `${Math.round(displayCashRatio)}%`;
-            
-            document.getElementById('portfolio-beta').innerText = portfolioBeta.toFixed(2);
-            document.getElementById('target-portfolio-beta').innerText = targetBeta.toFixed(2);
-            document.getElementById('rebalance-beta-flow').innerText = `${portfolioBeta.toFixed(2)} ➔ ${targetBeta.toFixed(2)}`;
 
-            // 更新總體盈虧 (依照截圖風格，若有需要可解除 hidden)
+            return {
+                totalDisplayStockValue,
+                activeStockValue,
+                totalTargetWeight,
+                totalGrossPnL,
+                totalPaidCostSum,
+                displayTotal,
+                displayCashRatio,
+                activeTotal,
+                portfolioBeta,
+                targetBeta
+            };
+        }
+
+        function updateAllData() {
+            const metrics = calculatePortfolioState();
+            
+            document.getElementById('total-asset-value').innerText = fmt(metrics.displayTotal);
+            document.getElementById('total-stock-value').innerText = fmt(metrics.totalDisplayStockValue);
+            document.getElementById('cash-value-display').innerText = fmt(state.cash);
+            document.getElementById('chart-center-text').innerText = `現金 ${Math.round(metrics.displayCashRatio)}%`;
+            document.getElementById('cash-ratio-badge').innerText = `${Math.round(metrics.displayCashRatio)}%`;
+            
+            document.getElementById('portfolio-beta').innerText = metrics.portfolioBeta.toFixed(2);
+            document.getElementById('target-portfolio-beta').innerText = metrics.targetBeta.toFixed(2);
+            document.getElementById('rebalance-beta-flow').innerText = `${metrics.portfolioBeta.toFixed(2)} ➔ ${metrics.targetBeta.toFixed(2)}`;
+
             const summaryEl = document.getElementById('total-pnl-summary');
-            if (totalPaidCostSum > 0) {
+            if (metrics.totalPaidCostSum > 0) {
                 summaryEl.classList.remove('hidden');
-                const pnlPercent = (totalGrossPnL / totalPaidCostSum) * 100;
+                const pnlPercent = (metrics.totalGrossPnL / metrics.totalPaidCostSum) * 100;
                 const pnlAmountEl = document.getElementById('total-pnl-amount');
                 const pnlPercentEl = document.getElementById('total-pnl-percent');
                 
-                pnlAmountEl.innerText = `${totalGrossPnL >= 0 ? '' : '-'}NT$ ${fmt(Math.abs(totalGrossPnL))}`;
-                pnlPercentEl.innerText = `${totalGrossPnL >= 0 ? '' : '-'}${Math.abs(pnlPercent).toFixed(2)}%`;
+                pnlAmountEl.innerText = `${metrics.totalGrossPnL >= 0 ? '' : '-'}NT$ ${fmt(Math.abs(metrics.totalGrossPnL))}`;
+                pnlPercentEl.innerText = `${metrics.totalGrossPnL >= 0 ? '' : '-'}${Math.abs(pnlPercent).toFixed(2)}%`;
                 
-                if (totalGrossPnL >= 0) {
+                if (metrics.totalGrossPnL >= 0) {
                     pnlAmountEl.className = 'text-3xl font-black text-[#22C55E] tracking-tight';
                     pnlPercentEl.className = 'text-sm font-bold text-[#22C55E]';
                 } else {
@@ -1286,7 +1473,6 @@
                 summaryEl.classList.add('hidden');
             }
 
-            // ================= 渲染股票卡片列表 =================
             const stockListEl = document.getElementById('stock-list');
             stockListEl.innerHTML = state.stocks.length === 0 ? 
                 '<div class="glass-card p-8 text-center text-slate-400 font-semibold border-dashed">尚無股票資料<br><span class="text-xs font-normal mt-1 block">請至設定頁手動新增或匯入CSV</span></div>' : 
@@ -1294,12 +1480,9 @@
                 
                 const currentPrice = s.price || 0;
                 const currentValue = Math.round(s.shares * currentPrice); 
-                const ratio = displayTotal > 0 ? (currentValue / displayTotal) * 100 : 0;
+                const ratio = metrics.displayTotal > 0 ? (currentValue / metrics.displayTotal) * 100 : 0;
                 
-                // MCE: 名稱處理，名稱為主，代號及 Beta 移至右側
-                const nameDisplay = s.name || s.symbol || 'Unknown';
-                const symbolDisplay = s.symbol ? `${s.symbol}.TW` : '';
-                
+                const symbolFormat = s.symbol ? `${s.symbol}.TW` : (s.name || 'Unknown');
                 const isExcluded = (parseFloat(s.targetWeight) || 0) <= 0;
                 const opacityClass = isExcluded ? 'opacity-40 grayscale pointer-events-none' : '';
 
@@ -1329,7 +1512,6 @@
                     dailyChangeHTML = `<span class="text-[14px] sm:text-[15px] font-black text-slate-300 tracking-tight">--</span>`;
                 }
                 
-                // 完全依照截圖的精美卡片結構
                 return `
                 <div class="glass-card p-4 transition-all hover:border-slate-300 relative overflow-hidden ${opacityClass}">
                     ${isExcluded ? '<div class="absolute inset-0 z-10 flex items-center justify-center bg-white/40 backdrop-blur-[1px]"><span class="bg-slate-800 text-white px-3 py-1.5 rounded-lg font-bold text-sm shadow-md transform -rotate-12">不參與平衡</span></div>' : ''}
@@ -1337,7 +1519,7 @@
                     <div class="flex justify-between items-center mb-3 pb-3 border-b border-slate-100">
                         <div class="flex items-center gap-2">
                             <span class="bg-slate-200 text-slate-700 text-xs px-2 py-1 rounded-md font-black shrink-0 shadow-inner">${Math.round(ratio)}%</span>
-                            <div class="font-bold text-slate-900 text-base tracking-wide">${nameDisplay} <span class="text-slate-400 text-xs font-medium ml-1">${symbolDisplay} β=${s.beta || 1}</span></div>
+                            <div class="font-bold text-slate-900 text-base tracking-wide">${symbolFormat} <span class="text-slate-400 text-xs font-medium ml-1">β=${s.beta || 1}</span></div>
                         </div>
                         <div class="flex items-center gap-1.5 shrink-0 relative z-20">
                             <button onclick="openEditModal(${index})" class="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-1.5 rounded-full transition-colors" title="編輯參數">
@@ -1373,14 +1555,13 @@
                 </div>`;
             }).join('');
 
-            renderChart(totalDisplayStockValue, state.cash);
+            renderChart(metrics.totalDisplayStockValue, state.cash);
 
-            // ================= 再平衡計算邏輯 =================
-            const activeStockRatio = activeTotal > 0 ? (activeStockValue / activeTotal) * 100 : 0;
-            const activeCashRatio = activeTotal > 0 ? (state.cash / activeTotal) * 100 : 0;
+            const activeStockRatio = metrics.activeTotal > 0 ? (metrics.activeStockValue / metrics.activeTotal) * 100 : 0;
+            const activeCashRatio = metrics.activeTotal > 0 ? (state.cash / metrics.activeTotal) * 100 : 0;
 
-            const targetStockPoolValue = activeTotal * (state.targetStockRatio / 100);
-            const targetCashValue = activeTotal * ((100 - state.targetStockRatio) / 100);
+            const targetStockPoolValue = metrics.activeTotal * (state.targetStockRatio / 100);
+            const targetCashValue = metrics.activeTotal * ((100 - state.targetStockRatio) / 100);
             
             const isDeviated = Math.abs(activeStockRatio - state.targetStockRatio) > state.deviation;
             const warnEl = document.getElementById('rebalance-warning');
@@ -1394,11 +1575,11 @@
             let actionsHTML = '';
 
             if (state.stocks.length > 0) {
-                if (totalTargetWeight <= 0 && state.targetStockRatio > 0) {
+                if (metrics.totalTargetWeight <= 0 && state.targetStockRatio > 0) {
                     actionsHTML += `<div class="bg-red-50 text-red-500 p-5 rounded-xl border border-red-100 font-bold text-sm text-center shadow-sm">⚠ 請至「目標配置」頁面，至少設定一檔股票的比重 > 0 以進行再平衡。</div>`;
                 } else {
-                    const useGlobalEqually = (state.rebalanceMode === 'global' && activeStockValue > 0);
-                    const globalDiffStock = targetStockPoolValue - activeStockValue;
+                    const useGlobalEqually = (state.rebalanceMode === 'global' && metrics.activeStockValue > 0);
+                    const globalDiffStock = targetStockPoolValue - metrics.activeStockValue;
 
                     let totalStockDiff = 0;
                     let subItemsHTML = '';
@@ -1411,17 +1592,14 @@
                         const currentValue = Math.round(s.shares * currentPrice); 
                         
                         let diffStock = 0;
-                        let targetInternalRatio = 0;
-
+                        
                         if (useGlobalEqually) {
-                            const currentProportion = currentValue / activeStockValue;
+                            const currentProportion = currentValue / metrics.activeStockValue;
                             diffStock = globalDiffStock * currentProportion;
-                            targetInternalRatio = currentProportion * 100;
                         } else {
-                            const normalizedRatio = weight / totalTargetWeight;
+                            const normalizedRatio = weight / metrics.totalTargetWeight;
                             const individualTargetValue = targetStockPoolValue * normalizedRatio;
                             diffStock = individualTargetValue - currentValue;
-                            targetInternalRatio = normalizedRatio * 100;
                         }
                         
                         totalStockDiff += diffStock;
@@ -1432,7 +1610,6 @@
                         const actionColorClass = isBuy ? 'text-slate-800' : 'text-[#EF4444]'; 
                         const nameDisplay = s.symbol || formatStockName(s);
 
-                        // 內部配方細項樣式 (對齊截圖風格)
                         subItemsHTML += `
                         <div class="flex justify-between items-center py-2.5 border-b border-slate-100 last:border-0 px-1">
                             <div class="font-semibold text-slate-600 text-sm truncate max-w-[50%]">${nameDisplay}</div>
@@ -1447,11 +1624,9 @@
                         const isAggregateBuy = totalStockDiff >= 0;
                         const aggregateType = isAggregateBuy ? 'BUY 組合加碼' : 'SELL 組合減碼';
                         const aggregateIcon = isAggregateBuy ? '▲' : '▼';
-                        // 依照截圖，賣出是紅色大區塊
                         const aggregateColorClass = isAggregateBuy ? 'bg-[#22C55E] text-white' : 'bg-[#EF4444] text-white';
                         const rebalanceModeStr = state.rebalanceMode === 'global' ? '等比組合配方' : '精確獨立配方';
 
-                        // 完全複製截圖中的股票部位總結區塊
                         actionsHTML += `
                         <div class="glass-card p-5 mb-4 relative overflow-hidden">
                             <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
@@ -1463,7 +1638,7 @@
                             </div>
                             
                             <div class="flex items-center gap-3 mb-6 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <span class="text-sm font-semibold text-slate-500">現值: <span class="text-slate-900 font-black">NT$${fmt(activeStockValue)}</span></span>
+                                <span class="text-sm font-semibold text-slate-500">現值: <span class="text-slate-900 font-black">NT$${fmt(metrics.activeStockValue)}</span></span>
                                 <span class="text-slate-300 font-black">➔</span>
                                 <span class="text-sm font-semibold text-slate-500">目標: <span class="text-blue-600 font-black">NT$${fmt(targetStockPoolValue)}</span></span>
                             </div>
@@ -1485,14 +1660,12 @@
                 }
             }
 
-            // 現金差額區塊
             const diffCash = targetCashValue - state.cash;
             const isCashBuy = diffCash >= 0;
             const cashActionType = isCashBuy ? '加碼現金' : '挪出現金';
             const cashActionIcon = isCashBuy ? '▲' : '▼';
             const cashActionColorClass = isCashBuy ? 'bg-[#3B82F6] text-white' : 'bg-slate-800 text-white';
             
-            // MCE: 為現金區塊補上現值與目標 UI
             actionsHTML += `
             <div class="glass-card p-5 relative overflow-hidden">
                 <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
@@ -1516,18 +1689,15 @@
             </div>`;
             
             actionList.innerHTML = actionsHTML;
-
-            // MCE: 更新快速選擇下拉選單
             if (typeof populateQuickSelect === 'function') populateQuickSelect();
         }
 
         function renderChart(stockVal, cashVal) {
             const ctx = document.getElementById('assetChart').getContext('2d');
             
-            // 如果兩者皆為 0，給予微小假數據以畫出空心灰環
             const dStock = (stockVal === 0 && cashVal === 0) ? 0 : stockVal;
             const dCash = (stockVal === 0 && cashVal === 0) ? 1 : cashVal;
-            const colors = (stockVal === 0 && cashVal === 0) ? ['#F1F5F9', '#F1F5F9'] : ['#0F172A', '#84CC16']; // 黑 / 亮綠 (依照截圖)
+            const colors = (stockVal === 0 && cashVal === 0) ? ['#F1F5F9', '#F1F5F9'] : ['#0F172A', '#84CC16']; 
 
             if (assetChart) {
                 assetChart.data.datasets[0].data = [dCash, dStock];
@@ -1547,17 +1717,11 @@
                     }]
                 },
                 options: {
-                    cutout: '72%', // 粗細依照截圖調整
+                    cutout: '72%',
                     responsive: true,
                     maintainAspectRatio: false,
-                    animation: {
-                        animateScale: true,
-                        animateRotate: true
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: { enabled: false }
-                    }
+                    animation: { animateScale: true, animateRotate: true },
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } }
                 }
             });
         }
@@ -1647,14 +1811,17 @@
                             }
                             existing.shares = totalShares;
                         } else {
-                            newStock.targetWeight = isETFOrLeveraged(symbol, name) ? 1 : 0;
+                            let isEtf = isETFOrLeveraged(symbol, name);
+                            newStock.targetWeight = isEtf ? 1 : 0;
+                            newStock.isLocked = !isEtf;
                             state.stocks.push(newStock);
                         }
                         processCount++;
                     }
                 }
                 
-                localStorage.setItem('mce_stocks', JSON.stringify(state.stocks));
+                balanceWeights(); // 匯入後自動執行連動分配
+                saveState();
                 renderTargetStockWeights();
                 showToast(`成功處理匯入 ${processCount} 檔股票`);
                 await fetchLatestPrices();
