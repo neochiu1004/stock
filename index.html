@@ -1021,7 +1021,7 @@
         function toggleLock(index) {
             let stock = state.stocks[index];
             stock.isLocked = !stock.isLocked;
-            balanceWeights();
+            // balanceWeights(); // <--- 加上雙斜線註解，或直接刪除
             saveState();
             renderTargetStockWeights();
             updateAllData();
