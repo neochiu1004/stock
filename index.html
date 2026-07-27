@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -440,7 +441,7 @@
                 <p class="text-[11px] font-medium text-slate-500 mb-4 bg-slate-50 p-2 rounded-lg leading-relaxed">
                     請上傳券商「未實現損益」匯出之 CSV 檔。<br>
                     <span class="text-amber-600 font-bold">自動疊加機制：</span>若已有相同股票，將自動合併股數並計算加權平均成本。<br>
-                    <span class="text-blue-600 font-bold">自動歸類：</span>普通個股預設排除再平衡(鎖定0%)；ETF預設納入自動均分。
+                    <span class="text-blue-600 font-bold">自動歸類：</span>普通個股預設排除再平衡(權重0)；ETF預設納入自動均分。
                 </p>
                 <div class="relative overflow-hidden inline-block w-full">
                     <button class="w-full bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-xl inline-flex items-center justify-center gap-2 transition-colors">
@@ -517,7 +518,7 @@
             </div>
             
             <div class="text-[10px] font-semibold text-slate-300 text-center mt-8 pb-4 space-y-1">
-                <p>Minimal Change Engineer (MCE) Build v7.0 - Auto Balancing Sliders</p>
+                <p>Minimal Change Engineer (MCE) Build v8.0 - Real-time Estimator</p>
                 <p>Data stored completely offline via LocalStorage.</p>
             </div>
         </section>
@@ -573,7 +574,7 @@
         // --- JSON 備份與還原邏輯 ---
         function exportBackup() {
             const data = {
-                version: "7.0",
+                version: "8.0",
                 exportAt: new Date().toISOString(),
                 ...state
             };
@@ -891,7 +892,7 @@
             const stockName = formatStockName(state.stocks[index]);
             showConfirm(`<span class="font-bold text-slate-900">${stockName}</span><br>確定要從清單中移除此檔股票嗎？`, () => {
                 state.stocks.splice(index, 1);
-                balanceWeights(); // 移除後自動重新均分
+                balanceWeights(); 
                 saveState();
                 renderTargetStockWeights();
                 updateAllData();
@@ -920,7 +921,6 @@
         let assetChart = null;
         const fmtPct = (num) => (num % 1 === 0 ? num : num.toFixed(1));
 
-        // MCE: 自動補償與均分演算法
         function balanceWeights() {
             let lockedSum = state.stocks.filter(s => s.isLocked).reduce((sum, s) => sum + parseFloat(s.targetWeight || 0), 0);
             let remainder = Math.max(0, 100 - lockedSum);
@@ -932,33 +932,33 @@
             }
         }
 
-        // MCE: 處理拖曳拉桿 (UI 即時防抖與鎖定)
         function handleSliderDrag(index, val) {
             let stock = state.stocks[index];
-            stock.isLocked = true; // 拖曳動作即代表手動指定
+            stock.isLocked = true; 
 
             let numVal = parseFloat(val) || 0;
             let otherLockedSum = state.stocks.reduce((sum, s, i) => (s.isLocked && i !== index) ? sum + parseFloat(s.targetWeight || 0) : sum, 0);
 
-            // 防護：不可超過剩餘額度
             let allowedVal = Math.min(numVal, 100 - otherLockedSum);
             allowedVal = Math.max(0, allowedVal); 
             stock.targetWeight = allowedVal;
 
             balanceWeights();
-            syncWeightUI(); // 僅更新文字與屬性，不破壞 DOM 避免脫手
+            syncWeightUI(); 
         }
 
-        // MCE: 拖曳放開後正式重構與儲存
         function handleSliderRelease() {
             saveState();
-            renderTargetStockWeights(); // 重繪 DOM 以搬移卡片至已鎖定區塊
+            renderTargetStockWeights(); 
             updateAllData();
         }
 
-        // MCE: UI 同步函式
+        // MCE: 更新 UI 並執行即時金額試算
         function syncWeightUI() {
             let lockedSum = 0;
+            const metrics = calculatePortfolioState();
+            const targetStockPoolValue = metrics.activeTotal * (state.targetStockRatio / 100);
+
             state.stocks.forEach((s, i) => {
                 const slider = document.getElementById(`weight-slider-${i}`);
                 const txt = document.getElementById(`weight-text-${i}`);
@@ -967,6 +967,49 @@
                     txt.innerText = fmtPct(s.targetWeight) + '%';
                 }
                 if (s.isLocked) lockedSum += parseFloat(s.targetWeight || 0);
+
+                // 即時試算更新邏輯
+                const price = s.price || s.costPrice || 0;
+                const targetValue = targetStockPoolValue * ((parseFloat(s.targetWeight) || 0) / 100);
+                const currentValue = s.shares * price;
+                const diffValue = targetValue - currentValue;
+
+                const tSharesEl = document.getElementById(`target-shares-${i}`);
+                const tValEl = document.getElementById(`target-val-${i}`);
+                const dContainerEl = document.getElementById(`diff-container-${i}`);
+                const dActionEl = document.getElementById(`diff-action-${i}`);
+                const dSharesEl = document.getElementById(`diff-shares-${i}`);
+                const dValEl = document.getElementById(`diff-val-${i}`);
+
+                if (tSharesEl && tValEl && dContainerEl) {
+                    if (price <= 0) {
+                        tSharesEl.innerText = "--";
+                        tValEl.innerText = "無報價";
+                        dActionEl.innerText = "無法試算";
+                        dSharesEl.innerText = "--";
+                        dValEl.innerText = "--";
+                        dContainerEl.className = "text-[11px] font-medium text-slate-400";
+                    } else {
+                        const targetShares = targetValue / price;
+                        const diffShares = diffValue / price;
+
+                        tSharesEl.innerText = fmt(targetShares);
+                        tValEl.innerText = "$" + fmt(targetValue);
+
+                        const isBuy = diffValue >= 0;
+                        dActionEl.innerText = isBuy ? "還需買進" : "還需賣出";
+                        
+                        const diffShareStr = (isBuy ? "+" : "-") + fmt(Math.abs(diffShares));
+                        const diffValStr = (isBuy ? "+$" : "-$") + fmt(Math.abs(diffValue));
+
+                        dSharesEl.innerText = diffShareStr;
+                        dValEl.innerText = diffValStr;
+
+                        dContainerEl.className = isBuy 
+                            ? "text-[11px] font-medium text-[#22C55E]" 
+                            : "text-[11px] font-medium text-[#EF4444]";
+                    }
+                }
             });
 
             const sumTxt = document.getElementById('locked-sum-text');
@@ -976,7 +1019,6 @@
             if (remainTxt) remainTxt.innerText = fmtPct(Math.max(0, 100 - lockedSum));
         }
 
-        // MCE: 切換鎖定/自動狀態
         function toggleLock(index) {
             let stock = state.stocks[index];
             stock.isLocked = !stock.isLocked;
@@ -1005,17 +1047,15 @@
             document.getElementById('settings-cash-mode-toggle').checked = false;
             toggleCashMode('settings'); 
             
-            // 資料相容性修復與轉移
             state.stocks.forEach(s => {
                 if (s.targetWeight === undefined) {
                     s.targetWeight = isETFOrLeveraged(s.symbol, s.name) ? 1 : 0;
                 }
                 if (s.isLocked === undefined) {
-                    // 若原本的權重為 0，則直接歸入已指定 (鎖定)，不參與均分
                     s.isLocked = (s.targetWeight === 0);
                 }
             });
-            balanceWeights(); // 開局初始化確保權重正確均分為 100% 內
+            balanceWeights(); 
 
             initUI();
             setupEventListeners();
@@ -1080,7 +1120,7 @@
             document.getElementById('target-cash-slider').value = 100 - state.targetStockRatio;
         }
 
-        // MCE: 全新雙分區卡片渲染邏輯
+        // MCE: 全局嵌入即時金額試算 DOM
         function renderTargetStockWeights() {
             const container = document.getElementById('target-stock-weights-container');
             if (state.stocks.length === 0) {
@@ -1108,6 +1148,14 @@
                                class="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900">
                         <span id="weight-text-${idx}" class="text-sm font-black ${s.isLocked ? 'text-blue-600' : 'text-slate-600'} w-12 text-right">${fmtPct(s.targetWeight)}%</span>
                     </div>
+                    <div class="mt-2 pt-2 border-t border-slate-100/60 flex flex-col gap-1">
+                        <div class="text-[11px] text-slate-500 font-medium">
+                            📊 調整後: <span id="target-shares-${idx}" class="font-bold text-slate-700">--</span> 股 (<span id="target-val-${idx}" class="font-bold text-slate-700">--</span>)
+                        </div>
+                        <div class="text-[11px] font-medium text-slate-400" id="diff-container-${idx}">
+                            💡 <span id="diff-action-${idx}">異動</span>: <span id="diff-shares-${idx}" class="font-bold">--</span> 股 (<span id="diff-val-${idx}" class="font-bold">--</span>)
+                        </div>
+                    </div>
                 </div>`;
 
                 if (s.isLocked) lockedStocks.push(html);
@@ -1133,6 +1181,9 @@
                     <div>${autoStocks.length > 0 ? autoStocks.join('') : '<div class="text-[11px] text-slate-400 font-semibold text-center py-4 bg-slate-50/50">項目已全部鎖定指定</div>'}</div>
                 </div>
             `;
+            
+            // 每次渲染完畢後，自動填充一次數值
+            syncWeightUI();
         }
 
         function saveApiKey() {
@@ -1187,12 +1238,12 @@
                 if (newStock.targetWeight === undefined) {
                     let isEtf = isETFOrLeveraged(newStock.symbol, newStock.name);
                     newStock.targetWeight = isEtf ? 1 : 0;
-                    newStock.isLocked = !isEtf; // 非 ETF 預設排除 (權重0並鎖定)
+                    newStock.isLocked = !isEtf; 
                 }
                 state.stocks.push(newStock);
             }
 
-            balanceWeights(); // 新增後重新平衡均分
+            balanceWeights(); 
             saveState();
             renderTargetStockWeights();
             updateAllData();
@@ -1689,7 +1740,6 @@
             </div>`;
             
             actionList.innerHTML = actionsHTML;
-            if (typeof populateQuickSelect === 'function') populateQuickSelect();
         }
 
         function renderChart(stockVal, cashVal) {
@@ -1820,7 +1870,7 @@
                     }
                 }
                 
-                balanceWeights(); // 匯入後自動執行連動分配
+                balanceWeights(); 
                 saveState();
                 renderTargetStockWeights();
                 showToast(`成功處理匯入 ${processCount} 檔股票`);
@@ -1847,3 +1897,5 @@
     </script>
 </body>
 </html>
+
+
