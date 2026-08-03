@@ -1785,11 +1785,25 @@
                         let maxDate = '';
                         let minDate = '';
 
-                        // 快速過濾一年內最高最低
-                        resData.data.forEach(day => {
+                        /// 改為逆向遍歷，尋找分割或減資斷層 (Drop >= 50%)
+                        for (let j = resData.data.length - 1; j >= 0; j--) {
+                            const day = resData.data[j];
+                            
+                            // 更新當前有效區間的最高/最低
                             if (day.max > maxPrice) { maxPrice = day.max; maxDate = day.date; }
                             if (day.min < minPrice) { minPrice = day.min; minDate = day.date; }
-                        });
+
+                            // 檢查與前一個交易日(較舊日期)的收盤價落差
+                            if (j > 0) {
+                                const prevDay = resData.data[j - 1];
+                                const priceDiffRatio = Math.abs(prevDay.close - day.close) / prevDay.close;
+                                
+                                // 若單日價格落差超過 50%，判定為分割/減資，停止往回追溯
+                                if (priceDiffRatio >= 0.5) {
+                                    break;
+                                }
+                            }
+                        }
 
                         if (maxPrice !== -Infinity && minPrice !== Infinity) {
                             stock.highPrice = maxPrice;
