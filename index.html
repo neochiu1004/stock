@@ -386,7 +386,13 @@
 
         <!-- ================= [View: 市場水位] ================= -->
         <section id="view-waterlevel" class="view-section hidden transition-opacity duration-300">
-            <h1 class="text-2xl font-black mb-6 text-center text-slate-900 sticky top-0 z-30 bg-[#F8FAFC]/95 backdrop-blur-md py-3 -mx-4 sm:-mx-6">市場水位與黃金標尺</h1>
+            <div class="sticky top-0 z-30 bg-[#F8FAFC]/95 backdrop-blur-md py-3 -mx-4 px-4 sm:-mx-6 sm:px-6 mb-6 flex justify-between items-center">
+                <h1 class="text-2xl font-black text-slate-900 m-0">市場水位與黃金標尺</h1>
+                <button id="btn-fetch-finmind" onclick="fetchFinmindHighLow()" class="text-[11px] font-bold text-white bg-slate-900 hover:bg-slate-800 px-3 py-1.5 rounded-lg shadow-md transition-all active:scale-95 flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    抓取1年高低
+                </button>
+            </div>
             
             <div id="waterlevel-list" class="space-y-4">
                 <!-- 動態生成黃金水位標尺 -->
@@ -485,6 +491,22 @@
                     </button>
                 </form>
             </div>
+            <!-- 👇 [從這裡開始貼上：純淨版的兩張 API 卡片] 👇 -->
+            <div class="glass-card p-5 mb-6 border-t-4 border-t-amber-500">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="p-1.5 bg-amber-100 text-amber-600 rounded-lg">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        </div>
+                        <h2 class="font-bold text-slate-800">FinMind API Token</h2>
+                    </div>
+                    <span class="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded">用於抓取高低點</span>
+                </div>
+                <div class="flex gap-2">
+                    <input type="password" id="finmind-token-input" placeholder="貼上您的 FinMind Token" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-amber-100">
+                    <button onclick="saveFinmindToken()" class="bg-slate-900 hover:bg-slate-800 text-white rounded-xl px-5 font-bold transition-all shadow-sm active:scale-95">儲存</button>
+                </div>
+            </div>
 
             <div class="glass-card p-5 mb-8 border-t-4 border-t-purple-500">
                 <div class="flex items-center justify-between mb-3">
@@ -549,6 +571,7 @@
             stocks: JSON.parse(localStorage.getItem('mce_stocks')) || [],
             apiKey: localStorage.getItem('mce_apikey') || '',
             geminiApiKey: localStorage.getItem('mce_gemini_apikey') || '',
+            finmindToken: localStorage.getItem('mce_finmind_token') || '', // [新增這行]
             rebalanceMode: localStorage.getItem('mce_rebalance_mode') || 'global'
         };
 
@@ -559,6 +582,7 @@
             localStorage.setItem('mce_rebalance_mode', state.rebalanceMode);
             localStorage.setItem('mce_apikey', state.apiKey);
             localStorage.setItem('mce_gemini_apikey', state.geminiApiKey);
+            localStorage.setItem('mce_finmind_token', state.finmindToken); // [新增這行]
             localStorage.setItem('mce_stocks', JSON.stringify(state.stocks));
         }
 
@@ -1201,12 +1225,19 @@
             document.getElementById('deviation-input').value = state.deviation;
             document.getElementById('deviation-text').innerText = state.deviation;
             document.getElementById('api-key-input').value = state.apiKey;
+            
+            // [新增這一行]
+            if (document.getElementById('finmind-token-input')) {
+                document.getElementById('finmind-token-input').value = state.finmindToken || '';
+            }
+
             document.getElementById('rebalance-mode-select').value = state.rebalanceMode;
             
             updateTargetUI();
             renderTargetStockWeights();
         }
-
+        
+         
         function init() {
             state.stocks.forEach(s => {
                 if (s.targetWeight === undefined) {
@@ -1404,8 +1435,23 @@
                         distStr = `(${sign}${dist.toFixed(2)}%)`;
                     }
 
-                    // 日期格式化移除年份，僅顯示 MM/DD
-                    let dateStr = p.date ? ` ${p.date.substring(5).replace('-', '/')}` : '';
+                    // 日期格式化：保留年份並計算距離今天多久
+                    let dateStr = '';
+                    if (p.date) {
+                        const pDate = new Date(p.date);
+                        const today = new Date();
+                        pDate.setHours(0,0,0,0);
+                        today.setHours(0,0,0,0);
+                        const diffDays = Math.floor((today - pDate) / (1000 * 60 * 60 * 24));
+                        
+                        let agoStr = '';
+                        if (diffDays === 0) agoStr = '今天';
+                        else if (diffDays < 30) agoStr = `${diffDays}天前`;
+                        else if (diffDays < 365) agoStr = `${Math.floor(diffDays/30)}個月前`;
+                        else agoStr = `${Math.floor(diffDays/365)}年前`;
+
+                        dateStr = ` ${p.date.replace(/-/g, '/')} <span class="text-[10px] text-slate-400 font-normal ml-0.5">(${agoStr})</span>`;
+                    }
 
                     if (p.type === 'current') {
                         return `<div class="font-black text-slate-900 py-1.5 text-[14.5px] flex items-center gap-1.5">
@@ -1457,6 +1503,12 @@
             state.geminiApiKey = document.getElementById('gemini-api-key-input').value.trim();
             saveState();
             showToast('Gemini API Key 已儲存');
+        }
+
+        function saveFinmindToken() {
+            state.finmindToken = document.getElementById('finmind-token-input').value.trim();
+            saveState();
+            showToast('FinMind Token 已儲存並套用');
         }
 
         function populateQuickSelect() {
@@ -1690,6 +1742,80 @@
                 chartCenter.classList.remove('animate-pulse');
                 showToast('報價與損益狀態已刷新');
             }, 500);
+        }
+ 
+        // [新增函數] 自動抓取 365 天內高低點
+        async function fetchFinmindHighLow() {
+            if (!state.finmindToken) {
+                showToast('請先至設定頁輸入 FinMind Token');
+                switchTab('settings');
+                return;
+            }
+            if (state.stocks.length === 0) {
+                showToast('目前無持股資料');
+                return;
+            }
+
+            const btn = document.getElementById('btn-fetch-finmind');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = `<svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 依序抓取中...`;
+            btn.classList.add('opacity-70', 'pointer-events-none');
+
+            let updatedCount = 0;
+            const today = new Date();
+            const lastYear = new Date(today);
+            lastYear.setDate(today.getDate() - 365);
+            const startDateStr = lastYear.toISOString().split('T')[0];
+
+            try {
+                // 使用 for...of 以免並行併發被 API 阻擋 (Rate Limit 防護)
+                for (let i = 0; i < state.stocks.length; i++) {
+                    const stock = state.stocks[i];
+                    if (!stock.symbol) continue;
+
+                    const url = `https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${stock.symbol}&start_date=${startDateStr}&token=${state.finmindToken}`;
+                    
+                    const response = await fetch(url);
+                    if (!response.ok) continue;
+
+                    const resData = await response.json();
+                    if (resData.msg === "success" && resData.data && resData.data.length > 0) {
+                        let maxPrice = -Infinity;
+                        let minPrice = Infinity;
+                        let maxDate = '';
+                        let minDate = '';
+
+                        // 快速過濾一年內最高最低
+                        resData.data.forEach(day => {
+                            if (day.max > maxPrice) { maxPrice = day.max; maxDate = day.date; }
+                            if (day.min < minPrice) { minPrice = day.min; minDate = day.date; }
+                        });
+
+                        if (maxPrice !== -Infinity && minPrice !== Infinity) {
+                            stock.highPrice = maxPrice;
+                            stock.highDate = maxDate;
+                            stock.lowPrice = minPrice;
+                            stock.lowDate = minDate;
+                            updatedCount++;
+                        }
+                    }
+                }
+
+                if (updatedCount > 0) {
+                    saveState();
+                    renderWaterLevel(); // 刷新水位畫面
+                    showToast(`成功更新 ${updatedCount} 檔股票的高低點`);
+                } else {
+                    showToast('未取得任何新資料');
+                }
+            } catch (err) {
+                console.error("FinMind Fetch Error:", err);
+                showToast('API 呼叫失敗，請檢查網路或 Token 額度');
+            } finally {
+                // 恢復按鈕狀態
+                btn.innerHTML = originalHTML;
+                btn.classList.remove('opacity-70', 'pointer-events-none');
+            }
         }
 
         function calculatePortfolioState() {
@@ -2190,5 +2316,5 @@
             }
         };
     </script>
-</body
-<
+</body>
+</html>
