@@ -169,43 +169,51 @@
         </div>
     </div>
 
-    <!-- 編輯現金彈窗 (含小算盤) -->
-    <div id="cash-edit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[60] hidden opacity-0 transition-opacity duration-200">
-        <div class="bg-white p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4 transform scale-95 transition-transform duration-200" id="cash-edit-modal-content">
-            <div class="flex justify-between items-center mb-5">
-                <h2 class="font-bold text-xl text-slate-800">編輯現金餘額</h2>
-                <button onclick="closeCashEditModal()" class="text-slate-400 hover:text-slate-600 p-1 bg-slate-50 rounded-full"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+    <!-- ================= [新增] 交易紀錄與新增彈窗 ================= -->
+    <div id="transaction-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[60] hidden opacity-0 transition-opacity duration-200">
+        <div class="bg-white p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4 transform scale-95 transition-transform duration-200 flex flex-col max-h-[85vh]" id="transaction-modal-content">
+            <div class="flex justify-between items-center mb-4 shrink-0">
+                <div>
+                    <h2 class="font-bold text-xl text-slate-800 flex items-center gap-2">
+                        📝 交易紀錄
+                        <span id="trans-stock-name" class="text-[11px] font-black bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md border border-slate-200"></span>
+                    </h2>
+                </div>
+                <button onclick="closeTransactionModal()" class="text-slate-400 hover:text-slate-600 p-1 bg-slate-50 rounded-full transition-colors active:scale-95"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
             </div>
-            <form id="edit-cash-form" onsubmit="saveEditCash(event)" class="space-y-4">
-                <!-- 模式切換開關 -->
-                <div class="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100 mb-2">
-                    <span class="text-sm font-bold text-slate-700" id="modal-cash-mode-text">模式：直接覆蓋</span>
-                    <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
-                        <input type="checkbox" name="toggle" id="modal-cash-mode-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 transition-transform duration-200 ease-in-out" onclick="toggleCashMode('modal')" />
-                        <label for="modal-cash-mode-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer transition-colors duration-200 ease-in-out"></label>
+
+            <!-- 歷史紀錄列表區塊 (可捲動) -->
+            <div id="transaction-list-container" class="flex-1 overflow-y-auto mb-4 space-y-2 pr-1 border-t border-b border-slate-50 py-2">
+                <!-- JS 動態注入歷史交易 -->
+            </div>
+
+            <!-- 新增交易表單區塊 -->
+            <form id="add-transaction-form" onsubmit="submitTransaction(event)" class="shrink-0 mt-auto">
+                <div class="flex bg-slate-100 p-1 rounded-lg mb-3">
+                    <button type="button" id="btn-type-buy" onclick="setTransType('buy')" class="flex-1 py-1.5 text-sm font-bold rounded-md bg-white text-green-600 shadow-sm transition-all">買入 (Buy)</button>
+                    <button type="button" id="btn-type-sell" onclick="setTransType('sell')" class="flex-1 py-1.5 text-sm font-bold rounded-md text-slate-500 hover:text-slate-700 transition-all">賣出 (Sell)</button>
+                </div>
+                <input type="hidden" id="trans-type" value="buy">
+
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 mb-1">成交日期</label>
+                        <input type="date" id="trans-date" required class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 font-semibold text-sm focus:outline-none focus:border-blue-500">
                     </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 mb-1">成交單價</label>
+                        <input type="number" id="trans-price" step="any" min="0" required class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 font-bold text-sm focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+                <div class="mb-4 relative">
+                    <label class="block text-[10px] font-bold text-slate-500 mb-1">成交股數 <span class="text-slate-400 font-medium ml-1">(系統自動計算28折手續費)</span></label>
+                    <input type="number" id="trans-shares" step="1" min="1" required class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 font-bold text-sm focus:outline-none focus:border-blue-500">
                 </div>
                 
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">輸入金額 <span class="text-slate-400 font-normal normal-case float-right">原餘額: <span id="modal-original-cash" class="font-bold text-slate-600">0</span></span></label>
-                    <div class="relative">
-                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-                        <input type="text" inputmode="decimal" id="edit-cash-val" required class="w-full border border-slate-200 rounded-xl py-3 pl-8 pr-4 font-black text-2xl text-slate-800 tracking-wider focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-slate-50" placeholder="0">
-                    </div>
-                </div>
-                <div class="grid grid-cols-5 gap-2 mt-2">
-                    <button type="button" onclick="appendCashInput('+')" class="bg-slate-100 hover:bg-slate-200 active:bg-slate-300 py-3 rounded-xl font-black text-xl text-slate-700 transition-colors shadow-sm">+</button>
-                    <button type="button" onclick="appendCashInput('-')" class="bg-slate-100 hover:bg-slate-200 active:bg-slate-300 py-3 rounded-xl font-black text-xl text-slate-700 transition-colors shadow-sm">-</button>
-                    <button type="button" onclick="appendCashInput('*')" class="bg-slate-100 hover:bg-slate-200 active:bg-slate-300 py-3 rounded-xl font-black text-xl text-slate-700 transition-colors shadow-sm">×</button>
-                    <button type="button" onclick="appendCashInput('/')" class="bg-slate-100 hover:bg-slate-200 active:bg-slate-300 py-3 rounded-xl font-black text-xl text-slate-700 transition-colors shadow-sm">÷</button>
-                    <button type="button" onclick="calculatePreview('modal')" class="bg-blue-100 hover:bg-blue-200 active:bg-blue-300 py-3 rounded-xl font-black text-xl text-blue-700 transition-colors shadow-sm">=</button>
-                </div>
-                <div class="mt-6 pt-5 border-t border-slate-100">
-                    <button type="submit" class="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-base transition-colors shadow-md flex justify-center items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        確認儲存
-                    </button>
-                </div>
+                <button type="submit" class="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-sm transition-colors shadow-md flex justify-center items-center gap-2 active:scale-[0.98]">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    寫入交易簿
+                </button>
             </form>
         </div>
     </div>
@@ -857,6 +865,200 @@
             }
         }
 
+
+        // --- MCE: 交易紀錄與成本精算引擎 ---
+        let currentTransStockIndex = -1;
+
+        function openTransactionModal(index) {
+            currentTransStockIndex = index;
+            const stock = state.stocks[index];
+            if (!stock.transactions) stock.transactions = [];
+
+            document.getElementById('trans-stock-name').innerText = formatStockName(stock);
+            
+            // 預設表單值
+            document.getElementById('trans-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('trans-price').value = stock.price || stock.costPrice || '';
+            document.getElementById('trans-shares').value = '';
+            setTransType('buy');
+
+            renderTransactionList(index);
+
+            const modal = document.getElementById('transaction-modal');
+            const content = document.getElementById('transaction-modal-content');
+            modal.classList.remove('hidden');
+            void modal.offsetWidth; 
+            modal.classList.remove('opacity-0');
+            content.classList.remove('scale-95');
+            content.classList.add('scale-100');
+        }
+
+        function closeTransactionModal() {
+            const modal = document.getElementById('transaction-modal');
+            const content = document.getElementById('transaction-modal-content');
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                currentTransStockIndex = -1;
+            }, 200);
+        }
+
+        function setTransType(type) {
+            document.getElementById('trans-type').value = type;
+            const btnBuy = document.getElementById('btn-type-buy');
+            const btnSell = document.getElementById('btn-type-sell');
+            
+            if (type === 'buy') {
+                btnBuy.className = 'flex-1 py-1.5 text-sm font-bold rounded-md bg-white text-green-600 shadow-sm transition-all';
+                btnSell.className = 'flex-1 py-1.5 text-sm font-bold rounded-md text-slate-500 hover:text-slate-700 transition-all';
+            } else {
+                btnSell.className = 'flex-1 py-1.5 text-sm font-bold rounded-md bg-white text-red-500 shadow-sm transition-all';
+                btnBuy.className = 'flex-1 py-1.5 text-sm font-bold rounded-md text-slate-500 hover:text-slate-700 transition-all';
+            }
+        }
+
+        function renderTransactionList(index) {
+            const stock = state.stocks[index];
+            const container = document.getElementById('transaction-list-container');
+            
+            if (!stock.transactions || stock.transactions.length === 0) {
+                container.innerHTML = '<div class="text-center text-xs font-semibold text-slate-400 py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">尚無交易紀錄</div>';
+                return;
+            }
+
+            // 依日期降冪排序 (最新的在最上面)
+            const sortedTrans = [...stock.transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            container.innerHTML = sortedTrans.map(t => {
+                const isBuy = t.type === 'buy';
+                const typeColor = isBuy ? 'text-green-600 bg-green-50 border-green-100' : 'text-red-500 bg-red-50 border-red-100';
+                const typeLabel = isBuy ? '買進' : '賣出';
+                const sign = isBuy ? '-' : '+';
+                const amountColor = isBuy ? 'text-slate-700' : 'text-blue-600';
+                
+                return `
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-[10px] font-black px-1.5 py-0.5 rounded border ${typeColor}">${typeLabel}</span>
+                            <span class="text-xs font-bold text-slate-700">${t.date}</span>
+                        </div>
+                        <div class="text-[11px] font-medium text-slate-500">
+                            ${fmt(t.shares)} 股 @ ${fmtPrice(t.price)}
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm font-black ${amountColor}">${sign}NT$${fmt(t.netAmount)}</div>
+                        <div class="text-[9px] font-semibold text-slate-400 mt-0.5">含手續費${t.fee} ${!isBuy ? `稅${t.tax}` : ''}</div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function submitTransaction(e) {
+            e.preventDefault();
+            if (currentTransStockIndex === -1) return;
+
+            const stock = state.stocks[currentTransStockIndex];
+            const type = document.getElementById('trans-type').value;
+            const date = document.getElementById('trans-date').value;
+            const price = parseFloat(document.getElementById('trans-price').value);
+            const shares = parseInt(document.getElementById('trans-shares').value, 10);
+
+            if (!date || isNaN(price) || isNaN(shares) || shares <= 0 || price < 0) {
+                showToast('請填寫正確的交易資訊');
+                return;
+            }
+
+            // 1. 計算真實費用
+            const baseAmount = price * shares;
+            // 手續費：0.1425% * 0.28 (最低 1 元)
+            const fee = Math.max(1, Math.round(baseAmount * 0.001425 * 0.28));
+            let tax = 0;
+            let netAmount = 0;
+
+            if (type === 'buy') {
+                netAmount = baseAmount + fee;
+                // 防呆：買入金額大於可用餘額
+                if (state.cash < netAmount) {
+                    showToast('交割帳戶現金不足以支付此筆交易');
+                    return;
+                }
+            } else {
+                // 賣出證交稅 千分之 3
+                tax = Math.round(baseAmount * 0.003);
+                netAmount = baseAmount - fee - tax;
+                if ((stock.shares || 0) < shares) {
+                    showToast('賣出股數不可大於現有持股');
+                    return;
+                }
+            }
+
+            // 2. 更新個股資料與現金連動
+            if (type === 'buy') {
+                state.cash -= netAmount;
+                const oldShares = stock.shares || 0;
+                const oldCostPrice = stock.costPrice !== undefined ? stock.costPrice : (stock.price || 0);
+                
+                let oldPaidCost = stock.paidCost;
+                if (oldPaidCost === undefined) {
+                    const oldBuyVal = Math.round(oldShares * oldCostPrice);
+                    oldPaidCost = oldBuyVal + Math.max(1, Math.round(oldBuyVal * 0.001425 * 0.28));
+                }
+
+                // 加權平均計算新成本單價
+                const newShares = oldShares + shares;
+                if (newShares > 0) {
+                    stock.costPrice = ((oldShares * oldCostPrice) + (shares * price)) / newShares;
+                }
+                stock.shares = newShares;
+                stock.paidCost = oldPaidCost + netAmount;
+
+            } else {
+                state.cash += netAmount;
+                const oldShares = stock.shares || 0;
+                const newShares = oldShares - shares;
+                
+                let oldPaidCost = stock.paidCost;
+                if (oldPaidCost === undefined) {
+                    const oldBuyVal = Math.round(oldShares * (stock.costPrice !== undefined ? stock.costPrice : (stock.price || 0)));
+                    oldPaidCost = oldBuyVal + Math.max(1, Math.round(oldBuyVal * 0.001425 * 0.28));
+                }
+
+                // 賣出不影響剩餘股數的平均成本單價，但會按比例縮減投入的總成本
+                if (newShares === 0) {
+                    stock.shares = 0;
+                    stock.paidCost = 0;
+                } else {
+                    stock.shares = newShares;
+                    stock.paidCost = oldPaidCost * (newShares / oldShares);
+                }
+            }
+
+            // 3. 紀錄寫入陣列
+            if (!stock.transactions) stock.transactions = [];
+            stock.transactions.push({
+                id: Date.now().toString(),
+                date,
+                type,
+                price,
+                shares,
+                fee,
+                tax,
+                netAmount
+            });
+
+            saveState();
+            updateAllData();
+            renderTransactionList(currentTransStockIndex);
+            
+            // 清空輸入框準備下一筆
+            document.getElementById('trans-shares').value = '';
+            showToast('交易已成功寫入帳本並更新成本');
+        }
+
         let editingIndex = -1;
         function openEditModal(index) {
             editingIndex = index;
@@ -1379,7 +1581,7 @@
             syncWeightUI();
         }
 
-        // --- MCE: 市場水位畫面渲染 (斐波那契黃金標尺重構) ---
+        // --- MCE: 市場水位畫面渲染 (三色進度條 + 斐波那契黃金標尺完全融合版) ---
         function renderWaterLevel() {
             const container = document.getElementById('waterlevel-list');
             if (state.stocks.length === 0) {
@@ -1392,41 +1594,62 @@
                 const currentPrice = s.price || s.costPrice || 0;
                 const costPrice = s.costPrice !== undefined ? s.costPrice : currentPrice;
 
-                // 若未設定完整的高低點，顯示防呆提示
-                if (!s.highPrice || s.highPrice <= 0 || !s.lowPrice || s.lowPrice <= 0 || s.highPrice <= s.lowPrice) {
+                // 若未設定高點，顯示防呆提示
+                if (!s.highPrice || s.highPrice <= 0) {
                     return `
-                    <div class="glass-card p-5 transition-all hover:border-slate-300 relative">
+                    <div class="glass-card p-5 transition-all hover:border-slate-300 relative mb-4">
                         <div class="flex justify-between items-center mb-2">
                             <div class="font-bold text-slate-800 text-lg">${nameDisplay}</div>
-                            <button onclick="openHighPointModal(${idx})" class="text-[11px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 shadow-sm active:scale-95">設定區間</button>
+                            <button onclick="openHighPointModal(${idx})" class="text-[11px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 shadow-sm active:scale-95">設定高點</button>
                         </div>
-                        <div class="text-xs font-semibold text-slate-400">請設定完整的「高點」與「低點」區間，即可自動計算斐波那契黃金分割標尺。</div>
+                        <div class="text-xs font-semibold text-slate-400">請設定或自動帶入「歷史高點」，即可解鎖市場水位分析。</div>
                     </div>`;
                 }
 
-                // 核心演算法：黃金分割點位推算與動態陣列排序
                 const hp = parseFloat(s.highPrice);
-                const lp = parseFloat(s.lowPrice);
-                const range = hp - lp;
+                const lp = s.lowPrice ? parseFloat(s.lowPrice) : 0;
                 
+                // 1. 計算三色軌道所需的水位偏離趴數
+                let dropPct = hp > 0 ? ((currentPrice - hp) / hp) * 100 : 0;
+                let zoneText = '正常區間';
+                let zoneColor = 'text-emerald-600';
+                let zoneBg = 'bg-emerald-50/80';
+
+                let clampedDrop = Math.max(-30, Math.min(0, dropPct));
+                let gaugeMarkerPos = (Math.abs(clampedDrop) / 30) * 100;
+
+                if (dropPct <= -20) {
+                    zoneText = '股災區間';
+                    zoneColor = 'text-rose-500';
+                    zoneBg = 'bg-rose-50/80';
+                } else if (dropPct <= -10) {
+                    zoneText = '觀察區間';
+                    zoneColor = 'text-amber-500';
+                    zoneBg = 'bg-amber-50/80';
+                } else {
+                    if (dropPct > 0) gaugeMarkerPos = 0; 
+                }
+
+                // 2. 核心還原：動態推算並排序「黃金分割點位列表」
                 let points = [];
                 points.push({ name: '前高', price: hp, type: 'high', date: s.highDate });
-                points.push({ name: '前低', price: lp, type: 'low', date: s.lowDate });
+                if (lp > 0) points.push({ name: '前低', price: lp, type: 'low', date: s.lowDate });
                 points.push({ name: '現價', price: currentPrice, type: 'current' });
                 points.push({ name: '個人均價', price: costPrice, type: 'cost' });
                 
-                // 推算斐波那契點位
-                if (range > 0) {
+                // 只有在同時擁有高低點區間時，才插入斐波那契切割點
+                const range = hp - lp;
+                if (lp > 0 && range > 0) {
                     points.push({ name: '0.786', price: lp + range * 0.786, type: 'fib' });
                     points.push({ name: '0.66', price: lp + range * 0.66, type: 'fib' });
                     points.push({ name: '0.618', price: lp + range * 0.618, type: 'fib' });
                     points.push({ name: '0.5', price: lp + range * 0.5, type: 'fib' });
                 }
 
-                // 依價格由高至低排序
+                // 依價格由高至低 (Descending) 嚴格排序
                 points.sort((a, b) => b.price - a.price);
 
-                // 渲染動態標尺
+                // 生成原本消失的黃金分割數字標尺 HTML
                 const rulerHTML = points.map(p => {
                     let distStr = "";
                     if (currentPrice > 0 && p.type !== 'current') {
@@ -1435,23 +1658,7 @@
                         distStr = `(${sign}${dist.toFixed(2)}%)`;
                     }
 
-                    // 日期格式化：保留年份並計算距離今天多久
-                    let dateStr = '';
-                    if (p.date) {
-                        const pDate = new Date(p.date);
-                        const today = new Date();
-                        pDate.setHours(0,0,0,0);
-                        today.setHours(0,0,0,0);
-                        const diffDays = Math.floor((today - pDate) / (1000 * 60 * 60 * 24));
-                        
-                        let agoStr = '';
-                        if (diffDays === 0) agoStr = '今天';
-                        else if (diffDays < 30) agoStr = `${diffDays}天前`;
-                        else if (diffDays < 365) agoStr = `${Math.floor(diffDays/30)}個月前`;
-                        else agoStr = `${Math.floor(diffDays/365)}年前`;
-
-                        dateStr = ` ${p.date.replace(/-/g, '/')} <span class="text-[10px] text-slate-400 font-normal ml-0.5">(${agoStr})</span>`;
-                    }
+                    let dateStr = p.date ? ` ${p.date.substring(5).replace('-', '/')}` : '';
 
                     if (p.type === 'current') {
                         return `<div class="font-black text-slate-900 py-1.5 text-[14.5px] flex items-center gap-1.5">
@@ -1462,7 +1669,7 @@
                     }
 
                     let colorClass = "text-slate-500";
-                    let nameColorClass = "text-slate-500";
+                    let nameColorClass = "text-slate-400 font-medium";
                     
                     if (p.type === 'cost') { colorClass = "text-blue-600 font-bold"; nameColorClass = "text-blue-600"; }
                     if (p.type === 'high') { colorClass = "text-red-500 font-bold"; nameColorClass = "text-red-500"; }
@@ -1476,15 +1683,49 @@
                     </div>`;
                 }).join('');
 
+                const todayStr = new Date().toISOString().split('T')[0];
+                const dropSign = dropPct > 0 ? '+' : '';
+
                 return `
-                <div class="glass-card p-6 transition-all hover:border-slate-300 relative overflow-hidden">
-                    <button onclick="openHighPointModal(${idx})" class="absolute top-4 right-4 text-slate-300 hover:text-slate-500 bg-slate-50 p-1.5 rounded-full transition-colors active:scale-95 z-10" title="編輯區間">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                    </button>
-                    
-                    <h3 class="text-lg font-black text-slate-900 mb-2 pr-8 truncate">${nameDisplay}</h3>
-                    
+                <div class="glass-card p-5 mb-5 relative overflow-hidden transition-all hover:border-slate-300">
+                    <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-xl font-black text-slate-900 tracking-wide">${nameDisplay}</h3>
+                            <span class="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">市場水位分析</span>
+                        </div>
+                        <button onclick="openHighPointModal(${idx})" class="text-[11px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm active:scale-95 transition-colors hover:bg-slate-100">⚡ 更新點位</button>
+                    </div>
+
+                    <div class="px-1 mb-5 relative">
+                        <div class="flex text-[9px] font-black text-slate-400 mb-1 px-1">
+                            <div class="w-1/3 text-left">0% (高點)</div>
+                            <div class="w-1/3 text-center">-10%</div>
+                            <div class="w-1/3 text-right">-20%↓</div>
+                        </div>
+                        <div class="relative h-5 rounded-full overflow-hidden flex shadow-inner border border-slate-100">
+                            <div class="w-1/3 bg-emerald-100/70 border-r border-white/50"></div>
+                            <div class="w-1/3 bg-amber-100/70 border-r border-white/50"></div>
+                            <div class="w-1/3 bg-rose-100/70"></div>
+                            <div class="absolute top-0 bottom-0 w-[3px] bg-slate-800 shadow-[0_0_4px_rgba(0,0,0,0.4)] z-10 transition-all duration-700 ease-out rounded-full" style="left: calc(${gaugeMarkerPos}% - 1.5px);"></div>
+                        </div>
+                        <div class="relative w-full h-4 mt-0.5">
+                            <div class="absolute text-[14px] transform -translate-x-1/2 -top-1.5 transition-all duration-700 ease-out drop-shadow-sm" style="left: ${gaugeMarkerPos}%;">🔼</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div class="${zoneBg} p-3 rounded-xl border border-white flex flex-col justify-center items-center text-center shadow-sm">
+                            <span class="text-[10px] font-bold text-slate-500 mb-0.5">目前水位狀態</span>
+                            <span class="text-sm font-black ${zoneColor}">${zoneText}</span>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col justify-center items-center text-center shadow-inner">
+                            <span class="text-[10px] font-bold text-slate-500 mb-0.5">距最高點回檔</span>
+                            <span class="text-sm font-black ${zoneColor}">${dropSign}${dropPct.toFixed(2)}%</span>
+                        </div>
+                    </div>
+
                     <div class="bg-[#F8FAFC] p-4 rounded-xl border border-slate-100 shadow-inner">
+                        <div class="text-[10px] font-black text-slate-400 mb-2 px-1 tracking-wider uppercase">斐波那契點位與相對距離</div>
                         <div class="space-y-0.5">
                             ${rulerHTML}
                         </div>
@@ -1568,7 +1809,7 @@
             updateAllData();
             document.getElementById('add-stock-form').reset();
         }
-
+        
         async function addStockSubmit(e) {
             e.preventDefault();
             const btn = document.getElementById('add-submit-btn');
@@ -1617,6 +1858,7 @@
                 return;
             }
 
+            // 精確計算手續費 (28折) 與付出總成本
             const buyValue = Math.round(shares * costPrice);
             const buyFee = Math.max(1, Math.round(buyValue * 0.001425 * 0.28));
             const paidCost = buyValue + buyFee;
@@ -1628,15 +1870,47 @@
                 return;
             }
 
+            // 新增股票包，並在此處強制預載 transactions 交易簿空間
+            const newStock = { 
+                name, 
+                symbol, 
+                shares, 
+                price: currentPrice, 
+                costPrice, 
+                paidCost, 
+                beta,
+                transactions: [] // 確保新股票有交易明細儲存空間
+            };
+
+            // MCE 核心連動：手動新增時，自動在交易簿生成一筆初始買入歷史明細
+            newStock.transactions.push({
+                id: "init_" + Date.now().toString(),
+                date: new Date().toISOString().split('T')[0], // 預設使用今天日期
+                type: 'buy',
+                price: costPrice,
+                shares: shares,
+                fee: buyFee,
+                tax: 0,
+                netAmount: paidCost
+            });
+
             const commitAddition = () => {
                 if (deductCash) {
                     state.cash -= paidCost;
                     saveState();
                 }
+                
+                // 檢查是否已有相同股票需要加權合併
+                let existing = state.stocks.find(s => s.symbol && s.symbol === newStock.symbol);
+                if (existing) {
+                    // 若存在，將本次的初始交易紀錄直接拼接到舊股票的交易簿中
+                    if (!existing.transactions) existing.transactions = [];
+                    existing.transactions.push(...newStock.transactions);
+                }
+                
                 executeMergeOrAdd(newStock);
             };
 
-            const newStock = { name, symbol, shares, price: currentPrice, costPrice, paidCost, beta };
             const isExist = state.stocks.some(s => s.symbol === symbol);
 
             if (isExist) {
@@ -1969,16 +2243,20 @@
                     dailyChangeHTML = `<span class="text-[14px] sm:text-[15px] font-black text-slate-300 tracking-tight">--</span>`;
                 }
                 
+                // MCE 整合修正：於右上角功能按鈕區加入「📝 交易」專屬點擊按鈕
                 return `
                 <div class="glass-card p-4 transition-all hover:border-slate-300 relative overflow-hidden ${opacityClass}">
                     ${isExcluded ? '<div class="absolute inset-0 z-10 flex items-center justify-center bg-white/40 backdrop-blur-[1px]"><span class="bg-slate-800 text-white px-3 py-1.5 rounded-lg font-bold text-sm shadow-md transform -rotate-12">不參與平衡</span></div>' : ''}
                     
                     <div class="flex justify-between items-center mb-3 pb-3 border-b border-slate-100">
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2 max-w-[65%]">
                             <span class="bg-slate-200 text-slate-700 text-xs px-2 py-1 rounded-md font-black shrink-0 shadow-inner">${Math.round(ratio)}%</span>
-                            <div class="font-bold text-slate-900 text-base tracking-wide">${nameDisplay} <span class="text-slate-400 text-xs font-medium ml-1">${symbolDisplay} β=${s.beta || 1}</span></div>
+                            <div class="font-bold text-slate-900 text-base tracking-wide truncate">${nameDisplay} <span class="text-slate-400 text-xs font-medium ml-1">${symbolDisplay} β=${s.beta || 1}</span></div>
                         </div>
-                        <div class="flex items-center gap-1.5 shrink-0 relative z-20">
+                        <div class="flex items-center gap-1 shrink-0 relative z-20">
+                            <button onclick="openTransactionModal(${index})" class="text-green-600 hover:text-green-800 hover:bg-green-50 p-1.5 rounded-full transition-colors" title="交易記帳">
+                                <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                            </button>
                             <button onclick="openEditModal(${index})" class="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-1.5 rounded-full transition-colors" title="編輯參數">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                             </button>
@@ -2169,7 +2447,6 @@
             actionList.innerHTML = actionsHTML;
             if (typeof populateQuickSelect === 'function') populateQuickSelect();
             if (typeof syncWeightUI === 'function') syncWeightUI(); 
-            // 同步呼叫市場水位的刷新
             if (typeof renderWaterLevel === 'function') renderWaterLevel();
         }
 
@@ -2240,6 +2517,7 @@
                 const paidCostIdx = idxPaidCost !== -1 ? idxPaidCost : 7;
 
                 const requiredLength = Math.max(nameIdx, sharesIdx, avgPriceIdx);
+                const csvImportDate = new Date().toISOString().split('T')[0]; // 匯入時建立的紀錄日期
 
                 for (let i = 1; i < lines.length; i++) {
                     const line = lines[i].trim();
@@ -2256,6 +2534,7 @@
                     
                     let paidCost = parseFloat(clean[paidCostIdx]);
                     
+                    // 若無付出成本欄位，則自動精算 28 折手續費
                     if (isNaN(paidCost)) {
                         const buyValue = Math.round(shares * costPrice);
                         const buyFee = Math.max(1, Math.round(buyValue * 0.001425 * 0.28));
@@ -2266,17 +2545,22 @@
                     const beta = name.includes('正2') ? 2 : 1; 
                     
                     if (name && !isNaN(shares) && !isNaN(costPrice)) {
-                        const newStock = { 
-                            name, 
-                            shares, 
-                            price: currentPrice, 
-                            costPrice, 
-                            paidCost, 
-                            symbol, 
-                            beta 
+                        // 重新估算手續費純淨值，供交易簿明細存查
+                        const pureBuyValue = Math.round(shares * costPrice);
+                        const calculatedFee = Math.max(1, Math.round(pureBuyValue * 0.001425 * 0.28));
+
+                        const csvTransaction = {
+                            id: "csv_" + Date.now().toString() + "_" + i,
+                            date: csvImportDate,
+                            type: 'buy',
+                            price: costPrice,
+                            shares: shares,
+                            fee: calculatedFee,
+                            tax: 0,
+                            netAmount: paidCost
                         };
-                        
-                        let existing = state.stocks.find(s => s.name === newStock.name);
+
+                        let existing = state.stocks.find(s => s.name === name);
                         if (existing) {
                             const oldShares = existing.shares;
                             const totalShares = oldShares + shares;
@@ -2293,10 +2577,26 @@
                                 existing.costPrice = ((oldShares * oldCostPrice) + (shares * costPrice)) / totalShares;
                             }
                             existing.shares = totalShares;
+
+                            // 核心連動：將本次匯入產生的買入紀錄，追加塞入已存在的股票交易簿中
+                            if (!existing.transactions) existing.transactions = [];
+                            existing.transactions.push(csvTransaction);
                         } else {
                             let isEtf = isETFOrLeveraged(symbol, name);
-                            newStock.targetWeight = isEtf ? 1 : 0;
-                            newStock.isLocked = !isEtf;
+                            
+                            const newStock = { 
+                                name, 
+                                shares, 
+                                price: currentPrice, 
+                                costPrice, 
+                                paidCost, 
+                                symbol, 
+                                beta,
+                                targetWeight: isEtf ? 1 : 0,
+                                isLocked: !isEtf,
+                                transactions: [csvTransaction] // 核心連動：全新持股直接賦予第一筆交易明細
+                            };
+                            
                             state.stocks.push(newStock);
                         }
                         processCount++;
@@ -2306,7 +2606,7 @@
                 balanceWeights(); 
                 saveState();
                 renderTargetStockWeights();
-                showToast(`成功處理匯入 ${processCount} 檔股票`);
+                showToast(`成功處理匯入 ${processCount} 檔股票並補登交易簿`);
                 try {
                     await fetchLatestPrices();
                 } catch(e){}
@@ -2321,7 +2621,6 @@
 
             reader.readAsText(file);
         }
-
         window.onload = () => {
             init();
             bindEditModalEvents();
